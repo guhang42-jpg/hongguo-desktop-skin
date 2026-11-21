@@ -7,9 +7,10 @@
 
 ## 下载
 
-- 最新版：`v1.001` → 见仓库 Releases 页
-- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.001/红果短剧-1.001-win64.zip`
-- 文件：`红果短剧-1.001-win64.zip`（约 6.6 MB，解压即用）
+- 最新版：`v1.001` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.001
+- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.001/hongguo-skin-1.001-win64.zip`
+- 文件：`hongguo-skin-1.001-win64.zip`（约 6.6 MB，解压即用）
+- SHA256：`8344FC859F0F56462C85510EC4EEE8E736E3CC0BCD66F02B13387AB4DF646F96`
 
 解压后目录长这样：
 
