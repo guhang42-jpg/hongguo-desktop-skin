@@ -22,6 +22,16 @@ core/hongguo-tv-core.exe         ← 官方数据核心，原封不动
 ui/index.html, ui/app.js, ui/icon.png
 ```
 
+## 截图
+
+| 主界面 | 成就 / 等级 |
+|---|---|
+| ![](docs/preview-home.png) | ![](docs/preview-mine.png) |
+
+| 剧场播放 |
+|---|
+| ![](docs/preview-theater.png) |
+
 ## 这版有什么
 
 界面：
