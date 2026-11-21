@@ -94,7 +94,7 @@
     background:rgba(255,176,87,.18);border:1px solid rgba(255,176,87,.4);padding:3px 7px;border-radius:9px}
 
   /* ---------- 右侧内容 ---------- */
-  .content{display:flex;flex-direction:column;min-width:0;min-height:0;padding-right:14px}
+  .content{display:flex;flex-direction:column;min-width:0;min-height:0;padding-right:26px}
   header.top{display:flex;align-items:center;gap:12px;padding:10px 12px 12px 2px;flex:none}
   .tabs{display:flex;gap:3px;padding:4px;border-radius:999px;background:rgba(255,255,255,.09);border:1px solid var(--line);backdrop-filter:blur(22px)}
   .tab{border:0;background:transparent;color:var(--muted);font-size:13.5px;font-family:inherit;padding:8px 18px;border-radius:999px;
@@ -116,7 +116,7 @@
   main::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:99px}
 
   /* 大图 hero */
-  .hero{position:relative;display:flex;align-items:center;gap:26px;height:284px;border-radius:26px;overflow:hidden;margin-bottom:26px;
+  .hero{position:relative;display:flex;align-items:center;gap:26px;height:238px;border-radius:24px;overflow:hidden;margin-bottom:18px;
     padding:0 34px;border:1px solid rgba(255,255,255,.16);box-shadow:0 26px 64px rgba(0,0,0,.42);cursor:pointer;background:#1b1e26}
   .hero .cover{position:absolute;inset:0;background-size:cover;background-position:center 22%;transform:scale(1.06);
     filter:saturate(130%) brightness(1.06);transition:transform .5s var(--ease);will-change:transform}
@@ -175,6 +175,18 @@
   .sec .rule{flex:1;height:1px;background:var(--line);transform:translateY(-4px)}
   .link{border:0;background:transparent;color:var(--muted);font-size:12.5px;font-family:inherit;cursor:pointer;padding:6px 10px;border-radius:9px}
   .link:hover{color:#fff;background:rgba(255,255,255,.1)}
+  .fold{border:0;background:transparent;color:var(--muted-2);font-size:12px;font-family:inherit;cursor:pointer;padding:5px 9px;border-radius:9px}
+  .fold:hover{color:#fff;background:rgba(255,255,255,.1)}
+
+  /* 筛选条：找剧 / 榜单共用一行 chips */
+  .fbar{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:0 2px 14px}
+  .fbar.hide{display:none}
+  .fbar .lbl{font-size:11.5px;color:var(--muted-2);margin:0 2px 0 8px}
+  .chip2{border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:var(--muted);font-size:12px;
+    font-family:inherit;padding:6px 12px;border-radius:999px;cursor:pointer;transition:all .16s var(--ease);white-space:nowrap}
+  .chip2:hover{color:#fff;border-color:rgba(255,255,255,.34);transform:translateY(-1px)}
+  .chip2.on{background:#fff;color:#15171e;font-weight:700;border-color:#fff}
+  .grid.clip{max-height:590px;overflow:hidden}
 
   /* 继续观看（横滑小卡） */
   .hrow{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 10px;scrollbar-width:none}
@@ -207,7 +219,7 @@
   .ritem span{font-size:11px;color:var(--muted-2)}
 
   /* 推荐网格 */
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(252px,1fr));gap:28px 22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:24px 20px}
   .card{cursor:pointer;transition:transform .24s var(--ease);animation:fade .36s var(--ease) both}
   .card:hover{transform:translateY(-8px)}
   .card .cov{position:relative;aspect-ratio:3/4;border-radius:var(--r);overflow:hidden;background:#1f232c;
@@ -270,14 +282,45 @@
   .smeta .sub{font-size:12.5px;color:var(--muted);line-height:1.8}
   .sdesc{margin-top:14px;font-size:12px;line-height:1.8;color:var(--muted);max-height:98px;overflow:auto}
   .sacts{display:flex;gap:10px;margin:16px 0 20px;flex-wrap:wrap}
-  .ephead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
-  .ephead span{font-size:12px;color:var(--muted-2)}
+  /* 多季切换：同一部剧的第 1/2/3 季横排，点了直接换季 */
+  .sseasons{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+  .sseasons.hide{display:none}
+  .sseason{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:7px 13px;border-radius:10px;
+    border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:var(--muted);
+    font-family:inherit;font-size:12.5px;cursor:pointer;transition:all .15s var(--ease);text-align:left}
+  .sseason b{font-size:12.5px;color:#fff;font-weight:600}
+  .sseason span{font-size:10.5px;color:var(--muted-2)}
+  .sseason:hover{background:rgba(255,255,255,.13)}
+  .sseason.on{background:rgba(255,178,90,.16);border-color:rgba(255,178,90,.55);color:#ffd7a3}
+  .sseason.on b{color:#ffd7a3}
+  .sseason.off{opacity:.45;cursor:default}
+  .ephead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}  .ephead span{font-size:12px;color:var(--muted-2)}
   .eps{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:9px}
   .ep{height:36px;border-radius:11px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:rgba(255,255,255,.86);
     font-size:12.5px;font-family:inherit;cursor:pointer;transition:all .15s var(--ease)}
   .ep:hover{background:rgba(255,255,255,.2);color:#fff}
   .ep.on{background:#fff;color:#15171e;font-weight:700}
+  .ep.seen{color:#ffc98a;border-color:rgba(255,178,90,.42)}
   .ep:disabled{opacity:.35;cursor:not-allowed}
+  /* 选集分段：10 集一段，长剧不再铺满一屏按钮 */
+  .epsegs{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:thin}
+  .epsegs.hide{display:none}
+  .epseg{flex:0 0 auto;height:30px;padding:0 12px;border-radius:9px;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.05);color:var(--muted);font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s var(--ease)}
+  .epseg:hover{background:rgba(255,255,255,.14);color:#fff}
+  .epseg.on{background:rgba(255,178,90,.18);border-color:rgba(255,178,90,.5);color:#ffd7a3;font-weight:700}
+
+  /* 榜单名次徽标 + 名次变化 */
+  .card.rnk .score{left:auto;right:10px}
+  .rkb{position:absolute;left:10px;top:10px;min-width:24px;height:24px;line-height:24px;text-align:center;padding:0 7px;
+    border-radius:8px;font-size:13px;font-weight:800;color:#fff;background:rgba(0,0,0,.66);backdrop-filter:blur(8px);
+    display:flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}
+  .rkb.t1{background:linear-gradient(135deg,#ffb64d,#ff7a3d);box-shadow:0 4px 14px rgba(255,140,60,.45)}
+  .rkb.t2{background:linear-gradient(135deg,#cfd8e6,#8fa0b8);color:#1b1f27}
+  .rkb.t3{background:linear-gradient(135deg,#d9a578,#a6754b)}
+  .rkd{font-size:10.5px;font-weight:700;padding:1px 4px;border-radius:5px}
+  .rkd.up{color:#63e2a4}
+  .rkd.dn{color:#ff8b8b}
 
   /* 全屏播放器 */
   .viewer{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;background:#0b0d12}
@@ -326,20 +369,6 @@
   .vctrl{position:absolute;bottom:0;left:0;right:0;z-index:3;padding:26px 14px 12px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.66));
     display:flex;flex-direction:column;gap:9px;transition:opacity .26s var(--ease),transform .26s var(--ease)}
   body.idle .vctrl,body.idle .vtop{opacity:0;pointer-events:none}
-  .nextcue{position:absolute;right:22px;bottom:112px;z-index:7;display:none;align-items:center;gap:11px;
-    padding:9px 13px;border-radius:14px;background:rgba(12,15,22,.86);color:#fff;font-size:12.5px;
-    border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(18px);
-    box-shadow:0 18px 44px rgba(0,0,0,.55);transition:opacity .2s var(--ease),transform .2s var(--ease)}
-  .nextcue.on{display:flex;animation:ncIn .26s var(--ease)}
-  @keyframes ncIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  .nextcue .cd{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;
-    color:#191b22;background:linear-gradient(135deg,#ffc46b,#ff6b4a)}
-  .nextcue b{color:#ffd9ae}
-  .nextcue button{border:0;border-radius:8px;padding:5px 9px;font-family:inherit;font-size:12px;cursor:pointer;
-    background:rgba(255,255,255,.16);color:#fff;transition:all .15s}
-  .nextcue button:hover{background:rgba(255,255,255,.28)}
-  .nextcue button.go{background:#fff;color:#15171e;font-weight:700}
-  .nextcue button.go:hover{background:#ffe6cd}
   body.idle .vctrl{transform:translateY(10px)}
   .vline{display:flex;align-items:center;gap:10px;font-size:11px;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums}
   .vbar{flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,.24);position:relative;cursor:pointer}
@@ -348,6 +377,20 @@
   .vbtn{height:32px;min-width:32px;padding:0 10px;border-radius:9px;border:0;background:transparent;color:#fff;cursor:pointer;font-size:13px;font-family:inherit}
   .vbtn:hover{background:rgba(255,255,255,.16)}
   .vbtn.on{background:rgba(255,255,255,.9);color:#15171e;font-weight:700}
+  /* 音量：点图标弹出滑条，滑条本身也记住上次位置 */
+  .volwrap{position:relative;display:flex}
+  .volpop{position:absolute;right:0;bottom:calc(100% + 10px);display:none;align-items:center;gap:10px;
+    padding:10px 13px;border-radius:12px;background:rgba(18,20,26,.94);border:1px solid rgba(255,255,255,.14);
+    box-shadow:0 12px 30px rgba(0,0,0,.55);backdrop-filter:blur(14px);z-index:60;min-width:206px;white-space:nowrap}
+  .volpop.on{display:flex}
+  .volpop input[type=range]{-webkit-appearance:none;appearance:none;flex:1 1 auto;min-width:120px;height:4px;border-radius:3px;
+    background:linear-gradient(90deg,#ffb45a 0%,#ffb45a var(--vp,100%),rgba(255,255,255,.18) var(--vp,100%),rgba(255,255,255,.18) 100%);
+    outline:none;cursor:pointer}
+  .volpop input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+    background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.5);cursor:pointer}
+  .volmute{flex:0 0 auto;width:26px;height:26px;border-radius:8px;border:1px solid rgba(255,255,255,.16);
+    background:rgba(255,255,255,.08);color:#fff;font-size:13px;line-height:1;font-family:inherit;cursor:pointer;padding:0}
+  .volmute.on{background:#fff;color:#15171e}
   .vq{height:26px;padding:0 9px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.1);color:rgba(255,255,255,.8);
     font-size:11px;font-family:inherit;cursor:pointer}
   .vq.on{background:#fff;color:#15171e;font-weight:700;border-color:#fff}
@@ -415,7 +458,7 @@
   body.mini .vbg,body.mini .vscrim{display:none}
   body.mini .vctrl{padding:18px 10px 9px;gap:6px}
   body.mini .vrow{gap:6px}
-  body.mini #vQual,body.mini #vRetry,body.mini .dminput{display:none}
+  body.mini #vQual,body.mini #vRetry,body.mini #vRate,body.mini #vVol,body.mini .volpop,body.mini .dminput{display:none}
   body.mini .vbtn{height:28px;font-size:12px;padding:0 8px}
   body.mini .vline{font-size:10px}
   body.mini #miniExit{display:inline-block!important;background:rgba(255,255,255,.92);color:#15171e;font-weight:700}
@@ -604,6 +647,8 @@
         <button class="ic" id="accountBtn" title="我的账号">◍</button>
       </header>
 
+      <div class="fbar hide" id="fbar"></div>
+
       <main id="main">
         <section class="hero" id="hero">
           <div class="cover" id="heroCover"></div>
@@ -623,21 +668,24 @@
         </section>
 
         <div id="contSec" style="display:none">
-          <div class="sec"><h2>继续观看</h2><span class="cnt" id="contCount"></span><div class="rule"></div></div>
+          <div class="sec"><h2>继续观看</h2><span class="cnt" id="contCount"></span><div class="rule"></div>
+            <button class="fold" data-fold="cont">收起</button></div>
           <div class="hrow" id="contRow"></div>
         </div>
 
         <div id="rankSec" style="display:none">
           <div class="sec"><h2>热播榜</h2><span class="cnt">实时排行</span><div class="rule"></div>
+            <button class="fold" data-fold="rank">收起</button>
             <button class="link" id="rankMore">看完整榜单 ›</button></div>
           <div class="rrow" id="rankRow"></div>
         </div>
 
         <div class="sec">
           <h2 id="secTitle">为你推荐</h2><span class="cnt" id="secCount"></span><div class="rule"></div>
+          <button class="fold" id="gridFold">展开全部 ›</button>
           <button class="link" id="secMore">换一批 ⟳</button>
         </div>
-        <div class="grid" id="grid"></div>
+        <div class="grid clip" id="grid"></div>
         <div class="foot" id="foot"></div>
       </main>
     </div>
@@ -672,7 +720,9 @@
     <button class="btn g" id="sFav">♡ 收藏</button>
     <button class="btn g" id="sFollow">🔔 追更</button>
   </div>
+  <div class="sseasons hide" id="sSeasons"></div>
   <div class="ephead"><strong style="font-size:14px">选集</strong><span id="sEpCount"></span></div>
+  <div class="epsegs" id="sEpSegs"></div>
   <div class="eps" id="sEps"></div>
 </aside>
 
@@ -683,7 +733,6 @@
     <button class="vb" id="vBack">‹</button>
     <div class="vtitle" id="vTitle">—</div>
     <div class="grow"></div>
-    <button class="vbtn on" id="dmToggle">弹幕 开</button>
   </div>
   <div class="vstage">
     <div class="vposter" id="vPoster"></div>
@@ -693,12 +742,6 @@
     <div class="vload hide" id="vLoad"><span class="spin"></span></div>
     <div class="vpause" id="vPause"><b>❚❚</b></div>
   </div>
-  <div class="nextcue" id="nextcue">
-    <span class="cd" id="ncCd">5</span>
-    <span>即将播放 <b id="ncEp">下一集</b></span>
-    <button id="ncGo" class="go">立即</button>
-    <button id="ncCancel">取消</button>
-  </div>
   <div class="vctrl">
       <div class="vline"><span id="vCur">00:00</span><div class="vbar" id="vBar"><i id="vFill"></i></div><span id="vDur">00:00</span></div>
       <div class="vrow">
@@ -707,6 +750,14 @@
         <button class="vbtn" id="vNext">⏭</button>
         <button class="vq" id="vRetry">⟳ 重试</button>
         <div id="vQual" style="display:flex;gap:6px"></div>
+        <button class="vbtn" id="vRate" title="倍速（按 R 循环）">1.0×</button>
+        <div class="volwrap">
+          <button class="vbtn" id="vVol" title="音量（点开滑条，按 M 静音）">🔊</button>
+          <div class="volpop" id="volPop">
+            <input type="range" id="volRange" min="0" max="100" step="1" value="100" title="拖动调音量">
+            <button class="volmute" id="volMute" title="静音 / 恢复">🔇</button>
+          </div>
+        </div>
         <div class="dminput"><input id="dmText" placeholder="发条弹幕，回车发送…" maxlength="40"><button class="dmsend" id="dmSend">发送</button></div>
         <button class="vbtn" id="vEps">选集</button>
         <button class="vbtn" id="vFull" title="全屏（双击画面或按 F 也可）">⛶</button>

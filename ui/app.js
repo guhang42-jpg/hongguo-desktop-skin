@@ -8,8 +8,41 @@
   var S = {
     view: "home", tab: "recommend", items: [], offset: 0, next: 0, hasMore: false, loading: false,
     hero: null, active: null, detail: null, vids: [], epIndex: 0, playInfo: null, quality: "",
-    danmaku: [], dmIdx: 0, dmOn: true, account: null, library: null, q: "", fs: false, mini: false, fit: "contain"
+    danmaku: [], dmIdx: 0, dmOn: true, account: null, library: null, q: "", fs: false, mini: false, fit: "contain",
+    fitManual: false, prevFitFs: null, fsFromMini: false,
+    filterTag: "", filterEps: "all", sort: "default", collapsed: { cont: false, rank: true }, gridOpen: false,
+    resumeAt: 0, epTotal: 0, epSeg: 0, rate: 1, vol: 1
   };
+
+  /* ---------- 本地一处小记忆：续播点 / 音量 / 倍速 / 上次榜单名次 ---------- */
+  var LS = {
+    get: function (k, def) { try { var v = localStorage.getItem(k); return v == null ? def : JSON.parse(v); } catch (e) { return def; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
+  };
+  var RESUME = LS.get("hg_resume_v1", {}) || {};
+  function resumeKey(sid, ep) { return String(sid) + "|" + String(ep); }
+  /* 只有"看了一会儿、又没看完"的集才值得续播；刚开就退、或已经到尾部，都按从头来 */
+  function resumeOf(sid, ep) {
+    if (!sid) return 0;
+    var r = RESUME[resumeKey(sid, ep)];
+    if (!r || !r.t || r.t < 5) return 0;
+    if (r.d && r.t > r.d - 6) return 0;
+    return r.t;
+  }
+  function trimResume() {
+    var keys = Object.keys(RESUME);
+    if (keys.length <= 240) return;
+    keys.sort(function (a, b) { return (RESUME[a].at || 0) - (RESUME[b].at || 0); });
+    keys.slice(0, keys.length - 240).forEach(function (k) { delete RESUME[k]; });
+  }
+  function saveResume() {
+    if (!S.active || !S.active.series_id) return;
+    var t = video.currentTime || 0, d = video.duration || 0;
+    if (!t || t < 1) return;
+    RESUME[resumeKey(S.active.series_id, S.epIndex)] = { t: t, d: d || 0, at: Date.now() };
+    trimResume();
+    LS.set("hg_resume_v1", RESUME);
+  }
 
   function api(path, opts) {
     opts = opts || {};
@@ -54,7 +87,7 @@
   }
 
   /* ---------- 列表渲染 ---------- */
-  function cardEl(item, i) {
+  function cardEl(item, i, rank, snapMap) {
     var el = document.createElement("div");
     el.className = "card";
     el.style.animationDelay = Math.min(i, 12) * 26 + "ms";
@@ -66,6 +99,23 @@
         (item.score ? '<div class="score">★ ' + item.score + '</div>' : "") +
         (item.episode_count ? '<div class="badge">全 ' + item.episode_count + ' 集</div>' : "") +
       '</div><h3></h3><p></p>';
+    if (rank) {
+      el.classList.add("rnk");
+      var rb = document.createElement("div");
+      rb.className = "rkb" + (rank <= 3 ? " t" + rank : "");
+      rb.textContent = rank;
+      el.querySelector(".cov").appendChild(rb);
+      /* 名次变化只跟"上次在这个榜/这个视角看到的顺序"比，是真实差值，不是编的 */
+      if (snapMap) {
+        var old = snapMap[item.series_id];
+        if (old && old !== rank) {
+          var rk = document.createElement("div");
+          rk.className = "rkd " + (old > rank ? "up" : "dn");
+          rk.textContent = (old > rank ? "↑" : "↓") + Math.abs(old - rank);
+          rb.appendChild(rk);
+        }
+      }
+    }
     el.querySelector("h3").textContent = item.title || "未命名";
     var sub = item.tags && item.tags.length ? item.tags.slice(0, 3).join(" / ")
       : (item.play_count ? big(item.play_count) + " 次播放" : (item.intro || "").slice(0, 16));
@@ -76,10 +126,109 @@
     return el;
   }
 
-  function renderList(list, append) {
+  function renderList(list, append, snapMap) {
     var grid = $("#grid");
     if (!append) grid.innerHTML = "";
-    list.forEach(function (item, i) { grid.appendChild(cardEl(item, append ? 0 : i)); });
+    var ranked = S.view === "rank";
+    list.forEach(function (item, i) {
+      grid.appendChild(cardEl(item, ranked ? i : (append ? 0 : i), ranked ? (append ? 0 : i + 1) : 0, snapMap));
+    });
+  }
+
+  /* 榜单名次快照：每次渲染先算差值，再覆盖本榜本视角 */
+  var SNAP = LS.get("hg_rank_snap_v1", {}) || {};
+  function snapKey() { return (S.rankTab || "all") + "|" + (S.sort || "default"); }
+  function saveSnapshot(list) {
+    var k = snapKey(), map = {};
+    list.forEach(function (it, i) { map[it.series_id] = i + 1; });
+    SNAP[k] = { map: map, at: Date.now() };
+    LS.set("hg_rank_snap_v1", SNAP);
+  }
+
+  /* ---------- 本地筛选 + 排序（找剧 / 榜单共用） ---------- */
+  function matchFilter(item) {
+    if (S.filterTag && (item.tags || []).indexOf(S.filterTag) < 0) return false;
+    var eps = Number(item.episode_count) || 0;
+    if (S.filterEps === "s" && !(eps > 0 && eps <= 40)) return false;
+    if (S.filterEps === "m" && !(eps > 40 && eps <= 80)) return false;
+    if (S.filterEps === "l" && !(eps > 80)) return false;
+    return true;
+  }
+
+  function sortedItems() {
+    var list = S.items.filter(matchFilter);
+    var by = {
+      hot: function (a, b) { return (Number(b.play_count) || 0) - (Number(a.play_count) || 0); },
+      score: function (a, b) { return (parseFloat(b.score) || 0) - (parseFloat(a.score) || 0); },
+      epsAsc: function (a, b) { return (Number(a.episode_count) || 9999) - (Number(b.episode_count) || 9999); },
+      epsDesc: function (a, b) { return (Number(b.episode_count) || 0) - (Number(a.episode_count) || 0); }
+    }[S.sort];
+    return by ? list.slice().sort(by) : list;
+  }
+
+  function paintList() {
+    var list = sortedItems();
+    var isRank = S.view === "rank";
+    var oldMap = isRank ? (SNAP[snapKey()] || {}).map : null;
+    renderList(list, false, oldMap);
+    if (isRank && list.length) saveSnapshot(list);
+    if (!list.length) {
+      $("#grid").innerHTML = '<div class="empty">' + (S.items.length ? "这个筛选条件下暂时没有剧<br>换一个题材或集数试试" : "这里暂时没有内容<br>换个关键词或分类试试") + "</div>";
+    }
+    $("#secCount").textContent = S.items.length ? "共 " + list.length + " / " + S.items.length + " 部" : "";
+  }
+
+  function chips(box, label, defs, active, pick) {
+    if (label) {
+      var l = document.createElement("span");
+      l.className = "lbl"; l.textContent = label;
+      box.appendChild(l);
+    }
+    defs.forEach(function (d) {
+      var b = document.createElement("button");
+      b.className = "chip2" + (d.k === active ? " on" : "");
+      b.textContent = d.n;
+      b.onclick = function () { pick(d.k); };
+      box.appendChild(b);
+    });
+  }
+
+  function renderFilters() {
+    var bar = $("#fbar");
+    bar.innerHTML = "";
+    if (S.view === "home" || S.view === "mine") { bar.classList.add("hide"); return; }
+    bar.classList.remove("hide");
+
+    if (S.view === "category") {
+      chips(bar, "排序", [
+        { k: "default", n: "推荐" }, { k: "hot", n: "热度" }, { k: "score", n: "口碑" },
+        { k: "epsAsc", n: "集数少" }, { k: "epsDesc", n: "集数多" }
+      ], S.sort, function (k) { S.sort = k; paintList(); renderFilters(); });
+
+      chips(bar, "集数", [
+        { k: "all", n: "全部" }, { k: "s", n: "≤40 集" }, { k: "m", n: "41–80 集" }, { k: "l", n: "80 集以上" }
+      ], S.filterEps, function (k) { S.filterEps = k; paintList(); renderFilters(); });
+
+      /* 题材：直接从已加载的剧里统计标签出现次数，取最热门的 10 个 */
+      var cnt = {};
+      S.items.forEach(function (it) {
+        (it.tags || []).forEach(function (t) { if (t && t.length <= 6) cnt[t] = (cnt[t] || 0) + 1; });
+      });
+      var hot = Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; }).slice(0, 10);
+      if (hot.length) {
+        chips(bar, "题材", [{ k: "", n: "全部" }].concat(hot.map(function (t) { return { k: t, n: t }; })), S.filterTag,
+          function (k) { S.filterTag = k; paintList(); renderFilters(); });
+      }
+    } else if (S.view === "rank") {
+      chips(bar, "看哪种榜", [
+        { k: "default", n: "官方推荐序" }, { k: "hot", n: "🔥 最热播" },
+        { k: "score", n: "⭐ 口碑高" }, { k: "epsAsc", n: "短剧精选" }, { k: "epsDesc", n: "长剧专场" }
+      ], S.sort, function (k) { S.sort = k; paintList(); renderFilters(); });
+    } else if (S.view === "search") {
+      chips(bar, "排序", [
+        { k: "default", n: "相关度" }, { k: "hot", n: "热度" }, { k: "score", n: "口碑" }, { k: "epsAsc", n: "集数少" }
+      ], S.sort, function (k) { S.sort = k; paintList(); renderFilters(); });
+    }
   }
 
   function foot(text, spin) {
@@ -127,6 +276,7 @@
   }
 
   function renderContinue() {
+    if (S.view !== "home") return;      /* 其它页面不摆这两条横滑，页面才短 */
     var entries = (S.library && S.library.entries) || [];
     var hist = entries.filter(function (e) { return e.last_played_at && (e.drama || e).series_id; })
       .sort(function (a, b) { return (b.last_played_at || 0) - (a.last_played_at || 0); }).slice(0, 10);
@@ -139,7 +289,9 @@
   }
 
   function renderRank() {
+    if (S.view !== "home") return;      /* 其它页面不摆这两条横滑，页面才短 */
     api("/api/v1/lists/rank?offset=0&count=10").then(function (d) {
+      if (S.view !== "home") return;
       var items = (d && d.items) || [];
       var row = $("#rankRow");
       row.innerHTML = "";
@@ -172,7 +324,11 @@
       path = "/api/v1/category?content_type=" + (S.tab === "comic" ? "1004" : (S.tab === "real" ? "1" : "")) +
         "&offset=" + (S.offset || 0) + "&count=18";
     } else if (view === "rank") {
-      path = "/api/v1/lists/rank?offset=" + (S.offset || 0) + "&count=18";
+      /* 榜单：除"官方榜"外，都走分类接口拿全集，再由本地按热度/口碑/集数重排，真正做到分榜 */
+      path = (S.tab === "official")
+        ? "/api/v1/lists/rank?offset=" + (S.offset || 0) + "&count=18"
+        : "/api/v1/category?content_type=" + (S.tab === "comic" ? "1004" : (S.tab === "real" ? "1" : "")) +
+          "&offset=" + (S.offset || 0) + "&count=18";
     } else if (view === "search") {
       path = "/api/v1/lists/search?q=" + encodeURIComponent(S.q) + "&offset=" + (S.offset || 0) + "&count=18";
     } else {
@@ -183,18 +339,18 @@
     api(path).then(function (data) {
       var items = (data && data.items) || [];
       if (S.view !== view) return;
-      renderList(items, !!S.items.length);
+      var had = !!S.items.length;
       S.items = S.items.concat(items);
-      if (!S.items.length) {
-        $("#grid").innerHTML = '<div class="empty">这里暂时没有内容<br>换个关键词或分类试试</div>';
-      }
+      if (!had) { S.filterTag = ""; S.filterEps = "all"; S.sort = "default"; }
+      paintList();
+      renderFilters();
       if (!S.hero || reset) setHero(S.items[0]);
       if (view === "home" && reset) { renderContinue(); renderRank(); }
       S.hasMore = !!(data && (data.has_more || data.next_offset || data.next_cursor || items.length >= 12));
       S.next = (data && (data.next_offset || data.next_cursor)) || (S.next + items.length);
       S.offset = (S.offset || 0) + items.length;
-      $("#secCount").textContent = S.items.length ? "已加载 " + S.items.length + " 部" : "";
-      foot(S.hasMore ? "继续下滑加载更多" : (S.items.length ? "到底啦 · 共 " + S.items.length + " 部" : ""));
+      foot(S.hasMore ? (view === "home" && !S.gridOpen ? "下面还有 · 点「展开全部」继续" : "继续下滑加载更多")
+        : (S.items.length ? "到底啦 · 共 " + S.items.length + " 部" : ""));
       S.loading = false;
     }).catch(function (e) {
       foot("加载失败：" + e.message);
@@ -203,24 +359,28 @@
   }
 
   function switchView(view) {
+    if (window.chrome && window.chrome.webview && window.DBG) window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "switchView -> " + view }));
     $("#main").scrollTop = 0;
     var tabs = $("#tabs");
     tabs.innerHTML = "";
     var defs;
     if (view === "home") defs = [{ k: "recommend", n: "推荐" }, { k: "comic", n: "漫剧" }, { k: "real", n: "真人剧" }];
     else if (view === "category") defs = [{ k: "all", n: "全部" }, { k: "real", n: "真人短剧" }, { k: "comic", n: "漫剧 / AI 剧" }];
-    else if (view === "rank") defs = [{ k: "rank", n: "热播榜" }];
+    else if (view === "rank") defs = [{ k: "all", n: "综合榜" }, { k: "real", n: "真人剧榜" }, { k: "comic", n: "漫剧榜" }, { k: "official", n: "官方推荐榜" }];
+    else if (view === "search") defs = [{ k: "search", n: "搜索结果" }];
     else defs = [{ k: "mine", n: "我的" }];
 
     defs.forEach(function (d) {
       var b = document.createElement("button");
-      b.className = "tab" + ((view === "home" && d.k === "recommend") || (view === "category" && d.k === "all") || (view === "rank") ? " on" : "");
+      b.className = "tab" + ((view === "home" && d.k === "recommend") || (view === "category" && d.k === "all") ||
+        (view === "rank" && d.k === (S.rankTab || "all")) ? " on" : "");
       b.textContent = d.n;
       b.onclick = function () {
         if (view === "home" && d.k !== "recommend") { S.tab = d.k; S.offset = 0; S.items = []; load("category", true); markTabs(d.k); setTitle((d.k === "comic" ? "漫剧 / AI 剧" : "真人短剧")); return; }
         markTabs(d.k); S.tab = d.k;
         if (view === "home") load("home", true);
         else if (view === "category") load("category", true);
+        else if (view === "rank") { S.rankTab = d.k; S.offset = 0; S.items = []; load("rank", true); }
       };
       b.dataset.k = d.k;
       tabs.appendChild(b);
@@ -232,19 +392,52 @@
     });
 
     var isMine = view === "mine";
+    var isHome = view === "home";
     document.body.dataset.view = view;
-    if ($("#hero")) $("#hero").style.display = isMine ? "none" : "";
+    /* 只有「发现」页才需要大图 hero + 两条横滑；找剧/榜单/我的页直接铺列表，页面短一半 */
+    if ($("#hero")) $("#hero").style.display = (isMine || !isHome) ? "none" : "";
+    if ($("#contSec") && !isHome) $("#contSec").style.display = "none";
+    if ($("#rankSec") && !isHome) $("#rankSec").style.display = "none";
     if ($("#secMore")) $("#secMore").style.display = isMine ? "none" : "";
+    if ($("#gridFold")) $("#gridFold").style.display = (view === "home" && !S.gridOpen) ? "" : "none";
+    $("#grid").classList.toggle("clip", view === "home" && !S.gridOpen);
     if (isMine) {
       if ($("#contSec")) $("#contSec").style.display = "none";
       if ($("#rankSec")) $("#rankSec").style.display = "none";
+    } else if (view === "home") {
+      renderContinue(); renderRank();
+      applyFold();
     }
 
     if (view === "home") { setTitle("为你推荐"); S.offset = 0; S.next = 0; load("home", true); }
-    else if (view === "category") { setTitle("全部短剧"); S.offset = 0; load("category", true); }
-    else if (view === "rank") { if (window.GRO) GRO.flag("rank"); setTitle("热播榜"); S.offset = 0; load("rank", true); }
+    else if (view === "category") { setTitle("找剧 · 分类"); S.offset = 0; renderFilters(); load("category", true); }
+    else if (view === "rank") { if (window.GRO) GRO.flag("rank"); setTitle("榜单 · 分类排行"); S.offset = 0; renderFilters(); load("rank", true); }
     else if (view === "mine") renderMine();
   }
+
+  /* ---------- 首页分区折叠：省点滚动，一眼看全 ---------- */
+  function applyFold() {
+    var cont = $("#contSec"), rank = $("#rankSec");
+    if (cont) { cont.classList.toggle("foldIn", !!S.collapsed.cont); cont.querySelector(".hrow").style.display = S.collapsed.cont ? "none" : ""; }
+    if (rank) { rank.classList.toggle("foldIn", !!S.collapsed.rank); rank.querySelector(".rrow").style.display = S.collapsed.rank ? "none" : ""; }
+    [].forEach.call(document.querySelectorAll("[data-fold]"), function (b) {
+      var k = b.dataset.fold;
+      b.textContent = S.collapsed[k] ? "展开 ▾" : "收起 ▴";
+    });
+  }
+  [].forEach.call(document.querySelectorAll("[data-fold]"), function (b) {
+    b.onclick = function () {
+      S.collapsed[b.dataset.fold] = !S.collapsed[b.dataset.fold];
+      applyFold();
+    };
+  });
+  if ($("#gridFold")) $("#gridFold").onclick = function () {
+    S.gridOpen = true;
+    $("#grid").classList.remove("clip");
+    this.style.display = "none";
+    $("#secCount").textContent = S.items.length ? "共 " + S.items.length + " 部" : "";
+    foot(S.hasMore ? "继续下滑加载更多" : "");
+  };
 
   function markTabs(k) {
     [].forEach.call($("#tabs").children, function (x) { x.classList.toggle("on", x.dataset.k === k); });
@@ -254,6 +447,81 @@
   /* ---------- 详情 ---------- */
   var sheet = $("#sheet"), mask = $("#mask");
   function closeDetail() { mask.classList.remove("on"); sheet.classList.remove("on"); }
+
+  /* 选集按每 10 集一段折叠：96 集的剧不再铺 96 个按钮 */
+  var EP_SEG = 10;
+  function renderEpisodeGrid(total, seg) {
+    S.epTotal = total;
+    var segs = Math.max(1, Math.ceil(total / EP_SEG));
+    var cur = typeof seg === "number" ? Math.max(0, Math.min(segs - 1, seg)) : Math.floor(S.epIndex / EP_SEG);
+    S.epSeg = cur;
+    var bar = $("#sEpSegs");
+    if (bar) {
+      bar.innerHTML = "";
+      if (segs > 1) {
+        bar.classList.remove("hide");
+        for (var s = 0; s < segs; s++) {
+          var c = document.createElement("button");
+          c.className = "epseg" + (s === cur ? " on" : "");
+          c.textContent = (s * EP_SEG + 1) + "-" + Math.min(total, (s + 1) * EP_SEG);
+          c.onclick = (function (k) { return function () { renderEpisodeGrid(total, k); }; })(s);
+          bar.appendChild(c);
+        }
+      } else {
+        bar.classList.add("hide");
+      }
+    }
+    var eps = $("#sEps");
+    eps.innerHTML = "";
+    var from = cur * EP_SEG, to = Math.min(total, from + EP_SEG);
+    for (var i = from; i < to; i++) {
+      var b = document.createElement("button");
+      b.className = "ep" + (i === S.epIndex ? " on" : "");
+      b.textContent = String(i + 1);
+      b.title = "第 " + (i + 1) + " 集" + (resumeOf(S.active && S.active.series_id, i) > 4 ? "（上次看到 " + fmt(resumeOf(S.active.series_id, i)) + "）" : "");
+      b.dataset.i = i;
+      var rv = resumeOf(S.active && S.active.series_id, i);
+      if (rv > 4) b.classList.add("seen");
+      b.onclick = (function (n) { return function () { playEpisode(n); }; })(i);
+      eps.appendChild(b);
+    }
+    if (!total) eps.innerHTML = '<div class="foot" style="padding:16px 0">暂时取不到分集</div>';
+  }
+
+  /* 多季：core 的 /series/seasons 会返回这部剧的第 1..N 季，直接拿来做成换季横排 */
+  var seasonToken = 0;
+  function renderSeasonBar(list, curSid) {
+    var bar = $("#sSeasons");
+    if (!bar) return;
+    bar.innerHTML = "";
+    var seasons = (list || []).filter(function (s) { return s && s.series_id; })
+      .sort(function (a, b) { return (Number(a.season_index) || 0) - (Number(b.season_index) || 0); });
+    if (seasons.length < 2) { bar.classList.add("hide"); return; }
+    bar.classList.remove("hide");
+    seasons.forEach(function (s) {
+      var b = document.createElement("button");
+      var off = s.playable === false || !!s.upcoming || !!s.reservation_id;
+      b.className = "sseason" + (String(s.series_id) === String(curSid) ? " on" : "") + (off ? " off" : "");
+      b.innerHTML = "<b>" + (s.label || ("第 " + (s.season_index || 1) + " 季")) + "</b>" +
+        "<span>" + (off ? "未上线" : ((s.episode_count ? "全 " + s.episode_count + " 集" : "") || (s.score ? "★ " + s.score : "")) ) + "</span>";
+      if (off) b.onclick = function () { toast((s.label || "这一季") + "还没上线，先追更等通知"); };
+      else if (String(s.series_id) !== String(curSid)) {
+        b.onclick = function () { S.epIndex = 0; openDetail(s, 0); };
+      }
+      bar.appendChild(b);
+    });
+  }
+
+  function loadSeasons(item) {
+    var bar = $("#sSeasons");
+    var tok = ++seasonToken;
+    if (bar) bar.classList.add("hide");
+    api("/api/v1/series/seasons?series_id=" + encodeURIComponent(item.series_id))
+      .then(function (d) {
+        if (tok !== seasonToken) return;
+        renderSeasonBar((d && d.items) || [], item.series_id);
+      }).catch(function () { if (tok === seasonToken && bar) bar.classList.add("hide"); });
+  }
 
   function openDetail(item, idx) {
     S.active = item; S.epIndex = idx || 0;
@@ -270,7 +538,10 @@
     $("#sEpCount").textContent = "";
     $("#sFav").textContent = isFavorite(item) ? "♥ 已收藏" : "♡ 收藏";
     $("#sFollow").textContent = item.following_update || item.followed ? "🔔 已追更" : "🔔 追更";
+    var rv0 = resumeOf(item.series_id, S.epIndex);
+    $("#sPlay").textContent = rv0 > 4 ? "▶ 继续看 " + fmt(rv0) : "▶ 从头播放";
     mask.classList.add("on"); sheet.classList.add("on");
+    loadSeasons(item);
 
     api("/api/v1/series/detail?series_id=" + encodeURIComponent(item.series_id) +
       (item.content_type ? "&content_type=" + encodeURIComponent(item.content_type) : ""))
@@ -281,18 +552,8 @@
         $("#sTitle").textContent = d.title || item.title || "";
         $("#sDesc").textContent = d.intro || item.intro || "";
         $("#sEpCount").textContent = "共 " + (d.episode_count || S.vids.length) + " 集";
-        var eps = $("#sEps"); eps.innerHTML = "";
         var total = S.vids.length || (d.episode_count || 0);
-        for (var i = 0; i < total; i++) {
-          var b = document.createElement("button");
-          b.className = "ep" + (i === S.epIndex ? " on" : "");
-          b.textContent = String(i + 1);
-          b.title = "第 " + (i + 1) + " 集";
-          b.dataset.i = i;
-          b.onclick = (function (n) { return function () { playEpisode(n); }; })(i);
-          eps.appendChild(b);
-        }
-        if (!total) eps.innerHTML = '<div class="foot" style="padding:16px 0">暂时取不到分集</div>';
+        renderEpisodeGrid(total, Math.floor(S.epIndex / EP_SEG));
       }).catch(function (e) {
         $("#sEps").innerHTML = '<div class="foot" style="padding:16px 0">分集获取失败：' + e.message + "</div>";
       });
@@ -335,8 +596,12 @@
     clearNextCue();
     if (!S.vids.length) { if (S.active) openDetail(S.active, 0); return; }
     S.epIndex = Math.max(0, Math.min(i, S.vids.length - 1));
-    [...$("#sEps").children].forEach(function (b) { b.classList.toggle("on", Number(b.dataset.i) === S.epIndex); });
+    /* 用户主动点某一集：这一集看过一半就接着上次的位置，没看过就从头 */
+    S.resumeAt = resumeOf(S.active && S.active.series_id, S.epIndex);
+    if (S.epTotal) renderEpisodeGrid(S.epTotal, Math.floor(S.epIndex / EP_SEG));
+    else [...$("#sEps").children].forEach(function (b) { b.classList.toggle("on", Number(b.dataset.i) === S.epIndex); });
     openViewer();
+    if (S.resumeAt > 4) toast("接着上次的 " + fmt(S.resumeAt) + " 继续");
     if (window.GRO && S.active) GRO.episode(S.active.series_id, S.epIndex, S.quality, S.active.tags);
   }
 
@@ -349,6 +614,8 @@
     if (typeof AMB !== "undefined" && AMB) AMB.play(false);
   }
 
+  var AUTO_FS = true;   /* 打开播放默认进真全屏；想回剧场面板方式，把它改成 false */
+  var FFTEST = /[?&]ff=1/.test(location.search);   /* 联调用：每集自动跳到末尾 1.2 秒，快速验证自动接集 */
   function openViewer() {
     var d = S.detail || S.active;
     viewer.classList.add("on");
@@ -366,15 +633,27 @@
     $("#pTitle").textContent = d.title || "";
     loadStream();
     wake();
+    /* 默认直接进真·全屏自动播放（退出全屏就是剧场面板） */
+    if (AUTO_FS && !S.mini && !S.fs) {
+      setTimeout(function () {
+        if (viewer.classList.contains("on") && !S.mini && !S.fs) setFs(true);
+      }, 220);
+    }
   }
 
   var lastStreamVid = null;
-  function loadStream(qual) {
+  function loadStream(qual, seamless) {
     var d = S.active;
     var vid = S.vids[S.epIndex];
     if (!vid) return;
-    $("#vLoad").classList.remove("hide");
-    $("#vPoster").classList.remove("hide");
+    if (seamless) {
+      /* 无缝接集：不弹海报/不弹 loading，直接用同一个视频面切源 */
+      $("#vLoad").classList.add("hide");
+      $("#vPoster").classList.add("hide");
+    } else {
+      $("#vLoad").classList.remove("hide");
+      $("#vPoster").classList.remove("hide");
+    }
     var params = "series_id=" + encodeURIComponent(d.series_id) +
       "&vid=" + encodeURIComponent(vid) +
       "&episode=" + (S.epIndex + 1) +
@@ -386,12 +665,37 @@
       S.quality = data.quality || "";
       renderQuality(data);
       if (!data.path) throw new Error("这条视频暂时没有可用播放源");
-      /* 只有同一集重取流（换清晰度/重试）才续播原位置；换集必须从头播 */
+      /* 同一集重取流（换清晰度/重试）续当前位置；换集默认从头，除非用户是主动点回这一集（有续播点） */
       var sameEp = (lastStreamVid === vid);
-      var keep = sameEp ? (video.currentTime || 0) : 0;
+      var keep = sameEp ? (video.currentTime || 0) : (S.resumeAt || 0);
+      var wasResume = !sameEp && keep > 4;
+      S.resumeAt = 0;
       lastStreamVid = vid;
-      video.src = BASE + data.path;
-      if (keep > 1) {
+      if (!sameEp) {
+        /* 换集：先把旧源卸干净，否则 WebView2 有时会沿用上一集的播放位置/缓冲 */
+        try { video.pause(); } catch (e) { }
+        video.removeAttribute("src");
+        try { video.load(); } catch (e) { }
+        $("#vPoster").classList.add("hide");
+        if (!seamless) $("#vLoad").classList.remove("hide");
+      }
+      video.src = BASE + data.path + (sameEp ? "" : "#ep" + (S.epIndex + 1));
+      if (!sameEp) {
+        /* 一次到位：先归零，再（若需要）跳回续播点，避免两个 once 监听互相抢 */
+        video.addEventListener("loadedmetadata", function once3() {
+          video.removeEventListener("loadedmetadata", once3);
+          try { video.currentTime = keep > 0.5 ? keep : 0; } catch (e) { }
+          if (wasResume) toast("已续播到 " + fmt(keep));
+          if (qs.get("dbg") && window.chrome && window.chrome.webview) {
+            var seekLog = function () {
+              video.removeEventListener("seeked", seekLog);
+              window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "ep" + (S.epIndex + 1) + " seeked=" + (video.currentTime || 0).toFixed(2) }));
+            };
+            video.addEventListener("seeked", seekLog);
+          }
+        });
+      }
+      if (sameEp && keep > 1) {
         video.addEventListener("loadedmetadata", function once() {
           video.removeEventListener("loadedmetadata", once);
           try { video.currentTime = keep; } catch (e) { }
@@ -399,11 +703,22 @@
       }
       var p = video.play();
       if (p && p.catch) p.catch(function () { });
+      /* 换集瞬间浏览器会补发一次 pause（切源重置引起），会误亮中间的暂停键；延迟兜底收掉 */
+      setTimeout(function () { if (!video.paused) $("#vPause").classList.add("hide"); }, 300);
+      if (FFTEST) {
+        video.addEventListener("loadedmetadata", function ffonce() {
+          video.removeEventListener("loadedmetadata", ffonce);
+          try { video.currentTime = Math.max(0, (video.duration || 60) - 1.2); } catch (e) { }
+        });
+      }
       $("#vPlay").textContent = "❚❚";
       $("#vPause").classList.add("hide");
       $("#pSub").textContent = epLabel(S.epIndex) + (data.quality ? " · " + data.quality : "");
       loadDanmaku(vid);
       saveProgress();
+      if (qs.get("dbg") && window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "ep" + (S.epIndex + 1) + " vid=" + vid + " t0=" + (video.currentTime || 0).toFixed(2) + " seamless=" + !!seamless }));
+      }
     }).catch(function (e) {
       $("#vLoad").classList.add("hide");
       toast("取流失败：" + e.message);
@@ -464,6 +779,7 @@
     }
   }
 
+  var lastResumeSave = 0;
   video.addEventListener("timeupdate", function () {
     var d = video.duration || 0, t = video.currentTime || 0;
     $("#vCur").textContent = fmt(t); $("#vDur").textContent = fmt(d);
@@ -471,56 +787,84 @@
     $("#pCur").textContent = fmt(t); $("#pDur").textContent = fmt(d);
     $("#pFill").style.width = (d ? t / d * 100 : 0) + "%";
     tickDanmaku();
+    /* 每 4 秒落一次续播点，够细也不会太吵 */
+    var now = Date.now();
+    if (!video.paused && t > 3 && now - lastResumeSave > 4000) { lastResumeSave = now; saveResume(); }
   });
   video.addEventListener("loadeddata", function () { $("#vLoad").classList.add("hide"); $("#vPoster").classList.add("hide"); });
+  video.addEventListener("playing", function () { $("#vLoad").classList.add("hide"); $("#vPause").classList.add("hide"); });
   video.addEventListener("waiting", function () { $("#vLoad").classList.remove("hide"); });
   video.addEventListener("error", function () {
     $("#vLoad").classList.add("hide");
     toast("播放源打不开，点击⟳重试或换一集");
   });
-  video.addEventListener("play", function () { $("#vPlay").textContent = "❚❚"; $("#pPlay").textContent = "❚❚"; $("#vPause").classList.add("hide"); });
-  video.addEventListener("pause", function () { $("#vPlay").textContent = "▶"; $("#pPlay").textContent = "▶"; $("#vPause").classList.remove("hide"); });
-  /* 播完自动下一集：先给 5 秒"即将播放"提示，可立即或取消 */
+  video.addEventListener("play", function () { userPause = false; $("#vPlay").textContent = "❚❚"; $("#pPlay").textContent = "❚❚"; $("#vPause").classList.add("hide"); });
+  /* 只有用户自己按的暂停才亮中间那颗暂停键；切源/换集时浏览器补发的 pause 不算 */
+  video.addEventListener("pause", function () {
+    if (switching || !userPause) return;
+    $("#vPlay").textContent = "▶"; $("#pPlay").textContent = "▶"; $("#vPause").classList.remove("hide");
+  });
+  /* 播完直接无缝接下一集：不读秒、不重建播放器外壳，避免画面跳变 */
   var nextTimer = null;
-  function clearNextCue() {
-    if (nextTimer) { clearInterval(nextTimer); nextTimer = null; }
-    var c = $("#nextcue"); if (c) c.classList.remove("on");
+  var switching = false;
+  var userPause = false;
+  function clearNextCue() { if (nextTimer) { clearInterval(nextTimer); nextTimer = null; } }
+
+  function nextEp() {
+    if (S.epIndex >= S.vids.length - 1) { $("#vPlay").textContent = "▶"; toast("已经是最后一集了"); return; }
+    /* 自动接集永远从头播，不继承上一集的续播点 */
+    S.resumeAt = 0;
+    S.epIndex += 1;
+    var d = S.detail || S.active || {};
+    $("#vTitle").innerHTML = (d.title || "") + " <span>" + epLabel(S.epIndex) + "</span>";
+    if (S.epTotal) renderEpisodeGrid(S.epTotal, Math.floor(S.epIndex / EP_SEG));
+    else [...$("#sEps").children].forEach(function (b) { b.classList.toggle("on", Number(b.dataset.i) === S.epIndex); });
+    if (window.GRO && S.active) GRO.episode(S.active.series_id, S.epIndex, S.quality, S.active.tags);
+    switching = true;         /* 切源期间的 pause 事件不算"用户暂停" */
+    setTimeout(function () { switching = false; }, 900);
+    loadStream(null, true);   /* seamless：沿用当前播放面，不闪海报/不重排控制条 */
+    toast("正在播放 第 " + (S.epIndex + 1) + " 集");
   }
-  function startNextCue() {
-    var c = $("#nextcue"); if (!c) return;
-    $("#ncEp").textContent = "第 " + (S.epIndex + 2) + " 集";
-    var left = 5;
-    $("#ncCd").textContent = left;
-    c.classList.add("on");
-    nextTimer = setInterval(function () {
-      left--;
-      $("#ncCd").textContent = Math.max(0, left);
-      if (left <= 0) { clearNextCue(); playEpisode(S.epIndex + 1); }
-    }, 1000);
-  }
-  $("#ncCancel").onclick = function () { clearNextCue(); toast("已取消自动播放"); };
-  $("#ncGo").onclick = function () { var i = S.epIndex + 1; clearNextCue(); playEpisode(i); };
 
   video.addEventListener("ended", function () {
-    $("#vPlay").textContent = "▶";
     if (window.GRO) GRO.finish();
-    if (S.epIndex < S.vids.length - 1) startNextCue();
-    else toast("已经是最后一集了");
+    if (S.epIndex < S.vids.length - 1) nextEp();
+    else { $("#vPlay").textContent = "▶"; toast("已经是最后一集了"); }
   });
 
   $("#vBack").onclick = function () { exitFs(); closeViewer(); };
+
+  /* 全屏/小窗是两种互斥的窗口形态：切之前先把另一种收掉，否则窗口尺寸和画面会打架 */
+  function clearFsQuiet() {
+    if (!S.fs) return;
+    S.fs = false;
+    document.body.classList.remove("fs");
+    $("#vFull").textContent = "⛶";
+    if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "fs", on: false }));
+  }
+
   function setFs(on) {
+    if (on) S.fsFromMini = !!S.mini;             /* 记住是不是从小窗切过来的 */
+    if (on && S.mini) setMini(false);            /* 小窗 → 全屏：先退出小窗形态 */
     S.fs = on;
     if (on) {
       S.wasTheater = document.body.classList.contains("theater");
       document.body.classList.remove("theater");
       if (window.GRO) GRO.mode("fs");
+      if (!S.fitManual && S.fit !== "cover") {   /* 真全屏默认铺满，才谈得上沉浸 */
+        S.prevFitFs = S.fit; S.fit = "cover"; applyFit();
+      }
     } else if (S.wasTheater && viewer.classList.contains("on") && !S.mini) {
       document.body.classList.add("theater");
+      if (S.prevFitFs) { S.fit = S.prevFitFs; applyFit(); }
     }
     document.body.classList.toggle("fs", on);
     $("#vFull").textContent = on ? "⤡" : "⛶";
     if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "fs", on: on }));
+    if (!on && S.fsFromMini) {                    /* 从小窗切来的全屏，退出就回小窗，别乱跳成大窗 */
+      S.fsFromMini = false;
+      setTimeout(function () { setMini(true); }, 60);
+    }
   }
   function exitFs() { if (S.fs) setFs(false); }
   window.exitFs = exitFs;
@@ -528,8 +872,12 @@
   document.querySelectorAll(".vstage, #video, #vPause").forEach(function (el) {
     el.addEventListener("dblclick", function (e) { e.preventDefault(); setFs(!S.fs); });
   });
-  $("#vPause").onclick = function () { if (video.paused) video.play(); else video.pause(); };
-  $("#vPlay").onclick = $("#vPause").onclick;
+  function togglePlay() {
+    if (video.paused) { userPause = false; video.play(); $("#vPause").classList.add("hide"); }
+    else { userPause = true; video.pause(); }
+  }
+  $("#vPause").onclick = togglePlay;
+  $("#vPlay").onclick = togglePlay;
   $("#vPrev").onclick = function () { if (S.epIndex > 0) playEpisode(S.epIndex - 1); else toast("已经是第 1 集"); };
   $("#vNext").onclick = function () { if (S.epIndex < S.vids.length - 1) playEpisode(S.epIndex + 1); else toast("已经是最后一集"); };
   $("#vRetry").onclick = function () { loadStream(S.quality); };
@@ -540,12 +888,81 @@
     if (video.duration) video.currentTime = video.duration * p;
   };
   $("#pBar").onclick = $("#vBar").onclick;
-  $("#dmToggle").onclick = function () {
-    S.dmOn = !S.dmOn;
-    this.textContent = S.dmOn ? "弹幕 开" : "弹幕 关";
-    this.classList.toggle("on", S.dmOn);
-    if (!S.dmOn) $("#dmLayer").innerHTML = "";
+  /* ---------- 倍速 + 音量（都记住上次的选择） ---------- */
+  var RATES = [1, 1.25, 1.5, 2, 0.75];
+  function applyRate(r) {
+    if (RATES.indexOf(r) < 0) r = 1;
+    S.rate = r;
+    video.playbackRate = r;
+    var btn = $("#vRate");
+    if (btn) {
+      btn.textContent = (r === 1 ? "1.0" : String(r)) + "×";
+      btn.classList.toggle("on", r !== 1);
+    }
+    LS.set("hg_rate_v1", r);
+  }
+  function applyVol(v, mute) {
+    S.vol = Math.min(1, Math.max(0, v));
+    video.volume = S.vol;
+    video.muted = !!mute;
+    var btn = $("#vVol"), rng = $("#volRange"), rt = $("#volMute"), pop = $("#volPop");
+    if (btn) btn.textContent = (video.muted || S.vol === 0) ? "🔇" : (S.vol < 0.5 ? "🔉" : "🔊");
+    if (rng) {
+      var pct = Math.round(S.vol * 100);
+      rng.value = pct;
+      rng.style.setProperty("--vp", pct + "%");
+    }
+    if (rt) rt.classList.toggle("on", !!video.muted);
+    if (pop) pop.classList.toggle("muted", !!video.muted);
+    LS.set("hg_vol_v1", { v: S.vol, m: !!mute });
+  }
+  var rateCycle = function () { var i = RATES.indexOf(S.rate); var nx = RATES[(i + 1) % RATES.length]; applyRate(nx); toast("倍速 " + nx + "×"); };
+  $("#vRate").onclick = rateCycle;
+  /* 音量：点图标开/关滑条，滑条直接拖；右边"静音"按钮一键切 */
+  $("#vVol").onclick = function (e) {
+    e.stopPropagation();
+    var pop = $("#volPop");
+    if (pop) pop.classList.toggle("on");
   };
+  $("#volRange").addEventListener("input", function (e) {
+    applyVol(Number(e.target.value) / 100, false);
+  });
+  $("#volMute").onclick = function (e) {
+    e.stopPropagation();
+    applyVol(S.vol || 0.8, !video.muted);
+    toast(video.muted ? "已静音（点滑条恢复）" : "音量 " + Math.round(S.vol * 100) + "%");
+  };
+  document.addEventListener("click", function (e) {
+    var pop = $("#volPop");
+    if (!pop || !pop.classList.contains("on")) return;
+    if (e.target.closest(".volwrap")) return;
+    pop.classList.remove("on");
+  });
+  /* 画面里滚轮调音量，不占控制条 */
+  var volMsgAt = 0;
+  $(".vstage").addEventListener("wheel", function (e) {
+    if (!viewer.classList.contains("on")) return;
+    e.preventDefault();
+    applyVol(S.vol + (e.deltaY < 0 ? 0.05 : -0.05), false);
+    var now = Date.now();
+    if (now - volMsgAt > 400) { volMsgAt = now; toast("音量 " + Math.round(S.vol * 100) + "%"); }
+  }, { passive: false });
+  var iv = LS.get("hg_vol_v1", null);
+  applyVol(iv && typeof iv.v === "number" ? iv.v : 1, !!(iv && iv.m));
+  applyRate(LS.get("hg_rate_v1", 1));
+  video.addEventListener("volumechange", function () {
+    var btn = $("#vVol");
+    if (btn) btn.textContent = (video.muted || video.volume === 0) ? "🔇" : (video.volume < 0.5 ? "🔉" : "🔊");
+    var rt = $("#volMute");
+    if (rt) rt.classList.toggle("on", !!video.muted);
+  });
+
+  /* 弹幕开关不再占控制条，改键盘 D 切换（顶部那条"弹幕 开/关"碍眼已拿掉） */
+  function toggleDanmaku() {
+    S.dmOn = !S.dmOn;
+    if (!S.dmOn) $("#dmLayer").innerHTML = "";
+    toast(S.dmOn ? "弹幕：开" : "弹幕：关（按 D 再开）");
+  }
   $("#dmSend").onclick = sendDanmaku;
   $("#dmText").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); sendDanmaku(); } });
   function sendDanmaku() {
@@ -833,6 +1250,7 @@
   $("#main").addEventListener("scroll", function (e) {
     var el = e.currentTarget;
     if (S.loading || !S.hasMore || S.view === "mine") return;
+    if (S.view === "home" && !S.gridOpen) return;   /* 首页折叠时不再无限加载，避免页面越滚越长 */
     if (el.scrollTop + el.clientHeight > el.scrollHeight - 300) load(S.view, false);
   }, { passive: true });
 
@@ -846,6 +1264,9 @@
     }
     if ((e.key === "f" || e.key === "F") && viewer.classList.contains("on")) { e.preventDefault(); setFs(!S.fs); return; }
     if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+    if ((e.key === "d" || e.key === "D") && viewer.classList.contains("on")) { e.preventDefault(); toggleDanmaku(); return; }
+    if ((e.key === "r" || e.key === "R") && viewer.classList.contains("on")) { e.preventDefault(); rateCycle(); return; }
+    if ((e.key === "m" || e.key === "M") && viewer.classList.contains("on")) { e.preventDefault(); $("#volMute").click(); return; }
     if (e.key === " " && viewer.classList.contains("on")) { e.preventDefault(); $("#vPlay").click(); }
     if (e.key === "ArrowRight" && viewer.classList.contains("on")) $("#vNext").click();
     if (e.key === "ArrowLeft" && viewer.classList.contains("on")) $("#vPrev").click();
@@ -908,7 +1329,7 @@
     if (on) {
       prevFit = S.fit;
       S.fit = "cover"; applyFit();
-      if (S.fs) setFs(false);
+      clearFsQuiet();
       if (!viewer.classList.contains("on")) miniResume();
       wake();
       if (window.GRO) GRO.mode("mini");
@@ -968,6 +1389,7 @@
   }
   $("#fitBtn").onclick = function () { cycleFit(); };
   function cycleFit() {
+    S.fitManual = true;              /* 用户自己挑过画面模式，之后全屏不再强塞铺满 */
     S.fit = S.fit === "cover" ? "fill" : (S.fit === "fill" ? "contain" : "cover");
     applyFit();
     var btn = $("#fitBtn");
@@ -1485,20 +1907,45 @@
   window.GRO = GRO;
 
   /* 启动 */
+  window.DBG = new URLSearchParams(location.search).get("dbg") === "1";
   switchView("home");
   if (window.GRO) GRO.render();
   refreshAccount();
   loadLibrary();
   if (qs.get("mine")) setTimeout(function () { switchView("mine"); }, 1600);
+  /* 自检用：?view=cat|rank 直接切页，不播放 */
+  var vParam = qs.get("view");
+  if (vParam) setTimeout(function () { switchView(vParam === "cat" ? "category" : "rank"); }, 2000);
+  /* 自检用：?sheet=1 直接打开第一部的详情，并停在长剧的中段，验证"选集按 10 集分段" */
+  if (qs.get("sheet")) {
+    var sw = setInterval(function () {
+      if (!S.items.length) return;
+      clearInterval(sw);
+      var big = qs.get("fixed")
+        ? { series_id: "7701328280862854168", title: "固定测试剧（装穷提亲）", content_type: 1, episode_count: 80 }
+        : (S.items.slice().sort(function (a, b) { return (Number(b.episode_count) || 0) - (Number(a.episode_count) || 0); })[0] || S.items[0]);
+      openDetail(big, qs.get("fixed") ? 0 : 45);
+    }, 1500);
+  }
+  if (qs.get("dbg")) setTimeout(function () {
+    var m = $("#main"), c = $(".content");
+    window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "vw=" + window.innerWidth + "x" + window.innerHeight +
+      " dpr=" + (window.devicePixelRatio || 1) + " main=" + m.clientWidth + " content=" + (c ? c.clientWidth : 0) +
+      " bodyScroll=" + document.body.scrollWidth + " grid=" + $("#grid").scrollWidth }));
+    if (qs.get("vol")) $("#volPop").classList.add("on");
+  }, 3500);
 
-  /* 自检用：?demo=1 自动打开第一部剧并播放第 1 集 */
+  /* 自检用：?demo=1 自动打开第一部剧并播放第 1 集；?fixed=1 锁定同一部剧，便于验证续播跨启动是否生效 */
   var demo = new URLSearchParams(location.search).get("demo");
   var DEMO = !!demo;
   if (demo) {
     var wait = setInterval(function () {
       if (!S.items.length) return;
       clearInterval(wait);
-      openDetail(S.items[0], 0);
+      var target = qs.get("fixed")
+        ? { series_id: "7701328280862854168", title: "固定测试剧（装穷提亲）", content_type: 1, episode_count: 80 }
+        : S.items[0];
+      openDetail(target, 0);
       var tries = 0;
       var kick = setInterval(function () {
         var epBtn = $("#sEps") ? $("#sEps").querySelector("button[data-i]") : null;
@@ -1506,12 +1953,24 @@
         if (epBtn) {
           clearInterval(kick);
           epBtn.click();
+          /* 自检是靠脚本点的，不算用户手势，WebView2 会拒 autoplay；静音就一定能播起来（只影响自检） */
+          video.muted = true;
           video.addEventListener("loadedmetadata", function () {
             var p = video.play();
-            if (p && p.catch) p.catch(function () { });
+            if (p && p.catch) p.catch(function (err) {
+              if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "autoplay blocked: " + err.message }));
+            });
           }, { once: true });
           if (new URLSearchParams(location.search).get("mini")) setTimeout(function () { setMini(true); }, 2600);
           if (new URLSearchParams(location.search).get("fs")) setTimeout(function () { setFs(true); }, 3000);
+          /* 自检用：?seq=1 依次 小窗 → 全屏 → 退出全屏 → 退出小窗，验证形态互切 */
+          if (new URLSearchParams(location.search).get("seq")) {
+            setTimeout(function () { setMini(true); }, 3000);
+            setTimeout(function () { setFs(true); }, 7000);
+            setTimeout(function () { setFs(false); }, 11000);
+            setTimeout(function () { setMini(false); }, 15000);
+          }
+          /* 自检用：?view=cat|rank 自动切到找剧页 / 榜单页（不必先播放） */
         } else if (tries > 40) clearInterval(kick);
       }, 300);
     }, 200);

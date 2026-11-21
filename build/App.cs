@@ -22,6 +22,13 @@ namespace HongguoSkin
         internal static bool Fs;
         internal static bool Mini;
         internal static bool Mine;
+        internal static bool Ff;
+        internal static bool Seq;
+        internal static string ViewArg;
+        internal static bool Dbg;
+        internal static bool Sheet;
+        internal static bool Fixed;
+        internal static bool VolProbe;
         [STAThread]
         static void Main(string[] args)
         {
@@ -29,6 +36,17 @@ namespace HongguoSkin
             Fs = args != null && Array.IndexOf(args, "--fs") >= 0;
             Mini = args != null && Array.IndexOf(args, "--mini") >= 0;
             Mine = args != null && Array.IndexOf(args, "--mine") >= 0;
+            Ff = args != null && Array.IndexOf(args, "--ff") >= 0;
+            Seq = args != null && Array.IndexOf(args, "--seq") >= 0;
+            Dbg = args != null && Array.IndexOf(args, "--dbg") >= 0;
+            Sheet = args != null && Array.IndexOf(args, "--sheet") >= 0;
+            Fixed = args != null && Array.IndexOf(args, "--fixed") >= 0;
+            VolProbe = args != null && Array.IndexOf(args, "--vol") >= 0;
+            if (args != null)
+            {
+                int vi = Array.IndexOf(args, "--view");
+                if (vi >= 0 && vi + 1 < args.Length) ViewArg = args[vi + 1];
+            }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             AppDir = Path.GetDirectoryName(Application.ExecutablePath);
@@ -91,12 +109,21 @@ namespace HongguoSkin
         private async Task StartAsync()
         {
             Log("窗口已创建");
-            bool started = await StartCoreAsync();
+            /* 固定监听端口：WebView2 的 localStorage 是按 origin 隔离的，端口一变就等于换了存储，
+               续播点/音量/倍速/榜单名次这些"本地记忆"就全丢。18797 足够偏，撞上官方 8797 的概率极低；
+               真被占用就回退到让 core 自己挑端口（这时只丢本地记忆，功能不受影响）。 */
+            bool started = await StartCoreAsync(true);
+            if (!started)
+            {
+                Log("固定端口启动失败，改用自动端口重试");
+                await Task.Delay(1200);
+                started = await StartCoreAsync(false);
+            }
             if (!started)
             {
                 Log("首次启动失败，重试一次");
                 await Task.Delay(1200);
-                started = await StartCoreAsync();
+                started = await StartCoreAsync(false);
             }
             if (!started)
             {
@@ -123,7 +150,20 @@ namespace HongguoSkin
                 web.CoreWebView2.ProcessFailed += (s, e) => Log("webview 进程异常: " + e.ProcessFailedKind);
 
                 Log("打开界面");
-                web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + (Program.Demo ? "?demo=1" + (Program.Mini ? "&mini=1" : "") + (Program.Fs ? "&fs=1" : "") + (Program.Mine ? "&mine=1" : "") : ""));
+                string extra = "";
+                if (Program.Demo) extra += "?demo=1";
+                else extra += "?launch=1";
+                if (Program.Mini) extra += "&mini=1";
+                if (Program.Fs) extra += "&fs=1";
+                if (Program.Mine) extra += "&mine=1";
+                if (Program.Ff) extra += "&ff=1";
+                if (Program.Seq) extra += "&seq=1";
+                if (Program.ViewArg != null) extra += "&view=" + Program.ViewArg;
+                if (Program.Sheet) extra += "&sheet=1";
+                if (Program.Fixed) extra += "&fixed=1";
+                if (Program.VolProbe) extra += "&vol=1";
+                if (Program.Dbg) extra += "&dbg=1";
+                web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + extra);
             }
             catch (Exception ex)
             {
@@ -133,7 +173,7 @@ namespace HongguoSkin
             }
         }
 
-        private async Task<bool> StartCoreAsync()
+        private async Task<bool> StartCoreAsync(bool fixedPort)
         {
             string coreExe = Path.Combine(Program.AppDir, "core", "hongguo-tv-core.exe");
             if (!File.Exists(coreExe))
@@ -154,6 +194,7 @@ namespace HongguoSkin
                 StandardOutputEncoding = Encoding.UTF8,
                 StandardErrorEncoding = Encoding.UTF8
             };
+            if (fixedPort) psi.Arguments = "-port 18797";
             string dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HonggoDesktop");
             psi.EnvironmentVariables["HONGGUO_TV_DATA_DIR"] = dataDir;
 
@@ -390,7 +431,19 @@ namespace HongguoSkin
             isFs = on;
             if (on)
             {
-                prevBounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
+                bool wasMini = isMini;
+                if (wasMini)
+                {
+                    /* 小窗 → 全屏：先收掉小窗形态，否则窗口尺寸和主界面会互相打架 */
+                    isMini = false;
+                    TopMost = false;
+                    Opacity = 1.0;
+                    MinimumSize = miniPrevMin;
+                    Log("全屏前退出小窗");
+                }
+                prevBounds = (wasMini && !miniPrevBounds.IsEmpty)
+                    ? miniPrevBounds
+                    : (WindowState == FormWindowState.Normal ? Bounds : RestoreBounds);
                 WindowState = FormWindowState.Normal;
                 TopMost = true;
                 Bounds = Screen.FromControl(this).Bounds;
