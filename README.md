@@ -3,15 +3,15 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.006**（2026-11-22）
+**当前版本：v1.007**（2026-11-22）
 
 ## 下载
 
-- 最新版：`v1.006` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.006
-- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.006/hongguo-skin-1.006-win64.zip`
-- 文件：`hongguo-skin-1.006-win64.zip`（约 6.6 MB，解压即用）
-- SHA256：`4A5E472186DCDAF819CA8C0F55D24D63024CE38B0ADEC9DEFDA87BCE50FF2088`
-- 上一版（v1.005）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.005
+- 最新版：`v1.007` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.007
+- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.007/hongguo-skin-1.007-win64.zip`
+- 文件：`hongguo-skin-1.007-win64.zip`（约 6.6 MB，解压即用）
+- SHA256：`2F7FFE9464F65D55919CAF3870B0477A79ABA81E01F0817F56CEBD7F475A8028`
+- 上一版（v1.006）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.006
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -117,6 +117,17 @@ ui/index.html, ui/app.js, ui/icon.png
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.007（2026-11-22）
+
+- 新增**换源**：`⇄ N/6` 一键换取流线路（720P·完整 / 720P·分段 / 540P / 480P / 360P / 1080P，均带 `fallback=1` 走备用上游接口）
+- 依据：实测每种 `quality` × `mode` × `fallback` 组合在 core 内部是独立的上游请求，生成不同的 `/minireel-proxy/media/<hash>.mp4`，所以换组合＝换实际用的源
+- 快速失败的线路**自动往下换**；等满 75 秒的不自动乱试；换成功过的线路记忆在本机，下次开局直接用
+- 失败态改成卡片：`⇄ 换个源` / `⟳ 重试`，并写明当前是第几路、什么画质
+- 缓存键加入 `mode`，换源不再互相覆盖；预取按当前线路走
+- 自检参数 `--src N`（开机直接用第 N 路）、`--fail`（模拟失败核错误态）
+
+> 换源**救不了"有声无画"**：那是 H.265 缺解码器，六条线路都是 H.265，装 `HEVC Video Extensions` 才对症。
 
 ### v1.006（2026-11-22）
 

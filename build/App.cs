@@ -34,6 +34,8 @@ namespace HongguoSkin
         internal static bool Mask;
         internal static bool Slow;
         internal static bool Tip;
+        internal static string SrcArg;
+        internal static bool Fail;
         [STAThread]
         static void Main(string[] args)
         {
@@ -52,6 +54,12 @@ namespace HongguoSkin
             Mask = args != null && Array.IndexOf(args, "--mask") >= 0;
             Slow = args != null && Array.IndexOf(args, "--slow") >= 0;
             Tip = args != null && Array.IndexOf(args, "--tip") >= 0;
+            Fail = args != null && Array.IndexOf(args, "--fail") >= 0;
+            if (args != null)
+            {
+                int si = Array.IndexOf(args, "--src");
+                if (si >= 0 && si + 1 < args.Length) SrcArg = args[si + 1];
+            }
             if (args != null)
             {
                 int vi = Array.IndexOf(args, "--view");
@@ -183,6 +191,8 @@ namespace HongguoSkin
                 if (Program.Mask) extra += "&mask=1";
                 if (Program.Slow) extra += "&slow=1";
                 if (Program.Tip) extra += "&tip=1";
+                if (Program.SrcArg != null) extra += "&src=" + Program.SrcArg;
+                if (Program.Fail) extra += "&fail=1";
                 if (Program.Dbg) extra += "&dbg=1";
                 web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + extra);
             }

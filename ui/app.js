@@ -11,7 +11,8 @@
     danmaku: [], dmIdx: 0, dmOn: true, account: null, library: null, q: "", fs: false, mini: false, fit: "contain",
     fitManual: false, prevFitFs: null, fsFromMini: false,
     filterTag: "", filterEps: "all", sort: "default", collapsed: { cont: false, rank: true }, gridOpen: false,
-    resumeAt: 0, epTotal: 0, epSeg: 0, rate: 1, vol: 1
+    resumeAt: 0, epTotal: 0, epSeg: 0, rate: 1, vol: 1,
+    src: null
   };
 
   /* ---------- 本地一处小记忆：续播点 / 音量 / 倍速 / 上次榜单名次 ---------- */
@@ -757,26 +758,63 @@
   /* ---------- 取流：前端缓存 + 并发去重 + 预取 ---------- */
   var STREAM_CACHE = {}, STREAM_PEND = {}, STREAM_MAX = 75000;   /* 实测最慢的一集 56 秒，给到 75 秒封顶 */
   var SLOW_TEST = qs.get("slow") ? 12000 : 0;   /* 自检用：?slow=1 人为把取流拖慢 12 秒，用来核对等待提示 */
-  function streamKey(d, vid, epIndex, qual) {
-    return (d && d.series_id ? d.series_id : "?") + "|" + vid + "|" + epIndex + "|" + (qual || "");
+
+  /* ---------- 换源：一条线路 = 画质 × 完整/分段 × 备用接口 ----------
+     core 没公开"多线"参数，但 quality / mode / fallback 的不同组合在它内部是
+     几条独立的取流路径（实测每种组合生成不同的 proxy 文件、走不同的上游请求）。
+     因此"换源"就按线路表依次换，哪条出画就记住哪条。 */
+  var SRC_PLAN = [
+    { q: "720P", mode: "full", tag: "高清·完整" },
+    { q: "720P", mode: "range", tag: "高清·分段" },
+    { q: "540P", mode: "full", tag: "标清·完整" },
+    { q: "480P", mode: "full", tag: "流畅·完整" },
+    { q: "360P", mode: "full", tag: "省流·完整" },
+    { q: "1080P", mode: "full", tag: "超清·完整" }
+  ];
+  function makeSrc(i) {
+    var s = SRC_PLAN[i] || SRC_PLAN[0];
+    return { q: s.q, mode: s.mode };
   }
-  function streamParams(d, vid, epIndex, qual) {
+  function srcIndex() {
+    var v = S.src;
+    if (!v) return -1;
+    for (var i = 0; i < SRC_PLAN.length; i++) {
+      if (SRC_PLAN[i].q === v.q && SRC_PLAN[i].mode === v.mode) return i;
+    }
+    return -1;
+  }
+  function paintSrc() {
+    var b = $("#vSrc"); if (!b) return;
+    var i = srcIndex();
+    var s = SRC_PLAN[i];
+    b.textContent = "⇄ " + (i >= 0 ? (i + 1) : "自") + "/" + SRC_PLAN.length;
+    b.title = "当前线路：" + (s ? s.tag : ((S.src && S.src.q) || "自动")) + " · 点一下换下一条";
+  }
+  function rememberSrc(i) {
+    if (i >= 0) LS.set("hg_src_ok", i);
+  }
+  function streamKey(d, vid, epIndex, qual, mode) {
+    return (d && d.series_id ? d.series_id : "?") + "|" + vid + "|" + epIndex + "|" + (qual || "") + "|" + (mode || "full");
+  }
+  function streamParams(d, vid, epIndex, qual, mode) {
     return "series_id=" + encodeURIComponent(d.series_id) +
       "&vid=" + encodeURIComponent(vid) +
       "&episode=" + (epIndex + 1) +
       (d.content_type ? "&content_type=" + encodeURIComponent(d.content_type) : "") +
       (qual ? "&quality=" + encodeURIComponent(qual) : "") +
-      "&mode=full";
+      "&mode=" + encodeURIComponent(mode || "full") +
+      "&fallback=1";   /* 让 core 走它的备用上游接口，这是"另一条线路"的实质 */
   }
-  function getPlayInfo(d, vid, epIndex, qual) {
-    var key = streamKey(d, vid, epIndex, qual);
+  function getPlayInfo(d, vid, epIndex, qual, mode) {
+    if (qs.get("fail")) return Promise.reject(new Error("自检：这条线路不通"));   /* 自检：核失败态与换源按钮 */
+    var key = streamKey(d, vid, epIndex, qual, mode);
     if (STREAM_CACHE[key]) {
-      dbgLog("stream cache hit ep" + (epIndex + 1));
+      dbgLog("stream cache hit ep" + (epIndex + 1) + " " + (mode || "full"));
       return Promise.resolve(STREAM_CACHE[key]);
     }
     if (STREAM_PEND[key]) return STREAM_PEND[key];
     var t0 = Date.now();
-    var p = api("/api/v1/play/info?" + streamParams(d, vid, epIndex, qual), null, STREAM_MAX)
+    var p = api("/api/v1/play/info?" + streamParams(d, vid, epIndex, qual, mode), null, STREAM_MAX)
       .then(function (data) {
         delete STREAM_PEND[key];
         if (data) STREAM_CACHE[key] = data;
@@ -815,7 +853,8 @@
     var job = prefQ.shift();
     if (!job) { prefBusy = false; return; }
     prefBusy = true;
-    getPlayInfo(job.d, job.vid, job.ep, "").catch(function () { }).then(function () {
+    var cur = S.src || makeSrc(0);
+    getPlayInfo(job.d, job.vid, job.ep, cur.q, cur.mode).catch(function () { }).then(function () {
       prefBusy = false;
       setTimeout(pumpPrefetch, 200);
     });
@@ -862,11 +901,17 @@
     var d = S.active;
     var vid = S.vids[S.epIndex];
     if (!vid) return;
+    /* 线路状态：第一次播放就用上次成功过的线路，没有就用第一条 */
+    if (!S.src) S.src = makeSrc(LS.get("hg_src_ok", 0) || 0);
+    if (qual) S.src.q = qual;
+    var q = S.src.q, mode = S.src.mode;
+    var myIdx = srcIndex();   /* 这条请求属于哪条线路，回来时按它记账（中途换源也不串） */
     if (force) {
-      /* 重试：把这一集的缓存标记清掉，重新问一次 core（core 那边若已缓存会秒回） */
-      delete STREAM_CACHE[streamKey(d, vid, S.epIndex, qual)];
-      delete STREAM_CACHE[streamKey(d, vid, S.epIndex, "")];
+      /* 重试：把这一集这条线路的缓存标记清掉，重新问一次 core（core 那边若已缓存会秒回） */
+      delete STREAM_CACHE[streamKey(d, vid, S.epIndex, q, mode)];
+      delete STREAM_CACHE[streamKey(d, vid, S.epIndex, "", mode)];
     }
+    paintSrc();
     if (seamless) {
       /* 无缝接集：不弹海报/不弹 loading，直接用同一个视频面切源 */
       showLoad(false);
@@ -875,10 +920,11 @@
       showLoad(true);
       $("#vPoster").classList.remove("hide");
     }
-    getPlayInfo(d, vid, S.epIndex, qual).then(function (data) {
+    getPlayInfo(d, vid, S.epIndex, q, mode).then(function (data) {
       S.playInfo = data;
       S.quality = data.quality || "";
       renderQuality(data);
+      rememberSrc(myIdx);   /* 这条线路真出流了，记住它，下次开局直接用 */
       if (!data.path) throw new Error("这条视频暂时没有可用播放源");
       /* 同一集重取流（换清晰度/重试）续当前位置；换集默认从头，除非用户是主动点回这一集（有续播点） */
       var sameEp = (lastStreamVid === vid);
@@ -928,7 +974,8 @@
       }
       $("#vPlay").textContent = "❚❚";
       $("#vPause").classList.add("hide");
-      $("#pSub").textContent = epLabel(S.epIndex) + (data.quality ? " · " + data.quality : "");
+      $("#pSub").textContent = epLabel(S.epIndex) + (data.quality ? " · " + data.quality : "") +
+        (S.src && S.src.mode === "range" ? " · 分段" : "");
       loadDanmaku(vid);
       saveProgress();
       /* 播起来了就顺手把下一集拉上来：这样播完自动接集不用再等（串行排队，只拉一集） */
@@ -940,9 +987,34 @@
         window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "ep" + (S.epIndex + 1) + " vid=" + vid + " t0=" + (video.currentTime || 0).toFixed(2) + " seamless=" + !!seamless }));
       }
     }).catch(function (e) {
-      showLoadError("取不到播放源：<i>" + (e && e.message ? e.message : "未知原因") + "</i><br><i>点下面的「重试」再来一次（重试会绕过这一次的等待）</i>");
-      toast("取流失败：" + (e && e.message ? e.message : "未知原因"));
+      var msg = (e && e.message ? e.message : "未知原因");
+      var waited = /等太久了|超时|timed out|aborted|abort/i.test(msg);   /* 秒错可以自动换源，等满 75 秒的自己点 */
+      var idx = srcIndex(); if (idx < 0) idx = 0;
+      var left = SRC_PLAN.length - (idx + 1);
+      if (!waited && left > 0) {
+        S.src = makeSrc(idx + 1); paintSrc();
+        toast("这条线路没出流，自动换到 " + SRC_PLAN[idx + 1].tag + "（新线路要重新取一次流）");
+        loadStream(null, false, true);
+        return;
+      }
+      showLoadError("取不到播放源：<i>" + msg + "</i><br>" +
+        "<i>现在是第 " + (idx + 1) + "/" + SRC_PLAN.length + " 路（" + SRC_PLAN[idx].tag + "）。点" +
+        "<span style=\"white-space:nowrap\">「换个源」</span>走另一条取流路径，或" +
+        "<span style=\"white-space:nowrap\">「重试」</span>再要一次。</i>");
+      $("#vPlay").textContent = "▶";
+      toast("取流失败：" + msg);
     });
+  }
+
+  /* 换到线路表的下一路（走到末尾绕回第一条） */
+  function nextSource(silent) {
+    var i = srcIndex();
+    var n = i < 0 ? 0 : (i + 1) % SRC_PLAN.length;
+    S.src = makeSrc(n);
+    paintSrc();
+    if (!silent) toast("换到线路 " + (n + 1) + "/" + SRC_PLAN.length + "：" + SRC_PLAN[n].tag +
+      " · 这条要重新取一次流，可能还得等十几秒");
+    loadStream(null, false, true);
   }
 
   function renderQuality(data) {
@@ -1108,7 +1180,10 @@
   $("#vPlay").onclick = togglePlay;
   $("#vPrev").onclick = function () { if (S.epIndex > 0) playEpisode(S.epIndex - 1); else toast("已经是第 1 集"); };
   $("#vNext").onclick = function () { if (S.epIndex < S.vids.length - 1) playEpisode(S.epIndex + 1); else toast("已经是最后一集"); };
-  $("#vRetry").onclick = function () { loadStream(S.quality, false, true); };
+  $("#vRetry").onclick = function () { loadStream(null, false, true); };
+  $("#vSrc").onclick = function () { nextSource(false); };
+  $("#vSrcGo").onclick = function () { nextSource(false); };
+  $("#vRetry2").onclick = function () { loadStream(null, false, true); };
   $("#vEps").onclick = function () { exitFs(); closeViewer(); if (S.active) openDetail(S.active, S.epIndex); };
   $("#vBar").onclick = function (e) {
     var r = e.currentTarget.getBoundingClientRect();
@@ -2297,6 +2372,10 @@
   /* 自检用：?view=cat|rank 直接切页，不播放 */
   var vParam = qs.get("view");
   if (vParam) setTimeout(function () { switchView(vParam === "cat" ? "category" : "rank"); }, 2000);
+  /* 线路：默认用上次成功的，开机自检可用 ?src=2 指定第 2 路 */
+  var srcParam = parseInt(qs.get("src"), 10);
+  S.src = makeSrc(isNaN(srcParam) ? (LS.get("hg_src_ok", 0) || 0) : Math.max(0, srcParam - 1));
+  paintSrc();
   /* 自检用：?sheet=1 直接打开第一部的详情，并停在长剧的中段，验证"选集按 10 集分段" */
   if (qs.get("sheet")) {
     var sw = setInterval(function () {

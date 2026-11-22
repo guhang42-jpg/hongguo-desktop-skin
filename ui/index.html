@@ -370,6 +370,12 @@
   .vloadmsg i{font-style:normal;color:#939bad;font-size:13.5px}
   .vload.err .spin{display:none}
   .vload.err .vloadmsg{color:#ffb2a6}
+  .vloadact{display:none;gap:10px;margin-top:2px}
+  .vload.err .vloadact{display:flex}
+  .vloadact button{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);color:#eef1f6;
+    font:500 13.5px/1 inherit;padding:10px 18px;border-radius:11px;cursor:pointer;transition:.18s}
+  .vloadact button:hover{background:rgba(255,122,85,.16);border-color:rgba(255,122,85,.5);transform:translateY(-1px)}
+  .vloadact button.pri{background:linear-gradient(135deg,#ff7a55,#ff5c3c);border-color:transparent;color:#fff}
   .vctrl{position:absolute;bottom:0;left:0;right:0;z-index:3;padding:26px 14px 12px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.66));
     display:flex;flex-direction:column;gap:9px;transition:opacity .26s var(--ease),transform .26s var(--ease)}
   body.idle .vctrl,body.idle .vtop{opacity:0;pointer-events:none}
@@ -479,7 +485,7 @@
   body.mini .vbg,body.mini .vscrim{display:none}
   body.mini .vctrl{padding:16px 9px 7px;gap:5px}
   body.mini .vrow{gap:5px}
-  body.mini #vQual,body.mini #vRetry,body.mini #vRate,body.mini #vVol,body.mini .volpop,body.mini .dminput{display:none!important}
+  body.mini #vQual,body.mini #vRetry,body.mini #vSrc,body.mini #vRate,body.mini #vVol,body.mini .volpop,body.mini .dminput{display:none!important}
   body.mini .vbtn{height:26px;font-size:11px;padding:0 7px}
   body.mini .vline{font-size:10px}
   body.mini #miniExit{display:inline-block!important;background:rgba(255,255,255,.92);color:#15171e;font-weight:700}
@@ -931,7 +937,9 @@ body.mini .hevcbar{display:none !important}
     <video id="video" playsinline webkit-playsinline preload="metadata"></video>
     <div class="vvig"></div>
     <div class="dmlayer" id="dmLayer"></div>
-    <div class="vload hide" id="vLoad"><span class="spin"></span><div class="vloadmsg" id="vLoadMsg"></div></div>
+    <div class="vload hide" id="vLoad"><span class="spin"></span><div class="vloadmsg" id="vLoadMsg"></div>
+      <div class="vloadact" id="vLoadAct"><button class="pri" id="vSrcGo">⇄ 换个源</button><button id="vRetry2">⟳ 重试</button></div>
+    </div>
     <div class="vpause" id="vPause"><b>❚❚</b></div>
   </div>
   <div class="vctrl">
@@ -941,6 +949,7 @@ body.mini .hevcbar{display:none !important}
         <button class="vbtn on" id="vPlay">❚❚</button>
         <button class="vbtn" id="vNext">⏭</button>
         <button class="vq" id="vRetry">⟳ 重试</button>
+        <button class="vq" id="vSrc" title="换一条取流线路（画质 × 完整/分段 × 备用接口）">⇄ 1/6</button>
         <div id="vQual" style="display:flex;gap:6px"></div>
         <button class="vbtn" id="vRate" title="倍速（按 R 循环）">1.0×</button>
         <div class="volwrap">
