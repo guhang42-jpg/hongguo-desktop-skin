@@ -465,6 +465,7 @@
   }
 
   function switchView(view) {
+    S.view = view;   /* 先记账：首页的异步 list 回来时靠它判断"人已经切走了"，别把 grid 覆盖回去 */
     if (window.chrome && window.chrome.webview && window.DBG) window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "switchView -> " + view }));
     $("#main").scrollTop = 0;
     var tabs = $("#tabs");
@@ -2317,12 +2318,15 @@
         $("#lvStats").innerHTML = st.map(function (x) {
           return '<span class="lstat"><small>' + x[0] + "</small><b>" + x[1] + "</b></span>";
         }).join("");
-        var got = 0;
-        $("#achGrid").innerHTML = ACH.map(function (a) {
+        var got = 0, ag = $("#achGrid");
+        if (!ag) return;   /* 首页/其它视图里没有成就墙，别在这里抛错把后面的启动代码一起带走 */
+        ag.innerHTML = ACH.map(function (a) {
           var on = !!D.ach[a.id]; if (on) got++;
-          return '<div class="ach' + (on ? " on" : "") + '" title="' + a.d + '"><i>' + a.ic + "</i><b>" + a.n + "</b><small>" + a.d + "</small></div>";
+          return '<div class="ach' + (on ? " on" : "") + '" title="' + a.d + '"><i>' + a.ic +
+            '</i><div class="tx"><b>' + a.n + "</b><small>" + a.d + "</small></div></div>";
         }).join("");
         $("#achCnt").textContent = got + " / " + ACH.length;
+        syncAchFold();
       }
     }
 
@@ -2339,10 +2343,24 @@
             '<div class="lstats" id="lvStats"></div>' +
           "</div>" +
         "</div>" +
-        '<div class="sec" style="margin:26px 0 14px"><h2 style="font-size:20px">成就墙</h2>' +
-        '<span class="cnt" id="achCnt">0 / ' + ACH.length + '</span><div class="rule"></div></div>' +
-        '<div class="achgrid" id="achGrid"></div>';
+        '<div class="sec" style="margin:18px 0 10px"><h2 style="font-size:18px">成就墙</h2>' +
+        '<span class="cnt" id="achCnt">0 / ' + ACH.length + '</span><div class="rule"></div>' +
+        '<button class="foldbtn" id="achFold">展开全部</button></div>' +
+        '<div class="achgrid fold" id="achGrid"></div>';
+      var af = el.querySelector("#achFold");
+      if (af) af.onclick = function () {
+        $("#achGrid").classList.toggle("fold");
+        syncAchFold();
+      };
       return el;
+    }
+
+    /* 折叠态只露前两排；按钮文字跟着变，省得为了找一个成就滚一整屏 */
+    function syncAchFold() {
+      var g = $("#achGrid"), b = $("#achFold");
+      if (!g || !b) return;
+      var folded = g.classList.contains("fold");
+      b.textContent = folded ? "展开全部（" + ACH.length + "）" : "收起";
     }
 
     return {
@@ -2360,6 +2378,12 @@
   if (window.DBG) { try { if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "hevc=" + (NOHEVC ? "missing" : "ok") })); } catch (e) { } }
   refreshAccount();
   loadLibrary();
+  if (qs.get("ach")) setTimeout(function () {
+    switchView("mine");
+    setTimeout(function () {
+      var f = $("#achFold") || $("#achGrid"); if (f && f.scrollIntoView) f.scrollIntoView({ block: "center" });
+    }, 1200);
+  }, 1600);
   if (qs.get("mine")) setTimeout(function () { switchView("mine"); }, 1600);
   /* 自检用：?tip=1 弹一条常驻提示（不自动消失），方便截图核灵动岛样式 */
   if (qs.get("tip")) setTimeout(function () {
@@ -2387,6 +2411,13 @@
       openDetail(big, qs.get("fixed") ? 0 : 45);
     }, 1500);
   }
+  if (qs.get("dbg")) setTimeout(function () {
+    var lv = document.querySelector(".lvwrap"), ag = $("#achGrid");
+    window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "diag view=" + S.view +
+      " gro=" + (typeof window.GRO) + " gridKids=" + ($("#grid") ? $("#grid").children.length : -1) +
+      " lvwrap=" + !!lv + " achGrid=" + !!ag + " achFold=" + !!$("#achFold") +
+      " mainTop=" + ($("#main") ? $("#main").scrollTop : -1) }));
+  }, 4000);
   if (qs.get("dbg")) setTimeout(function () {
     var m = $("#main"), c = $(".content");
     window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "vw=" + window.innerWidth + "x" + window.innerHeight +

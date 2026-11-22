@@ -3,15 +3,15 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.007**（2026-11-22）
+**当前版本：v1.008**（2026-11-22）
 
 ## 下载
 
-- 最新版：`v1.007` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.007
-- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.007/hongguo-skin-1.007-win64.zip`
-- 文件：`hongguo-skin-1.007-win64.zip`（约 6.6 MB，解压即用）
-- SHA256：`2F7FFE9464F65D55919CAF3870B0477A79ABA81E01F0817F56CEBD7F475A8028`
-- 上一版（v1.006）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.006
+- 最新版：`v1.008` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.008
+- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.008/hongguo-skin-1.008-win64.zip`
+- 文件：`hongguo-skin-1.008-win64.zip`（约 6.6 MB，解压即用）
+- SHA256：`DFBBE7708155652499FF554FF4D4790F6802FDD939E70E10DF923C123ABBC055`
+- 上一版（v1.007）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.007
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -117,6 +117,14 @@ ui/index.html, ui/app.js, ui/icon.png
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.008（2026-11-22）
+
+- 边距收窄：侧栏 236 → 216、栏内留白 16 → 8、导航行高 46 → 42；主区右留白 26 → 16、顶栏 10/12 → 8/10；剧场播放器 `left` 同步 216
+- **成就墙折叠 + 压缩**：竖排大块改横排小条（128 宽、高约 40），默认只露 16 个（8 列 × 2 行），标题行右侧 `展开全部（45）` 可展开/收起
+- 等级卡压缩：圆环 114 → 92、内边距 22 → 15、统计胶囊变小
+- 修竞态：`switchView` 先设 `S.view`，首页 `lists/recommend` 晚回来不再把「我的」页 grid 覆盖成首页列表
+- 自检 `--ach`（切我的页并滚到成就墙）+ `dbg` 里 `diag` 行
 
 ### v1.007（2026-11-22）
 

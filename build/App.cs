@@ -36,6 +36,7 @@ namespace HongguoSkin
         internal static bool Tip;
         internal static string SrcArg;
         internal static bool Fail;
+        internal static bool Ach;
         [STAThread]
         static void Main(string[] args)
         {
@@ -55,6 +56,7 @@ namespace HongguoSkin
             Slow = args != null && Array.IndexOf(args, "--slow") >= 0;
             Tip = args != null && Array.IndexOf(args, "--tip") >= 0;
             Fail = args != null && Array.IndexOf(args, "--fail") >= 0;
+            Ach = args != null && Array.IndexOf(args, "--ach") >= 0;
             if (args != null)
             {
                 int si = Array.IndexOf(args, "--src");
@@ -193,6 +195,7 @@ namespace HongguoSkin
                 if (Program.Tip) extra += "&tip=1";
                 if (Program.SrcArg != null) extra += "&src=" + Program.SrcArg;
                 if (Program.Fail) extra += "&fail=1";
+                if (Program.Ach) extra += "&ach=1";
                 if (Program.Dbg) extra += "&dbg=1";
                 web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + extra);
             }

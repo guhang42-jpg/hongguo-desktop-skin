@@ -55,11 +55,11 @@
   .wb:hover{background:rgba(255,255,255,.16);color:#fff}
   .wb.close:hover{background:#e5484d;color:#fff}
 
-  .app{flex:1;display:grid;grid-template-columns:236px minmax(0,1fr);min-height:0}
+  .app{flex:1;display:grid;grid-template-columns:216px minmax(0,1fr);min-height:0}
 
   /* ---------- 左侧栏 ---------- */
-  .side{padding:8px 16px 16px;display:flex;flex-direction:column;min-height:0}
-  .brand{display:flex;align-items:center;gap:11px;padding:10px 10px 22px}
+  .side{padding:4px 8px 10px;display:flex;flex-direction:column;min-height:0}
+  .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px}
   .brand .mark{width:40px;height:40px;border-radius:12px;overflow:hidden;padding:0;
     box-shadow:0 8px 24px rgba(255,110,80,.4)}
   .brand .mark img{width:100%;height:100%;object-fit:cover;display:block}
@@ -68,7 +68,7 @@
   .brand small{font-size:10.5px;color:var(--muted-2);letter-spacing:1.2px}
 
   .nav{display:flex;flex-direction:column;gap:4px}
-  .nav button{display:flex;align-items:center;gap:12px;height:46px;padding:0 14px;border:0;border-radius:14px;background:transparent;
+  .nav button{display:flex;align-items:center;gap:11px;height:42px;padding:0 12px;border:0;border-radius:12px;background:transparent;
     color:var(--muted);font-family:inherit;font-size:14.5px;cursor:pointer;transition:all .18s var(--ease);text-align:left}
   .nav button i{width:24px;text-align:center;font-size:15px;opacity:.85;font-style:normal}
   .nav button:hover{background:transparent;color:#fff}
@@ -94,8 +94,8 @@
     background:rgba(255,176,87,.18);border:1px solid rgba(255,176,87,.4);padding:3px 7px;border-radius:9px}
 
   /* ---------- 右侧内容 ---------- */
-  .content{display:flex;flex-direction:column;min-width:0;min-height:0;padding-right:26px}
-  header.top{display:flex;align-items:center;gap:12px;padding:10px 12px 12px 2px;flex:none}
+  .content{display:flex;flex-direction:column;min-width:0;min-height:0;padding-right:16px}
+  header.top{display:flex;align-items:center;gap:12px;padding:8px 8px 10px 0;flex:none}
   .tabs{display:flex;gap:3px;padding:4px;border-radius:999px;background:rgba(255,255,255,.09);border:1px solid var(--line);backdrop-filter:blur(22px)}
   .tab{border:0;background:transparent;color:var(--muted);font-size:13.5px;font-family:inherit;padding:8px 18px;border-radius:999px;
     cursor:pointer;transition:all .2s var(--ease);white-space:nowrap}
@@ -341,7 +341,7 @@
     background:#000;border:1px solid rgba(255,255,255,.14);box-shadow:0 30px 80px rgba(0,0,0,.6)}
 
   /* 剧场：在应用内播放，不接管整块屏幕 */
-  body.theater .viewer{left:236px;right:14px;top:92px;bottom:12px;border-radius:26px;overflow:hidden;
+  body.theater .viewer{left:216px;right:14px;top:92px;bottom:12px;border-radius:26px;overflow:hidden;
     border:1px solid rgba(255,255,255,.14);
     box-shadow:0 0 0 1px rgba(255,255,255,.06),0 0 70px -12px var(--glow1,rgba(255,150,120,.5)),0 30px 80px rgba(0,0,0,.6);
     background:#05070a}
@@ -632,45 +632,51 @@
   body[data-view="mine"] main > .sec,
   body[data-view="mine"] #secMore{display:none!important}
   .lvwrap{grid-column:1 / -1}
-  .lvcard{display:flex;align-items:center;gap:26px;padding:22px 26px;border-radius:24px;
+  .lvcard{display:flex;align-items:center;gap:18px;padding:15px 20px;border-radius:20px;
     border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(24px);
     background:linear-gradient(135deg,rgba(255,255,255,.15),rgba(255,255,255,.05));
     box-shadow:0 18px 46px rgba(0,0,0,.34)}
-  .ring{--p:0;width:114px;height:114px;flex:none;border-radius:50%;padding:5px;
+  .ring{--p:0;width:92px;height:92px;flex:none;border-radius:50%;padding:4px;
     background:conic-gradient(#ff7a55 calc(var(--p) * 1%), rgba(255,255,255,.13) 0);
     box-shadow:0 0 26px rgba(255,122,85,.28);transition:background .5s}
   .ring .ringin{width:100%;height:100%;border-radius:50%;background:rgba(18,20,26,.86);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0px;
     box-shadow:inset 0 0 22px rgba(255,122,85,.22)}
-  .ring .ringin span{font-size:35px;font-weight:900;line-height:1;color:#fff}
-  .ring .ringin small{font-size:9.5px;letter-spacing:2.4px;color:var(--muted-2)}
-  .lvmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px}
+  .ring .ringin span{font-size:28px;font-weight:900;line-height:1;color:#fff}
+  .ring .ringin small{font-size:9px;letter-spacing:2.2px;color:var(--muted-2)}
+  .lvmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
   .lvh{display:flex;align-items:baseline;gap:12px}
-  .lvh b{font-size:22px;font-weight:800;letter-spacing:.6px}
-  .lvh span{font-size:12.5px;color:var(--muted-2)}
-  .lvbar{height:9px;border-radius:99px;background:rgba(255,255,255,.11);overflow:hidden}
+  .lvh b{font-size:19px;font-weight:800;letter-spacing:.6px}
+  .lvh span{font-size:12px;color:var(--muted-2)}
+  .lvbar{height:8px;border-radius:99px;background:rgba(255,255,255,.11);overflow:hidden}
   .lvbar i{display:block;height:100%;width:0;border-radius:99px;
     background:linear-gradient(90deg,#ffc46b,#ff5f3d);box-shadow:0 0 14px rgba(255,122,85,.55);
     transition:width .5s var(--ease)}
-  .lvsub{font-size:12px;color:var(--muted-2)}
+  .lvsub{font-size:11.5px;color:var(--muted-2)}
   .lvsub b{color:#ffd166}
-  .lstats{display:flex;gap:9px;flex-wrap:wrap;margin-top:3px}
-  .lstat{display:flex;flex-direction:column;gap:2px;padding:7px 13px;border-radius:13px;
+  .lstats{display:flex;gap:7px;flex-wrap:wrap;margin-top:1px}
+  .lstat{display:flex;flex-direction:column;gap:1px;padding:5px 11px;border-radius:11px;
     background:rgba(255,255,255,.08);border:1px solid var(--line)}
-  .lstat small{font-size:10.5px;color:var(--muted-2)}
-  .lstat b{font-size:13.5px}
-  .achgrid{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fill,minmax(162px,1fr));gap:12px}
-  .ach{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 12px;border-radius:18px;text-align:center;
-    background:rgba(255,255,255,.06);border:1px solid var(--line);transition:all .22s var(--ease)}
-  .ach i{font-size:24px;font-style:normal;filter:grayscale(1);opacity:.4;transition:all .25s var(--ease)}
-  .ach b{font-size:13px;font-weight:700;color:var(--muted-2)}
-  .ach small{font-size:10.5px;color:var(--muted-2);line-height:1.45}
-  .ach:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.28)}
+  .lstat small{font-size:10px;color:var(--muted-2)}
+  .lstat b{font-size:12.5px}
+  /* 成就墙：横排小卡 + 默认只露两层，其余折叠起来，一屏先看完 */
+  .achgrid{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}
+  .ach{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:13px;text-align:left;
+    background:rgba(255,255,255,.06);border:1px solid var(--line);transition:all .22s var(--ease);min-width:0}
+  .ach .tx{min-width:0;display:flex;flex-direction:column;gap:1px}
+  .ach i{font-size:19px;font-style:normal;filter:grayscale(1);opacity:.4;transition:all .25s var(--ease);flex:none}
+  .ach b{font-size:12px;font-weight:700;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ach small{font-size:9.5px;color:var(--muted-2);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ach:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.28)}
   .ach.on{background:linear-gradient(135deg,rgba(255,176,87,.24),rgba(255,255,255,.05));
-    border-color:rgba(255,176,87,.44);box-shadow:0 12px 28px rgba(0,0,0,.28)}
+    border-color:rgba(255,176,87,.44);box-shadow:0 10px 22px rgba(0,0,0,.26)}
   .ach.on i{filter:none;opacity:1}
   .ach.on b{color:#fff}
   .ach.on small{color:rgba(255,255,255,.68)}
+  .achgrid.fold .ach:nth-child(n+17){display:none}
+  .foldbtn{border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--muted);
+    font:600 11.5px/1 inherit;padding:7px 12px;border-radius:99px;cursor:pointer;transition:.18s;margin-left:8px}
+  .foldbtn:hover{background:rgba(255,122,85,.16);border-color:rgba(255,122,85,.5);color:#fff}
 
   .gtoast{position:fixed;left:50%;bottom:112px;z-index:60;display:flex;align-items:center;gap:14px;
     padding:14px 24px 14px 16px;border-radius:18px;opacity:0;pointer-events:none;
