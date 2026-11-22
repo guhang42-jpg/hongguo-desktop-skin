@@ -647,10 +647,11 @@
     $("#sDesc").textContent = item.intro || "";
     $("#sEps").innerHTML = '<div class="foot" style="padding:16px 0"><span class="spin"></span><span>正在取分集…</span></div>';
     $("#sEpCount").textContent = "";
-    $("#sFav").textContent = isFavorite(item) ? "♥ 已收藏" : "♡ 收藏";
-    $("#sFollow").textContent = item.following_update || item.followed ? "🔔 已追更" : "🔔 追更";
+    $("#sFav").querySelector("b").textContent = isFavorite(item) ? "已藏" : "收藏";
+    $("#sFav").querySelector("i").textContent = isFavorite(item) ? "♥" : "♡";
+    $("#sFollow").querySelector("b").textContent = item.following_update || item.followed ? "已追" : "追更";
     var rv0 = resumeOf(item.series_id, S.epIndex);
-    $("#sPlay").textContent = rv0 > 4 ? "▶ 继续看 " + fmt(rv0) : "▶ 从头播放";
+    $("#sPlay").querySelector("b").textContent = rv0 > 4 ? "续看" : "播放";
     mask.classList.add("on"); sheet.classList.add("on");
     loadSeasons(item);
 
@@ -704,6 +705,12 @@
     });
   }
   function epLabel(i) { return "第 " + (i + 1) + " 集"; }
+  /* 竖排剧名一列往下走，长剧名会变成一根"字柱子"。超过 13 个字就截断，剩下的进 title 提示 */
+  function vTitleOf(d) {
+    var t = String((d && d.title) || "");
+    if (t.length <= 10) return t;
+    return '<span style="display:none">' + t + '</span>' + t.slice(0, 9) + "…";
+  }
 
   function playEpisode(i) {
     clearNextCue();
@@ -738,7 +745,7 @@
     }
     closeDetail();
     if (typeof AMB !== "undefined" && AMB) AMB.play(true);
-    $("#vTitle").innerHTML = (d.title || "") + " <span>" + epLabel(S.epIndex) + "</span>";
+    $("#vTitle").innerHTML = vTitleOf(d) + "<span>" + epLabel(S.epIndex) + "</span>";
     var cov = coverOf(d);
     $("#vPoster").style.backgroundImage = cov ? 'url("' + cov + '")' : "none";
     $("#vbg").style.backgroundImage = cov ? 'url("' + cov + '")' : "none";
@@ -1117,7 +1124,7 @@
     S.resumeAt = 0;
     S.epIndex += 1;
     var d = S.detail || S.active || {};
-    $("#vTitle").innerHTML = (d.title || "") + " <span>" + epLabel(S.epIndex) + "</span>";
+    $("#vTitle").innerHTML = vTitleOf(d) + "<span>" + epLabel(S.epIndex) + "</span>";
     if (S.epTotal) renderEpisodeGrid(S.epTotal, Math.floor(S.epIndex / EP_SEG));
     else [...$("#sEps").children].forEach(function (b) { b.classList.toggle("on", Number(b.dataset.i) === S.epIndex); });
     if (window.GRO && S.active) GRO.episode(S.active.series_id, S.epIndex, S.quality, S.active.tags);
@@ -1315,7 +1322,9 @@
     if (!item) return;
     var faved = isFavorite(item);
     changeLibrary({ action: "favorite", drama: dramaOf(item), value: !faved }).then(function () {
-      $("#sFav").textContent = faved ? "♡ 收藏" : "♥ 已收藏";
+      var sb = $("#sFav").querySelector("b"), si = $("#sFav").querySelector("i");
+      if (sb) sb.textContent = faved ? "收藏" : "已藏";
+      if (si) si.textContent = faved ? "♡" : "♥";
       toast(faved ? "已取消收藏" : "已收藏");
       if (!faved && window.GRO) GRO.fav(item.series_id);
     }).catch(function (e) { toast("收藏没保存成功：" + e.message); });
@@ -1327,7 +1336,7 @@
     api("/api/v1/follow", { json: { series_id: item.series_id, enabled: on } }).then(function () {
       item.following_update = on; item.followed = on;
       $("#heroFollow").textContent = on ? "🔔 已追更" : "♡ 追更";
-      $("#sFollow").textContent = on ? "🔔 已追更" : "🔔 追更";
+      $("#sFollow").querySelector("b").textContent = on ? "已追" : "追更";
       toast(on ? "已加入追更" : "已取消追更");
       if (on && window.GRO) GRO.follow(item.series_id);
     }).catch(function (e) { toast("追更没成功：" + e.message); });
@@ -2431,6 +2440,7 @@
   var demo = new URLSearchParams(location.search).get("demo");
   var DEMO = !!demo;
   if (demo) {
+    document.body.classList.add("vtopshow");   /* 自检截图用：全屏下把左侧竖栏强制露出 */
     var wait = setInterval(function () {
       if (!S.items.length) return;
       clearInterval(wait);

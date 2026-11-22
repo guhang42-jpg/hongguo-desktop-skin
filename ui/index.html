@@ -615,6 +615,39 @@
   .side .who .xbar{width:100%;height:2px}
   .side .who .lvt{margin:0;font-size:9px;padding:2px 6px;letter-spacing:0}
 
+  /* ---------- v1.010：播放器 / 详情页也换成竖排 ---------- */
+  /* 播放器左侧竖栏：返回 + 竖排剧名 + 集数，鼠标动才浮出来 */
+  .vtop{left:0;right:auto;top:0;width:96px;height:100%;flex-direction:column;align-items:center;
+    justify-content:flex-start;gap:16px;padding:16px 8px 24px;
+    background:linear-gradient(90deg,rgba(6,8,12,.6),rgba(6,8,12,.1) 72%,transparent)}
+  .vtitle{width:1.7em;word-break:break-all;font-size:12.5px;line-height:1.46;text-align:center;
+    color:#e9eef7;text-shadow:0 2px 12px rgba(0,0,0,.85)}
+  .vtitle span:last-child{display:block;width:80px;margin:12px 0 0 -29px;white-space:nowrap;text-align:center;
+    font-size:10.5px;line-height:1.3;color:#ffb98f}
+  body.theater .vtop{width:96px;height:100%;padding:16px 8px 24px;
+    background:linear-gradient(90deg,rgba(0,0,0,.46),transparent)}
+  body.vtopshow .vtop{opacity:1!important;pointer-events:auto}
+
+  /* 详情页：左侧竖排操作栏 + 右侧可滚内容 */
+  .sheet{display:flex;padding:0;overflow:hidden;width:min(556px,94vw)}
+  .srail{width:80px;flex:none;display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 6px;
+    border-right:1px solid rgba(255,255,255,.1);
+    background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.012))}
+  .srail .sr{width:100%;min-height:76px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+    border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.06);color:var(--muted);
+    font-family:inherit;cursor:pointer;transition:all .2s var(--ease)}
+  .srail .sr i{font-style:normal;font-size:16px;line-height:1}
+  .srail .sr b{font-size:12.5px;width:1em;word-break:break-all;line-height:1.45;text-align:center;font-weight:600}
+  .srail .sr:hover{background:rgba(255,255,255,.15);color:#fff;transform:translateY(-1px)}
+  .srail .sr.p{background:linear-gradient(180deg,rgba(255,122,85,.34),rgba(255,122,85,.14));
+    border-color:rgba(255,122,85,.5);color:#fff;box-shadow:0 10px 24px -14px rgba(255,122,85,.9)}
+  .srail .sr.p i{color:#ffd8cb}
+  .srail .sr.x{min-height:56px;border-color:rgba(255,255,255,.08);background:transparent}
+  .srail .sr-sp{flex:1;min-height:8px}
+  .smain{flex:1;min-width:0;overflow-y:auto;padding:22px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+  .smain::-webkit-scrollbar{width:8px}
+  .smain::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:99px}
+
   /* 账号卡：流光扫过 + 头像旋转光环 + 经验条发光 */
   .who{position:relative;overflow:hidden;backdrop-filter:blur(10px);
     background:linear-gradient(135deg,rgba(255,255,255,.1),rgba(255,255,255,.025))}
@@ -959,21 +992,25 @@ body.mini .hevcbar{display:none !important}
 
 <div class="mask" id="mask"></div>
 <aside class="sheet" id="sheet">
-  <div class="shead"><span class="hint">详情 · ESC 关闭</span><button class="xb" id="sheetClose">✕</button></div>
-  <div class="sbody">
-    <img id="sCover" alt="">
-    <div class="smeta"><h3 id="sTitle"></h3><div class="sub" id="sSub"></div></div>
+  <div class="srail">
+    <button class="sr" id="sPlay"><i>▶</i><b>播放</b></button>
+    <button class="sr" id="sFav"><i>♡</i><b>收藏</b></button>
+    <button class="sr" id="sFollow"><i>🔔</i><b>追更</b></button>
+    <div class="sr-sp"></div>
+    <button class="sr x" id="sheetClose" title="关闭（ESC）"><i>✕</i><b>关闭</b></button>
   </div>
-  <div class="sdesc" id="sDesc"></div>
-  <div class="sacts">
-    <button class="btn p" id="sPlay">▶ 从头播放</button>
-    <button class="btn g" id="sFav">♡ 收藏</button>
-    <button class="btn g" id="sFollow">🔔 追更</button>
+  <div class="smain">
+    <div class="shead"><span class="hint">详情 · ESC 关闭</span></div>
+    <div class="sbody">
+      <img id="sCover" alt="">
+      <div class="smeta"><h3 id="sTitle"></h3><div class="sub" id="sSub"></div></div>
+    </div>
+    <div class="sdesc" id="sDesc"></div>
+    <div class="sseasons hide" id="sSeasons"></div>
+    <div class="ephead"><strong style="font-size:14px">选集</strong><span id="sEpCount"></span></div>
+    <div class="epsegs" id="sEpSegs"></div>
+    <div class="eps" id="sEps"></div>
   </div>
-  <div class="sseasons hide" id="sSeasons"></div>
-  <div class="ephead"><strong style="font-size:14px">选集</strong><span id="sEpCount"></span></div>
-  <div class="epsegs" id="sEpSegs"></div>
-  <div class="eps" id="sEps"></div>
 </aside>
 
 <div class="viewer" id="viewer">
@@ -982,7 +1019,6 @@ body.mini .hevcbar{display:none !important}
   <div class="vtop">
     <button class="vb" id="vBack">‹</button>
     <div class="vtitle" id="vTitle">—</div>
-    <div class="grow"></div>
   </div>
   <div class="vstage">
     <div class="vposter" id="vPoster"></div>
