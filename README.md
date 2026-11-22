@@ -3,15 +3,15 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.010**（2026-11-22）
+**当前版本：v1.011**（2026-11-23）
 
 ## 下载
 
-- 最新版：`v1.009` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.010
-- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.010/hongguo-skin-1.010-win64.zip`
-- 文件：`hongguo-skin-1.010-win64.zip`（约 6.6 MB，解压即用）
-- SHA256：`8D47F0D60D1CA8B6CDF312AB4A994EF72B7311B9532CF1789626D74AAD9602E1`
-- 上一版（v1.009）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.009
+- 最新版：`v1.011` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.011
+- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.011/hongguo-skin-1.011-win64.zip`
+- 文件：`hongguo-skin-1.011-win64.zip`（约 6.6 MB，解压即用）
+- SHA256：`D2B84E9BCFFCD2F90AEC46E891E99555C4FC844C6F20D97780D8024CC9DCEBF2`
+- 上一版（v1.010）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.010
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -46,6 +46,10 @@ ui/index.html, ui/app.js, ui/icon.png
 |---|---|
 | ![](docs/preview-theater.jpg) | ![](docs/preview-mini.jpg) |
 
+| 小果（本机剧库助理） | 问它一部剧讲什么 |
+|---|---|
+| ![](docs/preview-ai.jpg) | ![](docs/preview-ai2.jpg) |
+
 ## 这版有什么
 
 界面：
@@ -59,6 +63,7 @@ ui/index.html, ui/app.js, ui/icon.png
 - **选集按 10 集分段**：长剧不再一次铺几十个按钮，`1-10 / 11-20 …` 分段条，看过的集标成暖色
 - 整窗毛玻璃质感 + 深空底色统一，窗口边缘直角不圆润（Win11 的 DWM 圆角也关掉了）
 - 幽光 / 星空 / 流星 / 光尘动态背景，按剧的类型换配色，播放时更活跃，鼠标有视差
+- **小果**：侧栏「我的」下面一颗小球，点开是一卷往上长出来的对话气泡。查你看到哪了、按关键词或集数找剧、翻收藏、报本机记录，说「看《XX》」直接开播。**零模型、零常驻、不联网**，全部走 core 的本地接口
 
 播放：
 
@@ -118,12 +123,21 @@ ui/index.html, ui/app.js, ui/icon.png
 
 ## 更新日志
 
+### v1.011（2026-11-23）
+
+- **新增小果**（本机剧库助理）：侧栏「我的」下面一颗 52px 圆球，点开是从球往上展开的对话气泡
+- 能力：续播进度（剧名 / 第几集 / 还剩几集 / 多久前看的 + 接着看卡）、关键词找剧、按集数挑短的、推荐、收藏夹、本机记录统计、「看《XX》」直接开播
+- 实现是**规则 + 模板，零模型**：10 条正则做意图，回答里的数字全部来自 core 真实响应；没有定时器、没有轮询，关着的时候连 DOM 都不动
+- 修两处硬伤：气泡底边贴球、高度按窗口算（第一版直接顶出窗口被裁）；统计**不报总时长**——`position` 只是续播点，把 1124 部相加会得出"19686 集 / 11 小时"这种假数
+- 全屏播放、小窗模式下气泡不出现（`body.fs` / `body.mini`）
+- 自检 `--ai`（默认问"我上次看到哪了"）+ `--a "问题"`，多个问题用 `|` 隔开依次问
+
 ### v1.010（2026-11-22）
 
 - 播放器：顶部横条改成左侧 96px 竖排栏（返回 / 竖排剧名 / 集数），剧名超 10 字截断；全屏仍 hover 才浮出，剧场常驻
 - 详情页：播放 / 收藏 / 追更改成左侧竖排一列，关闭按钮挪到竖栏底部；抽屉 474 → 556 补回竖栏宽度
 - 收藏 / 追更状态改两字文案（已藏 / 已追），竖排下才立得住
-- --demo 自检会加 ody.vtopshow，全屏静止也能截到竖栏
+- --demo 自检会加 `body.vtopshow`，全屏静止也能截到竖栏
 
 ### v1.009（2026-11-22）
 

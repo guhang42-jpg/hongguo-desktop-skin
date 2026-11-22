@@ -2380,11 +2380,326 @@
   })();
   window.GRO = GRO;
 
+  /* ---------- 小果：本机剧库助理（L1 规则 + 模板，零模型、零常驻定时器） ---------- */
+  var AI = (function () {
+    var pop, ball, body, chips, input;
+    var opened = false, seeded = false, busy = false;
+    var CHIPS = ["看到哪了", "找部短的", "我收藏了啥", "能干啥"];
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+        return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c];
+      });
+    }
+    function tagText(x) {
+      var t = x && x.tags;
+      if (!t) return "";
+      var arr = Array.isArray(t) ? t : String(t).split(/[,，、\/|;；]+/);
+      return arr.map(function (s) { return String(s).trim(); }).filter(Boolean).slice(0, 2).join(" / ");
+    }
+    function down() { if (body) body.scrollTop = body.scrollHeight; }
+    function msg(html, me) {
+      var d = document.createElement("div");
+      d.className = "am" + (me ? " me" : "");
+      d.innerHTML = '<div class="bb">' + html + "</div>";
+      body.appendChild(d); down();
+      return d;
+    }
+    function typing() {
+      var d = document.createElement("div");
+      d.className = "am tp";
+      d.innerHTML = '<div class="bb"><i></i><i></i><i></i></div>';
+      body.appendChild(d); down();
+      return d;
+    }
+    function card(item, goText) {
+      var it = (item && item.drama) || item || {};
+      var d = document.createElement("div");
+      d.className = "ami";
+      var cov = coverOf(it), eps = Number(it.episode_count) || 0;
+      d.innerHTML = (cov ? '<img src="' + esc(cov) + '" loading="lazy" alt="">' : '<div class="ph"></div>') +
+        '<div class="tx"><b>' + esc(it.title || "未命名") + "</b><span>" +
+        (eps ? eps + " 集" : "") + (it.score ? " · ★" + esc(it.score) : "") +
+        (item && item._why ? " · " + esc(item._why) : "") +
+        '</span></div><div class="go">' + (goText || "看看") + "</div>";
+      d.onclick = function () { close(); openDetail(it, 0); };
+      body.appendChild(d); down();
+    }
+    function reply(html, tp) {
+      if (tp) tp.remove();
+      msg(html);
+      busy = false;
+    }
+
+    /* --- 本地数据（全部来自 core，没有一次外网请求） --- */
+    function lib(cb) {
+      if (S.library && S.library.entries) return cb(S.library);
+      api("/api/v1/library").then(function (d) {
+        S.library = d || { entries: [] };
+        if (window.GRO && GRO.seed) GRO.seed(S.library);
+        cb(S.library);
+      }).catch(function () { cb({ entries: [] }); });
+    }
+    function dOf(e) { return (e && e.drama) || e || {}; }
+    function hist(l) {
+      return (l.entries || []).filter(function (e) { return e.last_played_at; })
+        .sort(function (a, b) { return b.last_played_at - a.last_played_at; });
+    }
+    function favs(l) {
+      return (l.entries || []).filter(function (e) { return e.favorite_at; })
+        .sort(function (a, b) { return b.favorite_at - a.favorite_at; });
+    }
+    function rec(n, cb) {
+      api("/api/v1/lists/recommend?offset=0&count=" + (n || 12)).then(function (d) { cb((d && d.items) || []); })
+        .catch(function () { cb([]); });
+    }
+    function find(q, cb) {
+      api("/api/v1/lists/search?q=" + encodeURIComponent(q) + "&offset=0&count=9").then(function (d) { cb((d && d.items) || []); })
+        .catch(function () { cb([]); });
+    }
+
+    /* --- 从一句话里剥出"能拿去搜的词" --- */
+    function pick(text) {
+      var q = text.replace(/[？?。！!，,、~～""'']/g, " ")
+        .replace(/(有没有什么|有没有|有木有|帮我|给我|麻烦|请问|推荐|搜索|搜一下|搜搜|搜|查找|找|一部|几部|一部部|部|一些|那种|这种|类型|的短剧|短剧|小短剧|短的|真人剧|漫剧|电视剧|电影|剧集|看点什么|看点啥|能看|想看|要看|看看|可以看|关于|讲什么|讲的什么|讲的是|介绍|简介|是什么|内容)/g, " ")
+        .replace(/\s+/g, " ").trim();
+      for (var i = 0; i < 3; i++) q = q.replace(/[的吧呢啊吗了呀嘛]+$/, "").replace(/的$/, "").trim();
+      return q;
+    }
+
+    function handle(text) {
+      if (!body || busy) return;
+      busy = true;
+      if (chips && chips.style.display !== "none") chips.style.display = "none";   /* 说上话之后就把快捷句收掉，把高度让给对话 */
+      msg(esc(text), true);
+      var tp = typing();
+      setTimeout(function () { route(text, tp); }, 300);
+    }
+
+    function route(text, tp) {
+      var t = String(text).replace(/[\s，。！？、]/g, ""), q = pick(text);
+
+      if (/(看到哪|追到哪|上次看|继续看|没看完|接着看|看到第几|进度|上次那部|上次那个)/.test(t)) return doResume(tp);
+      if (/(收藏|我的列表|收藏夹)/.test(t)) return doFav(tp);
+      if (/(看了多少|看了几部|总共看|花了多少时间|我的记录|多少集|追了几部)/.test(t)) return doStats(tp);
+      if (/(能干什么|能干啥|会什么|会啥|你是谁|你叫什么|怎么用|帮助|你会|能帮我什么|有啥用|什么用|做什么的)/.test(t)) return doHelp(tp);
+      if (/(讲什么|讲的什么|剧情|介绍|讲的是)/.test(t) && q) return doDetail(q, tp);
+      if (/(短的|一晚上|一口气|刷完|集数少|没时间|不要太长|不长的|短一点|短些)/.test(t) && q.length < 2) return doShort(tp);
+      if (/^(看|播|打开|放)/.test(t) && q.length >= 2) return doPlay(q, tp);
+      if (/(推荐|看点啥|看点什么|有什么好看|无聊|没意思|随便|来一部|换一部|片荒)/.test(t)) return doRecommend(tp, q);
+      if (q.length >= 2) return doSearch(q, tp);
+      return reply("这句我没接住。我只会剧库那点事——<br>「我上次看到哪了」·「有没有修仙的」·「推荐 20 集以内的」<br>也可以直接说「看《XX》」。", tp);
+    }
+
+    function doResume(tp) {
+      lib(function (l) {
+        var h = hist(l);
+        if (!h.length) return reply("本机还没有观看记录。随便看一集，我就记住了。", tp);
+        var e = h[0], d = dOf(e), ep = Number(e.episode) || 1;
+        var total = Number(d.episode_count) || 0;
+        var dur = Number(e.duration) || 0, pos = Number(e.position) || 0;
+        var pct = (dur > 0 && pos > 0) ? "，这一集看到 " + Math.min(99, Math.round(pos / dur * 100)) + "%" : "";
+        var left = total ? "（全 " + total + " 集，还剩 " + Math.max(0, total - ep + 1) + " 集）" : "";
+        var when = ago(e.last_played_at);
+        reply("你上次停在 <b>《" + esc(d.title || "那部剧") + "》</b>第 " + ep + " 集" + pct +
+          (when ? "，是 " + when : "") + "。" + left + "<br>要接着看就点下面这张卡。", tp);
+        e._why = "第 " + ep + " 集";
+        card(e, "接着看");
+      });
+    }
+
+    function doFav(tp) {
+      lib(function (l) {
+        var f = favs(l);
+        if (!f.length) return reply("收藏夹是空的。详情页点一下「收藏」，我就记得了。", tp);
+        reply("收藏夹里 <b>" + f.length + " 部</b>，最近这几部：", tp);
+        f.slice(0, 2).forEach(function (e) { card(dOf(e), "看看"); });
+      });
+    }
+
+    function ago(ts) {
+      var t = Number(ts) || 0;
+      if (t > 0 && t < 1e11) t *= 1000;   /* 有的记录是秒，有的是毫秒 */
+      if (!t) return "";
+      var s = Math.max(0, Math.round((Date.now() - t) / 1000));
+      if (s < 90) return "刚刚";
+      if (s < 3600) return Math.round(s / 60) + " 分钟前";
+      if (s < 86400) return Math.round(s / 3600) + " 小时前";
+      if (s < 86400 * 30) return Math.round(s / 86400) + " 天前";
+      return Math.round(s / 86400 / 30) + " 个月前";
+    }
+
+    function doStats(tp) {
+      lib(function (l) {
+        var h = hist(l), f = favs(l);
+        /* 别把 position 相加当"观看时长"：它只是"这一集的续播点"，
+           1124 部能加出"19686 集 / 11 小时"这种一眼假的数。只报能对上的。 */
+        var live = h.filter(function (e) { return (Number(e.position) || 0) > 0; });
+        var line = "追剧记录 <b>" + h.length + " 部</b>" + (f.length ? "，收藏 " + f.length + " 部" : "") + "。";
+        if (live.length) {
+          line += "<br>有续播点、随时能接着看的是 <b>" + live.length + " 部</b>" +
+            (h[0] ? "，最近一次看是 " + ago(h[0].last_played_at) : "") + "。";
+        } else {
+          line += "<br>这台机器上还没有续播点。";
+        }
+        reply(line, tp);
+      });
+    }
+
+    function doShort(tp) {
+      rec(24, function (items) {
+        if (!items.length) return reply("推荐接口这次没回数据，等下再问我一次。", tp);
+        var pool = items.filter(function (x) { var n = Number(x.episode_count) || 0; return n > 0 && n <= 24; });
+        pool.sort(function (a, b) { return (Number(a.episode_count) || 999) - (Number(b.episode_count) || 999); });
+        if (pool.length) {
+          reply("这几部短，一晚上能刷完：", tp);
+          pool.slice(0, 2).forEach(function (x) { x._why = (Number(x.episode_count) || 0) + " 集"; card(x, "看看"); });
+          return;
+        }
+        pool = items.slice().sort(function (a, b) { return (Number(a.episode_count) || 999) - (Number(b.episode_count) || 999); });
+        var n = Number(pool[0] && pool[0].episode_count) || 0;
+        reply("这批里没有 20 集以内的。最短的是 <b>" + n + " 集的《" + esc(pool[0].title) + "》</b>——红果多数剧都 60 集往上。", tp);
+        pool.slice(0, 2).forEach(function (x, i) {
+          x._why = (Number(x.episode_count) || 0) + " 集" + (i ? "" : " · 这批里最短");
+          card(x, "看看");
+        });
+      });
+    }
+
+    function doRecommend(tp, q) {
+      if (q && q.length >= 2) return doSearch(q, tp, "按「" + esc(q) + "」找了这几部：");
+      rec(12, function (items) {
+        if (!items.length) return reply("推荐接口这次没回数据，等下再问我。", tp);
+        var seen = {};
+        hist(S.library || { entries: [] }).forEach(function (e) {
+          var d = dOf(e); seen[String(d.series_id || e.series_id)] = 1;
+        });
+        var out = items.filter(function (x) { return !seen[String(x.series_id)]; }).slice(0, 2);
+        if (!out.length) out = items.slice(0, 2);
+        reply("这次推这几部，都不在你追剧记录里：", tp);
+        out.forEach(function (x) { card(x, "看看"); });
+      });
+    }
+
+    function doSearch(q, tp, head) {
+      find(q, function (items) {
+        if (!items.length) return reply("剧库里没搜到「" + esc(q) + "」。换个说法试试——剧名里的两个字，或者「修仙」「重生」这类标签词。", tp);
+        reply(head || ("「" + esc(q) + "」这么几部："), tp);
+        items.slice(0, 2).forEach(function (x) { card(x, "看看"); });
+      });
+    }
+
+    function doDetail(q, tp) {
+      find(q, function (items) {
+        if (!items.length) return reply("剧库里没有「" + esc(q) + "」这部，名字再确认一下？", tp);
+        var x = items[0] || {};
+        var intro = String(x.intro || "").replace(/\s+/g, " ").trim();
+        var cut = intro.length > 92 ? intro.slice(0, 92) + "…" : intro;
+        var meta = [];
+        if (x.episode_count) meta.push(Number(x.episode_count) + " 集");
+        if (x.score) meta.push("★" + x.score);
+        if (tagText(x)) meta.push(tagText(x));
+        reply("<b>《" + esc(x.title) + "》</b>" + (meta.length ? " · " + esc(meta.join(" · ")) : "") + "<br>" +
+          (cut ? esc(cut) : ("这部没写简介" + (tagText(x) ? "，看标签是 " + esc(tagText(x)) + " 这类" : "") + "，点开看第一集最快。")), tp);
+        card(x, "看第一集");
+      });
+    }
+
+    function doPlay(q, tp) {
+      find(q, function (items) {
+        if (!items.length) return reply("没找到「" + esc(q) + "」。剧名对不上？换个关键词我再搜。", tp);
+        var x = items[0];
+        reply("开 <b>《" + esc(x.title) + "》</b>第 1 集。", tp);
+        setTimeout(function () { close(); playEpisodeFor(x); }, 800);
+      });
+    }
+
+    function doHelp(tp) {
+      reply("我只认这部剧库：<br>· 你看到哪了、还剩几集<br>· 按集数或关键词找剧<br>· 收藏夹、本机统计<br>· 说「看《XX》」直接给你放<br>" +
+        "<span style='color:rgba(238,242,250,.55)'>不联网、不加载模型，答案全来自 core 的本地数据。</span>", tp);
+    }
+
+    /* --- 打开 / 收起 --- */
+    function place() {
+      var b = ball.getBoundingClientRect();
+      var bottom = Math.max(10, window.innerHeight - b.top + 10);
+      var avail = window.innerHeight - bottom - 12;   /* 不留这层限制，气泡头部会被窗口上边裁掉 */
+      pop.style.bottom = bottom + "px";
+      pop.style.height = Math.max(236, Math.min(486, avail)) + "px";
+      pop.style.left = Math.max(6, b.left - 10) + "px";
+    }
+    function seed() {
+      var d = msg("我是小果，本机剧库助理——不联网，也不吃内存。");
+      lib(function (l) {
+        var h = hist(l);
+        if (!h.length) return;
+        var e = h[0], dr = dOf(e), bb = d.querySelector(".bb");
+        if (bb) {
+          bb.innerHTML += "<br>你上次停在 <b>《" + esc(dr.title || "那部剧") + "》</b>第 " + (Number(e.episode) || 1) + " 集。";
+          down();
+        }
+      });
+    }
+    function open() {
+      if (!pop || opened) return;
+      if (document.body.classList.contains("mini") || document.body.classList.contains("fs")) return;   /* 全屏/小窗下侧栏本来就不在，别让气泡浮在画面上 */
+      opened = true;
+      place();
+      pop.classList.add("on"); ball.classList.add("on");
+      if (!seeded) { seeded = true; seed(); }
+      setTimeout(function () { if (input) input.focus(); }, 320);
+    }
+    function close() {
+      if (!opened) return;
+      opened = false;
+      pop.classList.remove("on"); ball.classList.remove("on");
+    }
+    function send() {
+      var v = (input.value || "").trim();
+      if (!v) return;
+      input.value = "";
+      handle(v);
+    }
+    function boot() {
+      pop = $("#aiPop"); ball = $("#aiBall"); body = $("#aiBody"); chips = $("#aiChips"); input = $("#aiInput");
+      if (!pop || !ball) return;
+      chips.innerHTML = "";
+      CHIPS.forEach(function (c) {
+        var b = document.createElement("button");
+        b.textContent = c;
+        b.onclick = function () { handle(c); };
+        chips.appendChild(b);
+      });
+      ball.onclick = function () { opened ? close() : open(); };
+      $("#aiClose").onclick = close;
+      $("#aiSend").onclick = send;
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); send(); }
+        if (e.key === "Escape") { e.stopPropagation(); close(); }
+      });
+      window.addEventListener("resize", function () { if (opened) place(); });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && opened) close();
+      });
+    }
+    return { boot: boot, open: open, close: close, ask: handle };
+  })();
+  window.HONGUO_AI = AI;
+
   /* 启动 */
   window.DBG = new URLSearchParams(location.search).get("dbg") === "1";
   switchView("home");
   if (window.GRO) GRO.render();
   bindHevcBar();
+  AI.boot();
+  /* 自检用：?ai=1 打开小果气泡并自动问一句；?a=xxx 指定问什么（多个问题用 | 隔开，依次问） */
+  if (qs.get("ai") || qs.get("a")) setTimeout(function () {
+    AI.open();
+    var asks = (qs.get("a") || "我上次看到哪了").split("|");
+    if (qs.get("a") || qs.get("ai") === "1") asks.forEach(function (t, i) {
+      setTimeout(function () { AI.ask(t); }, 800 + i * 1800);
+    });
+  }, 2200);
   if (window.DBG) { try { if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "hevc=" + (NOHEVC ? "missing" : "ok") })); } catch (e) { } }
   refreshAccount();
   loadLibrary();
