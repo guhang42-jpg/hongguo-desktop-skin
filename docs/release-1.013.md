@@ -2,7 +2,7 @@
 
 小果以前只会认剧名、认关键字。这一版它多了一层「意思」：说「有没有那种开局很惨后来翻身的」，它能把《开局狂死，我靠送死绝境逆袭》挑出来 —— 全程不联网，不带常驻进程。
 
-![](docs/preview-sem.jpg)
+![](https://raw.githubusercontent.com/guhang42-jpg/hongguo-desktop-skin/main/docs/preview-sem.jpg)
 
 ## 两个包，你挑一个
 
