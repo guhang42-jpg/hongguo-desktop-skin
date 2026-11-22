@@ -193,26 +193,28 @@
 
   /* 卡片级预热：先要分集表，再把第 1 集（或续播那一集）的流排队 */
   var warmCache = {}, warmQ = [], warmBusy = false;
-  function warmSeries(item) {
+  function warmSeries(item, epIndex) {
     if (!item || !item.series_id) return;
     var sid = String(item.series_id);
+    var ep = Math.max(0, epIndex || 0);
     if (S.active && String(S.active.series_id) === sid && S.vids.length) {
-      prefetchStream(S.detail || S.active, Math.max(0, Math.min(S.epIndex, S.vids.length - 1)));
+      prefetchStream(S.detail || S.active, Math.max(0, Math.min(ep, S.vids.length - 1)));
       return;
     }
-    if (warmCache[sid]) return;
-    warmQ.push(item);
+    var k = sid + "|" + ep;
+    if (warmCache[k]) return;
+    warmCache[k] = 1;
+    warmQ.push({ item: item, ep: ep });
     if (!warmBusy) pumpWarm();
   }
   function pumpWarm() {
-    var item = warmQ.shift();
-    if (!item) { warmBusy = false; return; }
+    var job = warmQ.shift();
+    if (!job) { warmBusy = false; return; }
     warmBusy = true;
-    var sid = String(item.series_id);
-    warmCache[sid] = 1;
+    var item = job.item;
     api("/api/v1/series/detail?series_id=" + encodeURIComponent(item.series_id) +
       (item.content_type ? "&content_type=" + encodeURIComponent(item.content_type) : ""))
-      .then(function (d) { if (d) prefetchStream(d, 0); })
+      .then(function (d) { if (d) prefetchStream(d, job.ep); })
       .catch(function () { })
       .then(function () { warmBusy = false; setTimeout(pumpWarm, 400); });
     return;
@@ -364,6 +366,13 @@
       '<div class="hn"></div><div class="hb"><em style="width:' + pct.toFixed(1) + '%"></em></div>';
     el.querySelector(".hn").textContent = drama.title || "未命名";
     el.onclick = function () { openDetail(drama, ep - 1); };
+    /* 停在"继续观看"卡上就先把那一集排队预取，点进去基本不用等 */
+    var hovT = null;
+    el.onmouseenter = function () {
+      clearTimeout(hovT);
+      hovT = setTimeout(function () { warmSeries(drama, ep - 1); }, 600);
+    };
+    el.onmouseleave = function () { clearTimeout(hovT); };
     return el;
   }
 
