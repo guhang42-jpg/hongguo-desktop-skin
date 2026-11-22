@@ -3,15 +3,19 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.002**（2026-11-21）
+**当前版本：v1.003**（2026-11-22）
 
 ## 下载
 
-- 最新版：`v1.002` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.002
-- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.002/hongguo-skin-1.002-win64.zip`
-- 文件：`hongguo-skin-1.002-win64.zip`（约 6.6 MB，解压即用）
-- SHA256：`744F6A81D5911E22D73CCF2C22E22A8C2556B9C0D99119A3AC2BE472AB4A6DE7`
-- 上一版（v1.001）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.001
+- 最新版：`v1.003` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.003
+- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.003/hongguo-skin-1.003-win64.zip`
+- 文件：`hongguo-skin-1.003-win64.zip`（约 6.6 MB，解压即用）
+- SHA256：`1A229AD39F59F8098AE14FD6C20F20CB1A8E4495F74F390C450581F66E1D9E1D`
+- 上一版（v1.002）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.002
+
+> **换到别的 Windows 电脑上播放只有声音、画面全黑？** 那台机器缺 HEVC 解码器（片源是 H.265）。
+> 启动后顶上会顶出一条橙色提示，点「去安装」拉商店装 `HEVC Video Extensions`（￥0），装完点「装好了，重启」即可。
+
 
 解压后目录长这样：
 
@@ -105,6 +109,14 @@ ui/index.html, ui/app.js, ui/icon.png
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.003（2026-11-22）
+
+- 修「换到别的电脑有声音没画面」：片源是 H.265，WebView2 得靠系统 Media Foundation 解，那台机器缺 HEVC 扩展
+- 启动自检 `canPlayType('hvc1'/'hev1')`，缺解码器直接顶提示条，写明原因
+- 提示条「去安装」一键拉商店 `HEVC Video Extensions`（￥0 设备制造商版，商店搜不到，只能直链进），「装好了，重启」自带重启
+- WebView2 传 `--enable-features=PlatformHEVCDecoderSupport`，修「扩展装了但内核没开平台解码」那种黑屏
+- 播放兜底：`videoWidth` 一直为 0 就判定有声音没画面，再把提示条顶上来
 
 ### v1.002（2026-11-21）
 

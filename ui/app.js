@@ -79,6 +79,49 @@
     if (!item) return "";
     return item.cover_fallback || item.cover || "";
   }
+
+  /* ---------- HEVC(H.265) 解码能力检测 ----------
+     红果的片源是 bytevc1（H.265）。WebView2 不解码，只能让 Windows 的
+     Media Foundation 来解；机器上没装 HEVC 扩展时，就是"有声音、没画面"。
+     这里启动即探测一次，缺了就把提示条顶上去，并在真要播的时候再兜一次。 */
+  var NOHEVC = (function () {
+    if (qs.get("nohev")) return true;   /* 自检：--nohev 强制走提示态 */
+    try {
+      var probe = document.createElement("video");
+      var ok = function (r) { return r === "probably" || r === "maybe"; };
+      return !(ok(probe.canPlayType('video/mp4; codecs="hvc1.1.6.L120.90"')) ||
+        ok(probe.canPlayType('video/mp4; codecs="hev1.1.6.L120.90"')));
+    } catch (e) { return false; }
+  })();
+  function hevcBar(on) {
+    var b = $("#hevcBar"); if (b) b.hidden = !on;
+  }
+  function bindHevcBar() {
+    if (!NOHEVC) return;
+    var bar = $("#hevcBar"); if (!bar) return;
+    $("#hevcX").onclick = function () { bar.hidden = true; LS.set("hg_hevc_dismiss", 1); };
+    $("#hevcFix").onclick = function () {
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage(JSON.stringify({ action: "openStore" }));
+        $("#hevcRe").hidden = false;
+        $("#hevcTip").innerHTML = "商店里搜到 <b>HEVC Video Extensions</b>（￥0，设备制造商版）点「获取」下载安装即可。装完点右边按钮重启。";
+      } else {
+        toast("请到微软商店安装 HEVC Video Extensions");
+      }
+    };
+    $("#hevcRe").onclick = function () {
+      if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "relaunch" }));
+      else location.reload();
+    };
+    if (!LS.get("hg_hevc_dismiss", 0)) hevcBar(true);
+  }
+  var noPicWarned = false;
+  function warnNoPicture() {
+    if (noPicWarned) return;
+    noPicWarned = true;
+    hevcBar(true);
+    toast("这台电脑解不出画面（缺 HEVC 解码器），点顶部提示装一下");
+  }
   function big(n) {
     n = Number(n) || 0;
     if (n >= 100000000) return (n / 100000000).toFixed(1) + "亿";
@@ -790,12 +833,15 @@
     /* 每 4 秒落一次续播点，够细也不会太吵 */
     var now = Date.now();
     if (!video.paused && t > 3 && now - lastResumeSave > 4000) { lastResumeSave = now; saveResume(); }
+    /* 有声无画的兜底：解码器缺了时音频照常推进，但 videoWidth 一直是 0 */
+    if (!video.paused && t > 2 && video.videoWidth === 0) warnNoPicture();
   });
   video.addEventListener("loadeddata", function () { $("#vLoad").classList.add("hide"); $("#vPoster").classList.add("hide"); });
   video.addEventListener("playing", function () { $("#vLoad").classList.add("hide"); $("#vPause").classList.add("hide"); });
   video.addEventListener("waiting", function () { $("#vLoad").classList.remove("hide"); });
   video.addEventListener("error", function () {
     $("#vLoad").classList.add("hide");
+    if (NOHEVC) { warnNoPicture(); return; }
     toast("播放源打不开，点击⟳重试或换一集");
   });
   video.addEventListener("play", function () { userPause = false; $("#vPlay").textContent = "❚❚"; $("#pPlay").textContent = "❚❚"; $("#vPause").classList.add("hide"); });
@@ -1910,6 +1956,8 @@
   window.DBG = new URLSearchParams(location.search).get("dbg") === "1";
   switchView("home");
   if (window.GRO) GRO.render();
+  bindHevcBar();
+  if (window.DBG) { try { if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "hevc=" + (NOHEVC ? "missing" : "ok") })); } catch (e) { } }
   refreshAccount();
   loadLibrary();
   if (qs.get("mine")) setTimeout(function () { switchView("mine"); }, 1600);

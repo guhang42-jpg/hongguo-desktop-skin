@@ -29,6 +29,7 @@ namespace HongguoSkin
         internal static bool Sheet;
         internal static bool Fixed;
         internal static bool VolProbe;
+        internal static bool NoHevc;
         [STAThread]
         static void Main(string[] args)
         {
@@ -42,6 +43,7 @@ namespace HongguoSkin
             Sheet = args != null && Array.IndexOf(args, "--sheet") >= 0;
             Fixed = args != null && Array.IndexOf(args, "--fixed") >= 0;
             VolProbe = args != null && Array.IndexOf(args, "--vol") >= 0;
+            NoHevc = args != null && Array.IndexOf(args, "--nohev") >= 0;
             if (args != null)
             {
                 int vi = Array.IndexOf(args, "--view");
@@ -137,7 +139,13 @@ namespace HongguoSkin
             {
                 string dataDir = Path.Combine(Program.AppDir, "webview2");
                 Directory.CreateDirectory(dataDir);
-                var env = await CoreWebView2Environment.CreateAsync(null, dataDir);
+                /* 显式打开 Chromium 的"用系统解码器播 HEVC"开关：
+                   有些机器明明装了 HEVC 扩展，但内核没启用平台解码，表现就是有声音没画面。 */
+                var envOpts = new CoreWebView2EnvironmentOptions
+                {
+                    AdditionalBrowserArguments = "--enable-features=PlatformHEVCDecoderSupport --autoplay-policy=no-user-gesture-required"
+                };
+                var env = await CoreWebView2Environment.CreateAsync(null, dataDir, envOpts);
                 await web.EnsureCoreWebView2Async(env);
                 var settings = web.CoreWebView2.Settings;
                 settings.AreDefaultContextMenusEnabled = false;
@@ -162,6 +170,7 @@ namespace HongguoSkin
                 if (Program.Sheet) extra += "&sheet=1";
                 if (Program.Fixed) extra += "&fixed=1";
                 if (Program.VolProbe) extra += "&vol=1";
+                if (Program.NoHevc) extra += "&nohev=1";
                 if (Program.Dbg) extra += "&dbg=1";
                 web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + extra);
             }
@@ -383,6 +392,21 @@ namespace HongguoSkin
                             SetMiniMode(om2.Success && om2.Groups[1].Value == "true");
                             return;
                         }
+                    /* 缺 HEVC 解码器时，界面上的按钮点这里，直接拉商店的扩展页 */
+                    case "openStore":
+                        try { Process.Start(new ProcessStartInfo("ms-windows-store://pdp/?ProductId=9n4wgh0z6vhq") { UseShellExecute = true }); }
+                        catch (Exception ex) { Log("打开商店失败: " + ex.Message); }
+                        return;
+                    /* 装完扩展需要重启应用（解码器是进程启动时加载的），这里代用户重启 */
+                    case "relaunch":
+                        try
+                        {
+                            closing = true;
+                            Process.Start(new ProcessStartInfo(Application.ExecutablePath) { UseShellExecute = true, WorkingDirectory = Program.AppDir });
+                            Close();
+                        }
+                        catch (Exception ex) { Log("重启失败: " + ex.Message); }
+                        return;
                     default: return;
                 }
             }
