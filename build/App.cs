@@ -41,6 +41,9 @@ namespace HongguoSkin
         internal static bool Sem;
         internal static bool Mem;
         internal static bool NoAsk;
+        internal static bool NoTray;
+        internal static bool Poke;
+        internal static bool MemFile;
         internal static string AskArg;
         [STAThread]
         static void Main(string[] args)
@@ -66,6 +69,9 @@ namespace HongguoSkin
             Sem = args != null && Array.IndexOf(args, "--sem") >= 0;
             Mem = args != null && Array.IndexOf(args, "--mem") >= 0;
             NoAsk = args != null && Array.IndexOf(args, "--noa") >= 0;
+            NoTray = args != null && Array.IndexOf(args, "--notray") >= 0;
+            Poke = args != null && Array.IndexOf(args, "--poke") >= 0;
+            MemFile = args != null && Array.IndexOf(args, "--memfile") >= 0;
             if (args != null)
             {
                 int ai = Array.IndexOf(args, "--a");
@@ -102,6 +108,13 @@ namespace HongguoSkin
         private string coreUrl;
         private string logPath;
         private bool closing;
+        /* 陪伴相关：托盘、到点检查、记忆镜像 */
+        private NotifyIcon tray;
+        private System.Windows.Forms.Timer pokeTimer;
+        private DateTime pokeMutedUntil = DateTime.MinValue;
+        private string lastPokeDay = "";
+        private string pendingAsk = "";
+        private bool navDone;
 
         public MainForm()
         {
@@ -188,6 +201,13 @@ namespace HongguoSkin
                 web.CoreWebView2.AddWebResourceRequestedFilter(coreUrl + "/skin/*", CoreWebView2WebResourceContext.All);
                 web.CoreWebView2.WebMessageReceived += OnWebMessage;
                 web.CoreWebView2.ProcessFailed += (s, e) => Log("webview 进程异常: " + e.ProcessFailedKind);
+                web.CoreWebView2.NavigationCompleted += async (s, e) =>
+                {
+                    if (navDone) return;
+                    navDone = true;
+                    await Task.Delay(1500);
+                    PushMemRestore();
+                };
 
                 Log("打开界面");
                 string extra = "";
@@ -214,9 +234,17 @@ namespace HongguoSkin
                 if (Program.Sem) extra += "&sem=1";
                 if (Program.Mem) extra += "&mem=old";
                 if (Program.NoAsk) extra += "&noa=1";
+                if (Program.MemFile) extra += "&memfile=1";
                 if (Program.AskArg != null) extra += "&a=" + Uri.EscapeDataString(Program.AskArg);
                 if (Program.Dbg) extra += "&dbg=1";
                 web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + extra);
+                /* 托盘与"到点看一眼"：界面起来了才有意义，放这儿建 */
+                if (!Program.NoTray)
+                {
+                    SetupTray();
+                    SetupPoke();
+                    if (Program.Poke) { await Task.Delay(2600); Log("--poke 强制走一次"); PokeTick(true); }
+                }
             }
             catch (Exception ex)
             {
@@ -389,7 +417,7 @@ namespace HongguoSkin
                 string msg;
                 try { msg = e.TryGetWebMessageAsString(); } catch { msg = null; }
                 if (msg == null) msg = e.WebMessageAsJson;
-                Log("[ui] " + msg);
+                Log("[ui] " + (msg.Length > 160 ? msg.Substring(0, 160) + " …(" + msg.Length + " 字节)" : msg));
                 var am = Regex.Match(msg, "\"action\"\\s*:\\s*\"([a-zA-Z]+)\"");
                 string action = am.Success ? am.Groups[1].Value : "";
                 switch (action)
@@ -467,10 +495,237 @@ namespace HongguoSkin
                         }
                         catch (Exception ex) { Log("重启失败: " + ex.Message); }
                         return;
+                    /* 记忆镜像：前端把整块记忆 + 一份可读的 Markdown 发过来，落到 %APPDATA%\HonggoDesktop */
+                    case "mem":
+                        {
+                            var jm = Regex.Match(msg, "\"j\"\\s*:\\s*\"([A-Za-z0-9+/=]+)\"");
+                            var mm = Regex.Match(msg, "\"m\"\\s*:\\s*\"([A-Za-z0-9+/=]+)\"");
+                            if (jm.Success)
+                            {
+                                SaveMem(B64Dec(jm.Groups[1].Value), mm.Success ? B64Dec(mm.Groups[1].Value) : "");
+                            }
+                            return;
+                        }
                     default: return;
                 }
             }
             catch { }
+        }
+
+        /* ========= 小果的记忆文件 / 陪伴 ========= */
+
+        private string MemDir()
+        {
+            string d = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HonggoDesktop");
+            try { Directory.CreateDirectory(d); } catch { }
+            return d;
+        }
+        private string MemJsonPath() { return Path.Combine(MemDir(), "xiaoguo-memory.json"); }
+        private string MemMdPath() { return Path.Combine(MemDir(), "xiaoguo-memory.md"); }
+
+        private static string B64Dec(string s)
+        {
+            try { return Encoding.UTF8.GetString(Convert.FromBase64String(s)); } catch { return ""; }
+        }
+
+        private void SaveMem(string json, string md)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try { File.WriteAllText(MemJsonPath(), json, new UTF8Encoding(false)); }
+            catch (Exception ex) { Log("写记忆 json 失败: " + ex.Message); }
+            if (string.IsNullOrEmpty(md)) return;
+            try { File.WriteAllText(MemMdPath(), md, new UTF8Encoding(false)); }
+            catch (Exception ex) { Log("写记忆 md 失败: " + ex.Message); }
+        }
+
+        private string ReadMemJson()
+        {
+            try
+            {
+                string p = MemJsonPath();
+                if (!File.Exists(p)) return null;
+                var fi = new FileInfo(p);
+                if (fi.Length > 262144) return null;
+                return File.ReadAllText(p, Encoding.UTF8);
+            }
+            catch { return null; }
+        }
+
+        /* 启动时把文件里的记忆推回去：前端只有在本地存储是空的时候才认它，绝不覆盖在用的记忆 */
+        private void PushMemRestore()
+        {
+            try
+            {
+                string json = ReadMemJson();
+                if (json == null || web == null || web.CoreWebView2 == null) return;
+                string b = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+                web.CoreWebView2.PostWebMessageAsJson("{\"action\":\"memRestore\",\"j\":\"" + b + "\"}");
+                Log("记忆兜底：把文件推给前端，共 " + json.Length + " 字节");
+            }
+            catch (Exception ex) { Log("推记忆失败: " + ex.Message); }
+        }
+
+        private void SetupTray()
+        {
+            try
+            {
+                tray = new NotifyIcon();
+                Icon ico = null;
+                try { ico = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
+                tray.Icon = ico != null ? ico : SystemIcons.Application;
+                tray.Text = "红果短剧 · 小果在旁边";
+
+                var menu = new ContextMenuStrip();
+                menu.Items.Add("打开小果", null, new EventHandler(delegate { ShowMain(); OpenAi(""); }));
+                menu.Items.Add("随便挑一部", null, new EventHandler(delegate { ShowMain(); OpenAi("推荐一部"); }));
+                menu.Items.Add("今天别打扰我", null, new EventHandler(delegate
+                {
+                    /* 关掉主动出声只到明天 8 点，第二天照旧 —— 免得一次手滑变成永久失联 */
+                    pokeMutedUntil = DateTime.Today.AddDays(1).AddHours(8);
+                    Log("手动静音到 " + pokeMutedUntil);
+                    if (tray != null) tray.ShowBalloonTip(4000, "小果", "行，今天不吭声了。想看的时候点我一下。", ToolTipIcon.None);
+                }));
+                menu.Items.Add(new ToolStripSeparator());
+                menu.Items.Add("退出", null, new EventHandler(delegate { closing = true; Close(); }));
+                tray.ContextMenuStrip = menu;
+                tray.DoubleClick += new EventHandler(delegate { ShowMain(); });
+                tray.BalloonTipClicked += new EventHandler(delegate { ShowMain(); OpenAi(pendingAsk); });
+                tray.Visible = true;
+                Log("托盘就位");
+            }
+            catch (Exception ex) { Log("托盘创建失败: " + ex.Message); }
+        }
+
+        private void SetupPoke()
+        {
+            /* 到点看一眼：每 45 分钟醒一次，只比较内存里的几个时间戳，
+               不截屏、不联网、不碰模型 —— 醒完就睡。一天最多说一句。 */
+            try
+            {
+                pokeTimer = new System.Windows.Forms.Timer();
+                pokeTimer.Interval = 45 * 60 * 1000;
+                pokeTimer.Tick += new EventHandler(delegate { PokeTick(); });
+                pokeTimer.Start();
+                Log("到点检查已开：45 分钟一次，8:00–22:00，一天最多一句");
+            }
+            catch (Exception ex) { Log("定时器失败: " + ex.Message); }
+        }
+
+        private void ShowMain()
+        {
+            try
+            {
+                if (!Visible) Show();
+                if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+                Activate();
+                BringToFront();
+            }
+            catch { }
+        }
+
+        private void OpenAi(string ask)
+        {
+            try
+            {
+                if (web == null || web.CoreWebView2 == null) return;
+                web.CoreWebView2.PostWebMessageAsJson("{\"action\":\"aiOpen\"}");
+                if (!string.IsNullOrEmpty(ask))
+                {
+                    string q = ask.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                    web.CoreWebView2.PostWebMessageAsJson("{\"action\":\"aiAsk\",\"text\":\"" + q + "\"}");
+                }
+            }
+            catch { }
+        }
+
+        private static string JStr(string json, string key)
+        {
+            var m = Regex.Match(json, "\"" + key + "\"\\s*:\\s*\"([^\"]*)\"");
+            return m.Success ? m.Groups[1].Value : "";
+        }
+        private static long JNum(string json, string key)
+        {
+            var m = Regex.Match(json, "\"?" + key + "\"?\\s*:\\s*(\\d+)");
+            if (!m.Success) return 0;
+            try { return long.Parse(m.Groups[1].Value); } catch { return 0; }
+        }
+
+        /* 从记忆里挑一条正向偏好当话头：否定的（不喜欢 / 不看…）不当种子 */
+        private static string FirstPref(string json)
+        {
+            var blk = Regex.Match(json, "\"facts\"\\s*:\\s*\\[(.*?)\\]\\s*,\\s*\"asked\"", RegexOptions.Singleline);
+            if (!blk.Success) return "";
+            foreach (Match f in Regex.Matches(blk.Groups[1].Value, "\"t\"\\s*:\\s*\"([^\"]+)\""))
+            {
+                string t = f.Groups[1].Value;
+                if (t.StartsWith("不喜欢") || t.StartsWith("不看") || t.StartsWith("讨厌") || t.StartsWith("受不了")) continue;
+                t = Regex.Replace(t, "(比较|特别|很|最)?(喜欢|爱看|爱追|想看|只看)", "");
+                t = Regex.Replace(t, "的$", "");
+                if (t.Length >= 2) return t;
+            }
+            return "";
+        }
+
+        private void PokeTick() { PokeTick(false); }
+
+        private void PokeTick(bool force)
+        {
+            try
+            {
+                if (closing || tray == null) return;
+                DateTime now = DateTime.Now;
+                if (!force)
+                {
+                    if (now.Hour < 8 || now.Hour >= 22) return;     /* 深夜一句话都不说 */
+                    if (now < pokeMutedUntil) return;
+                    if (lastPokeDay == now.ToString("yyyy-M-d")) return;
+                }
+                if (isMoyu || isFs || isMini) return;           /* 摸鱼态、看片中、小窗挂机都不打扰 */
+                if (!Visible && WindowState != FormWindowState.Minimized) return;
+
+                string json = ReadMemJson();
+                if (json == null) { Log("到点检查：没有记忆文件，跳过"); return; }
+                if (!force && JStr(json, "talkDay") == now.ToString("yyyy-M-d")) return;   /* 今天已经聊过，不多嘴 */
+
+                long seenLast = JNum(json, "seenLast");
+                long seenN = JNum(json, "seenN");
+                int gap = 0;
+                if (seenLast > 0)
+                {
+                    try
+                    {
+                        DateTime last = DateTimeOffset.FromUnixTimeMilliseconds(seenLast).LocalDateTime;
+                        gap = (int)(now.Date - last.Date).TotalDays;
+                    }
+                    catch { gap = 0; }
+                }
+
+                string pref = FirstPref(json);
+                string body;
+                string ask = "";
+                if (gap >= 3)
+                {
+                    body = "你有 " + gap + " 天没来了。想挑一部看看吗？";
+                    ask = "推荐一部";
+                }
+                else if (pref.Length > 0)
+                {
+                    body = "你说过爱看「" + pref + "」。我给你挑一部？";
+                    ask = "推荐一部";
+                }
+                else if (seenN > 0)
+                {
+                    body = "今天还没见你说话。要不要找部短的看看？";
+                    ask = "推荐一部";
+                }
+                else return;
+
+                lastPokeDay = now.ToString("yyyy-M-d");
+                pendingAsk = ask;
+                tray.ShowBalloonTip(9000, "小果", body, ToolTipIcon.None);
+                Log("主动出声: " + body);
+            }
+            catch (Exception ex) { Log("到点检查出错: " + ex.Message); }
         }
 
         private Rectangle prevBounds;
@@ -611,6 +866,8 @@ namespace HongguoSkin
         {
             Log("窗口关闭: " + e.CloseReason);
             closing = true;
+            try { if (pokeTimer != null) { pokeTimer.Stop(); pokeTimer.Dispose(); pokeTimer = null; } } catch { }
+            try { if (tray != null) { tray.Visible = false; tray.Dispose(); tray = null; } } catch { }
             try
             {
                 if (web != null && web.CoreWebView2 != null) web.CoreWebView2.Stop();

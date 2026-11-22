@@ -2419,6 +2419,75 @@
       if (MO.facts.length > 24) MO.facts = MO.facts.slice(-24);
       if (MO.asked.length > 24) MO.asked = MO.asked.slice(-24);
       try { localStorage.setItem(MKEY, JSON.stringify(MO)); } catch (e) { }
+      moSync();
+    }
+
+    /* --- 记忆落成可打开的文件：localStorage 说了算，文件是给人核对与备份用的 --- */
+    function renderMD(m) {
+      var L = [], t = function (ts) { return ts ? new Date(ts).toLocaleString("zh-CN") : ""; };
+      L.push("# 小果记得的事");
+      L.push("");
+      L.push("> 这台机器上的本地记忆。不联网、不上传、不调模型。");
+      L.push("> 这份是给你看的快照——想让它忘干净，在小果面板里说一句「忘了吧」，比手改这个文件可靠。");
+      L.push("");
+      L.push("- 更新于：" + new Date().toLocaleString("zh-CN"));
+      L.push("- 见过：" + (m.seenN || 0) + " 回　聊过 " + (m.talkN || 0) + " 次" + (m.talkToday ? "（今天 " + m.talkToday + " 次）" : ""));
+      L.push("- 亲密度：" + (m.bond || 0) + " / 100");
+      if (m.seenFirst) L.push("- 第一次来：" + t(m.seenFirst));
+      if (m.playLast) L.push("- 最近点开一部剧：" + t(m.playLast));
+      L.push("");
+      L.push("## 你自己说过的偏好");
+      L.push("");
+      var fs = m.facts || [];
+      if (fs.length) {
+        fs.forEach(function (f) {
+          L.push("- **" + f.t + "**　·　" + t(f.at) + (f.n > 1 ? "　·　提过 " + f.n + " 次" : ""));
+        });
+      } else {
+        L.push("- （还没有。跟她说一句「我爱看修仙的」，她就记下来。）");
+      }
+      L.push("");
+      L.push("## 最近问过的");
+      L.push("");
+      var as = (m.asked || []).slice(-12).reverse();
+      if (as.length) {
+        as.forEach(function (a) { L.push("- 「" + a.q + "」　·　" + t(a.at)); });
+      } else {
+        L.push("- （还没有）");
+      }
+      L.push("");
+      return L.join("\r\n");
+    }
+
+    var moT = null;
+    function b64(s) {
+      /* 走 base64 过宿主：省得在 C# 里跟 JSON 转义较劲 */
+      try { return btoa(unescape(encodeURIComponent(s))); } catch (e) { return ""; }
+    }
+    function moSync() {
+      if (moT) clearTimeout(moT);
+      moT = setTimeout(function () {
+        moT = null;
+        try {
+          if (!window.chrome || !window.chrome.webview) return;
+          window.chrome.webview.postMessage(JSON.stringify({
+            action: "mem", j: b64(JSON.stringify(MO)), m: b64(renderMD(MO))
+          }));
+        } catch (e) { }
+      }, 1200);
+    }
+
+    function moRestore(json) {
+      /* 只在本地存储是空的时候才拿文件兜底，绝不覆盖你正在用的记忆 */
+      try {
+        if (localStorage.getItem(MKEY)) return false;
+        var p = JSON.parse(json), d = moLoad();
+        for (var k in d) if (p[k] !== undefined) d[k] = p[k];
+        MO = d;
+        localStorage.setItem(MKEY, JSON.stringify(MO));
+        try { if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "记忆文件兜底恢复成功：" + (MO.facts || []).length + " 条偏好 · 见过 " + MO.seenN })); } catch (e2) { }
+        return true;
+      } catch (e) { return false; }
     }
     function dayOf(ts) {
       var d = new Date(ts || Date.now());
@@ -2432,19 +2501,58 @@
 
     function learn(text) {
       if (!MO) MO = moLoad();
-      var m = LIKERE.exec(text), s = null;
-      if (m) s = m[2] + (m[3] || "").trim();
+      var m = LIKERE.exec(text), s = null, tpc = "", no = false;
+      if (m) {
+        s = m[2] + (m[3] || "").trim();
+        tpc = (m[3] || "").trim().replace(/的$/, "").trim();       /* 只留"修仙""太长的"这种实物词，供下次直接拿去找剧 */
+        no = /不看|讨厌|受不了|不喜欢/.test(m[2]);
+      }
       if (!s) {
         var n = NOPERE.exec(text);
-        if (n && n[3]) s = "不喜欢" + n[3].replace(/的$/, "").trim();
+        if (n && n[3]) { s = "不喜欢" + n[3].replace(/的$/, "").trim(); tpc = n[3].replace(/的$/, "").trim(); no = true; }
       }
       if (!s || s.length < 2) return null;
       for (var i = 0; i < MO.facts.length; i++) {
-        if (MO.facts[i].t === s) { MO.facts[i].n++; MO.facts[i].at = Date.now(); moSave(); return s; }
+        if (MO.facts[i].t === s) {
+          MO.facts[i].n++; MO.facts[i].at = Date.now();
+          if (tpc) MO.facts[i].topic = tpc;
+          moSave(); return s;
+        }
       }
-      MO.facts.push({ t: s, at: Date.now(), n: 1 });
+      MO.facts.push({ t: s, topic: tpc, at: Date.now(), n: 1, no: no });
       moSave();
       return s;
+    }
+
+    /* --- 从记下的偏好里挑一条最该用的 --- */
+    function isNoFact(f) { return !!f.no || /^(不喜欢|不看|讨厌|受不了)/.test(String(f.t || "")); }
+    function prefTopic(f) {
+      if (f.topic) return f.topic;
+      return String(f.t || "").replace(/^(我|咱)/, "")
+        .replace(/(比较|特别|很|最)?(喜欢|爱看|爱追|想看|只看|不爱看|不看|讨厌|受不了|不喜欢)/, "")
+        .replace(/的$/, "").trim();
+    }
+    function prefTop() {
+      /* 次数多、最近说过的优先；否定的偏好不当搜索种子 */
+      var best = null, bs = -1;
+      for (var i = 0; i < (MO.facts || []).length; i++) {
+        var f = MO.facts[i];
+        if (isNoFact(f)) continue;
+        if (prefTopic(f).length < 2) continue;
+        var age = (Date.now() - (f.at || 0)) / 864e5;
+        var sc = (f.n || 1) * 2 + Math.max(0, 3 - age) + (f.topic ? 0.5 : 0);
+        if (sc > bs) { bs = sc; best = f; }
+      }
+      return best;
+    }
+    function noLong() {
+      /* 记过"不喜欢太长的"就真的挑短的 —— 记了就得用上，不然等于骗人 */
+      var fs = MO.facts || [];
+      for (var i = 0; i < fs.length; i++) {
+        if (!isNoFact(fs[i])) continue;
+        if (/太长|长的|集数多|费时间/.test(String(fs[i].t || "") + " " + String(fs[i].topic || ""))) return true;
+      }
+      return false;
     }
 
     function recall(topic) {
@@ -2804,7 +2912,7 @@
       if (/(讲什么|讲的什么|剧情|介绍|讲的是)/.test(t) && q) return doDetail(q, tp);
       if (/(短的|一晚上|一口气|刷完|集数少|没时间|不要太长|不长的|短一点|短些)/.test(t) && q.length < 2) return doShort(tp);
       if (/^(看|播|打开|放)/.test(t) && q.length >= 2) return doPlay(q, tp);
-      if (/(推荐|看点啥|看点什么|有什么好看|无聊|没意思|随便|来一部|换一部|片荒)/.test(t)) return doRecommend(tp, q);
+      if (/(推荐|看点啥|看点什么|有什么好看|无聊|没意思|随便|来一部|来部|换一部|片荒|有剧吗|给我一部)/.test(t)) return doRecommend(tp, q);
 
       /* 上面一条都没接住 —— 让模型看一眼"这句话到底像哪件事"，别再把「我一共追了几天」这种当成剧名去搜。
          阈值 0.40 / 间隔 0.10 是实测扫出来的：这组档位下 12 条陌生找剧话零误判，13 条陌生强意图话说中 10 条。
@@ -2850,7 +2958,7 @@
         }
         if (!out.length) return reply("我还什么都没记。你跟我说「我爱看修仙的」这种话，我就记下来。", tp);
         out.push("<span class='semnote'>" + MO.facts.length + " 条偏好 · 聊过 " + MO.talkN + " 次 · 见过 " + MO.seenN +
-          " 回 · 全在这台机器的本地存储里，不联网，说「忘了吧」就清空</span>");
+          " 回 · 不联网、不调模型，说「忘了吧」就清空<br>另存了一份给你核对：%APPDATA%\\HonggoDesktop\\xiaoguo-memory.md</span>");
         reply(out.join("<br>"), tp);
       });
     }
@@ -2939,8 +3047,34 @@
       });
     }
 
+    /* 泛请求：剥掉"推荐 / 来一部 / 随便"这些空话之后什么都不剩 —— 这种时候正该拿你记过的偏好去顶上 */
+    var VAGUE = /推荐|来部|来一|来点|看点|看什么|什么|随便|一部|片子|短剧|电视剧|好看|点啥|吧|呀|呢|的|个|些|下|有|没/g;
+    function vagueQ(q) { return String(q || "").replace(VAGUE, "").length < 2; }
+
+    function doByPref(f, tp) {
+      var topic = prefTopic(f), short = noLong();
+      findSem(topic, function (sem) {
+        var st = SEM.stat();
+        find(topic, function (items) {
+          var bySem = !!(sem && sem.length);
+          var pool = bySem ? sem.slice() : items.slice();
+          if (!pool.length) return reply("我记着你说过「" + esc(f.t) + "」，但这批剧里没找到对得上的。换个说法我再找，或者直接报剧名。", tp);
+          if (short) pool.sort(function (a, b) {
+            var da = dOf(a) || {}, db = dOf(b) || {};
+            return (Number(da.episode_count) || 999) - (Number(db.episode_count) || 999);
+          });
+          pool.slice(0, 3).forEach(function (x) { x._why = short ? "短的" : "你爱的"; });
+          reply("你跟我说过「" + esc(f.t) + "」，" + (short ? "就照记的挑短一点的" : "从这儿挑的") + "：" +
+            "<span class='semnote'>按记忆找的 · " + (bySem ? "本机语义 · " : "") + "库内 " + st.n + " 部</span>", tp);
+          pool.slice(0, 3).forEach(function (x) { card(x, "看看"); });
+        });
+      });
+    }
+
     function doRecommend(tp, q) {
-      if (q && q.length >= 2) return doSearch(q, tp, "按「" + esc(q) + "」找了这几部：");
+      if (q && q.length >= 2 && !vagueQ(q)) return doSearch(q, tp, "按「" + esc(q) + "」找了这几部：");
+      var pf = prefTop();
+      if (pf) return doByPref(pf, tp);      /* 你说过的偏好优先于泛泛推荐 */
       rec(12, function (items) {
         if (!items.length) return reply("推荐接口这次没回数据，等下再问我。", tp);
         var seen = {};
@@ -3011,8 +3145,8 @@
     }
 
     function doHelp(tp) {
-      reply("我只认这部剧库：<br>· 你看到哪了、还剩几集<br>· 按集数或关键词找剧（装语义版还能按意思找）<br>· 收藏夹、本机统计<br>· 说「看《XX》」直接给你放<br>· 你说过的偏好我记着，说「你记得什么」能看<br>" +
-        "<span style='color:rgba(238,242,250,.55)'>不联网、不调模型、不截屏。记忆只存这台机器的本地存储，说「忘了吧」就清空。</span>", tp);
+      reply("我只认这部剧库：<br>· 你看到哪了、还剩几集<br>· 按集数或关键词找剧（装语义版还能按意思找）<br>· 收藏夹、本机统计<br>· 说「看《XX》」直接给你放<br>· 你说过的偏好我记着；说「推荐一部」这种空话时，我按记过的偏好去挑<br>· 说「你记得什么」能看，记忆另存一份可读的 md 文件<br>" +
+        "<span style='color:rgba(238,242,250,.55)'>不联网、不调模型、不截屏。记忆只在这台机器上，说「忘了吧」就清空。</span>", tp);
     }
 
     /* --- 打开 / 收起 --- */
@@ -3086,15 +3220,29 @@
     function boot() {
       pop = $("#aiPop"); ball = $("#aiBall"); body = $("#aiBody"); chips = $("#aiChips"); input = $("#aiInput");
       if (!pop || !ball) return;
+      /* 联调：把浏览器存储里的记忆清掉，逼它只靠文件兜底，验证"文件能当真备份" */
+      if (/[?&]memfile=1/.test(location.search)) { try { localStorage.removeItem(MKEY); } catch (e) { } }
       MO = moLoad();
       if (/[?&]mem=old/.test(location.search)) {
         /* 联调用：装作"三天没来、已经很熟"，验收开场白和亲密度档位，真机不触发 */
         MO.seenN = 6; MO.seenLast = Date.now() - 3 * 864e5; MO.seenFirst = Date.now() - 20 * 864e5;
         MO.talkN = 8; MO.talkDay = dayOf(); MO.talkToday = 1; MO.bond = 72; MO.saidDay = ""; MO.said = [];
         MO.asked = [];
-        MO.facts = [{ t: "爱看修仙的", at: Date.now() - 864e5, n: 3 },
-                    { t: "不喜欢太长的", at: Date.now() - 7200e3, n: 1 }];
+        MO.facts = [{ t: "爱看修仙的", topic: "修仙", at: Date.now() - 864e5, n: 3, no: false },
+                    { t: "不喜欢太长的", topic: "太长", at: Date.now() - 7200e3, n: 1, no: true }];
         moSave();
+      }
+      /* 宿主发来的指令：托盘主动出声时点一下就把面板打开；记忆文件兜底恢复 */
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.addEventListener("message", function (e) {
+          var d = e.data || {};
+          if (d.action === "memRestore" && d.j) {
+            var raw = ""; try { raw = decodeURIComponent(escape(atob(d.j))); } catch (e2) { }
+            if (raw && moRestore(raw)) { paintBond(); if (opened) place(); }
+          }
+          if (d.action === "aiOpen") { if (!opened) open(); }
+          if (d.action === "aiAsk" && d.text) setTimeout(function () { if (!opened) open(); handle(String(d.text)); }, 260);
+        });
       }
       paintBond();
       chips.innerHTML = "";
