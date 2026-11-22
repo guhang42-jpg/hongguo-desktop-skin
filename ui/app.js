@@ -677,7 +677,7 @@
     loadStream();
     wake();
     /* 默认直接进真·全屏自动播放（退出全屏就是剧场面板） */
-    if (AUTO_FS && !S.mini && !S.fs) {
+    if (AUTO_FS && !S.mini && !S.fs && !qs.get("mini")) {
       setTimeout(function () {
         if (viewer.classList.contains("on") && !S.mini && !S.fs) setFs(true);
       }, 220);
@@ -1376,10 +1376,30 @@
       prevFit = S.fit;
       S.fit = "cover"; applyFit();
       clearFsQuiet();
+      /* 小窗是独立形态：把剧场那套左右留白的主界面布局类摘掉，否则播放区被挤成竖缝 */
+      document.body.classList.remove("theater");
+      /* 先把上次的窗口比例用上，片源 metadata 到了再校正，免得一进小窗先是条竖缝 */
+      var lastSz = LS.get("hg_mini_size", null);
+      if (window.chrome && window.chrome.webview) {
+        if (video.videoWidth) sendMiniSize();
+        else if (lastSz) window.chrome.webview.postMessage(JSON.stringify({ action: "miniSize", w: lastSz.w, h: lastSz.h }));
+      }
       if (!viewer.classList.contains("on")) miniResume();
       wake();
       if (window.GRO) GRO.mode("mini");
       setTimeout(function () { if (window.chrome && window.chrome.webview) sendAlpha(alpha || 94); }, 500);
+      /* 自检：小窗下真实视口多宽，决定画面和控制条怎么排 */
+      if (window.DBG) setTimeout(function () {
+        try {
+          if (window.chrome && window.chrome.webview) {
+            var st = $(".vstage"), r = st ? st.getBoundingClientRect() : { width: 0, height: 0 };
+            window.chrome.webview.postMessage(JSON.stringify({ action: "log", text:
+              "mini vw=" + innerWidth + "x" + innerHeight + " dpr=" + (devicePixelRatio || 1) +
+              " stage=" + Math.round(r.width) + "x" + Math.round(r.height) +
+              " video=" + video.videoWidth + "x" + video.videoHeight + " fit=" + S.fit }));
+          }
+        } catch (e) { }
+      }, 900);
     } else {
       document.body.classList.remove("idle");
       S.fit = prevFit || "contain"; applyFit();
@@ -1430,8 +1450,14 @@
   }
   function sendMiniSize() {
     if (!S.mini || !video.videoWidth || !window.chrome || !window.chrome.webview) return;
-    var h = S.fit === "contain" ? Math.round(430 * (video.videoHeight / video.videoWidth)) : 780;
-    window.chrome.webview.postMessage(JSON.stringify({ action: "miniSize", h: h }));
+    /* 小窗的窗口比例跟着片源走，横屏就矮、竖屏就高，这样 cover 铺满也裁不到人 */
+    var vw = video.videoWidth, vh = video.videoHeight;
+    var W = vw >= vh ? 560 : 430;                                /* 横屏给宽点，竖屏按手机比例 */
+    var H = Math.round(W * vh / vw);
+    if (H > 820) { H = 820; W = Math.round(H * vw / vh); }      /* 竖屏别超出屏幕 */
+    if (H < 240) { H = 240; W = Math.round(H * vw / vh); }      /* 太矮的控制条会挤，给个下限 */
+    LS.set("hg_mini_size", { w: W, h: H });
+    window.chrome.webview.postMessage(JSON.stringify({ action: "miniSize", w: W, h: H }));
   }
   $("#fitBtn").onclick = function () { cycleFit(); };
   function cycleFit() {
@@ -2009,7 +2035,7 @@
               if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "autoplay blocked: " + err.message }));
             });
           }, { once: true });
-          if (new URLSearchParams(location.search).get("mini")) setTimeout(function () { setMini(true); }, 2600);
+          if (new URLSearchParams(location.search).get("mini")) setTimeout(function () { setMini(true); }, 4600);
           if (new URLSearchParams(location.search).get("fs")) setTimeout(function () { setFs(true); }, 3000);
           /* 自检用：?seq=1 依次 小窗 → 全屏 → 退出全屏 → 退出小窗，验证形态互切 */
           if (new URLSearchParams(location.search).get("seq")) {

@@ -367,14 +367,18 @@ namespace HongguoSkin
                         }
                     case "miniSize":
                         {
+                            /* 小窗的窗口尺寸跟着片源比例走：横屏就矮一点、竖屏就高一截，
+                               免得固定 430x780 把 16:9 的画面裁成一条竖缝 */
                             var wm = Regex.Match(msg, "\"h\"\\s*:\\s*(\\d+)");
+                            var vw = Regex.Match(msg, "\"w\"\\s*:\\s*(\\d+)");
                             if (wm.Success && isMini)
                             {
                                 var wa2 = Screen.FromControl(this).WorkingArea;
-                                int h = Math.Max(180, Math.Min(wa2.Height - 8, int.Parse(wm.Groups[1].Value)));
+                                int h = Math.Max(140, Math.Min(wa2.Height - 8, int.Parse(wm.Groups[1].Value)));
+                                int w = vw.Success ? Math.Max(240, Math.Min(wa2.Width - 8, int.Parse(vw.Groups[1].Value))) : Bounds.Width;
                                 var r = Bounds;
-                                Bounds = new Rectangle(r.X, r.Bottom - h, r.Width, h);
-                                Log("小窗适配画面 " + r.Width + "x" + h);
+                                Bounds = new Rectangle(wa2.Right - w - 18, r.Bottom - h, w, h);
+                                Log("小窗适配画面 " + w + "x" + h);
                             }
                             return;
                         }
@@ -429,7 +433,7 @@ namespace HongguoSkin
                 miniPrevBounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
                 miniPrevMin = MinimumSize;
                 WindowState = FormWindowState.Normal;
-                MinimumSize = new Size(300, 420);
+                MinimumSize = new Size(260, 200);
                 var wa = Screen.FromControl(this).WorkingArea;
                 int w = 430, h = 780;
                 if (h > wa.Height - 20) h = wa.Height - 20;

@@ -452,14 +452,15 @@
   body.mini .winbar{background:transparent;position:fixed;top:0;left:0;right:0;z-index:70;height:32px;opacity:0;transition:opacity .22s var(--ease)}
   body.mini:hover .winbar{opacity:1}
   body.mini #tnBtn{display:inline-block!important;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28)}
-  body.mini .viewer{top:32px;background:#000;z-index:69}
+  /* 小窗必须把 viewer 四边清零：否则 theater 的 left:236px 还在，430 宽的窗口会被挤成 180 宽的竖缝 */
+  body.mini .viewer{top:0!important;left:0!important;right:0!important;bottom:0!important;border-radius:0!important;border:0!important;background:#000;z-index:69}
   body.mini .vtop{display:none}
   body.mini .vstage{height:100%;width:100%;aspect-ratio:auto;border-radius:0;border:0;box-shadow:none;position:absolute;inset:0}
   body.mini .vbg,body.mini .vscrim{display:none}
-  body.mini .vctrl{padding:18px 10px 9px;gap:6px}
-  body.mini .vrow{gap:6px}
-  body.mini #vQual,body.mini #vRetry,body.mini #vRate,body.mini #vVol,body.mini .volpop,body.mini .dminput{display:none}
-  body.mini .vbtn{height:28px;font-size:12px;padding:0 8px}
+  body.mini .vctrl{padding:16px 9px 7px;gap:5px}
+  body.mini .vrow{gap:5px}
+  body.mini #vQual,body.mini #vRetry,body.mini #vRate,body.mini #vVol,body.mini .volpop,body.mini .dminput{display:none!important}
+  body.mini .vbtn{height:26px;font-size:11px;padding:0 7px}
   body.mini .vline{font-size:10px}
   body.mini #miniExit{display:inline-block!important;background:rgba(255,255,255,.92);color:#15171e;font-weight:700}
   body.mini .sheet,body.mini .mask,body.mini .player{display:none!important}
@@ -467,7 +468,6 @@
   body.mini .acct{backdrop-filter:blur(8px)}
   body.mini{background:#000}
   body.mini .bg,body.mini .veil{display:none}
-  body.mini .viewer{top:0}
   body.mini .vctrl{transition:opacity .26s var(--ease),transform .26s var(--ease)}
   body.mini.idle .vctrl{opacity:0;pointer-events:none;transform:translateY(10px)}
   body.mini.idle .winbar{opacity:0}

@@ -3,15 +3,15 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.003**（2026-11-22）
+**当前版本：v1.004**（2026-11-22）
 
 ## 下载
 
-- 最新版：`v1.003` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.003
-- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.003/hongguo-skin-1.003-win64.zip`
-- 文件：`hongguo-skin-1.003-win64.zip`（约 6.6 MB，解压即用）
-- SHA256：`1A229AD39F59F8098AE14FD6C20F20CB1A8E4495F74F390C450581F66E1D9E1D`
-- 上一版（v1.002）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.002
+- 最新版：`v1.004` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.004
+- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.004/hongguo-skin-1.004-win64.zip`
+- 文件：`hongguo-skin-1.004-win64.zip`（约 6.6 MB，解压即用）
+- SHA256：`00F0BF6DDEC85E634CC0AB69D698E30EB7144493AB10A106AC9B5157609125F6`
+- 上一版（v1.003）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.003
 
 > **换到别的 Windows 电脑上播放只有声音、画面全黑？** 那台机器缺 HEVC 解码器（片源是 H.265）。
 > 启动后顶上会顶出一条橙色提示，点「去安装」拉商店装 `HEVC Video Extensions`（￥0），装完点「装好了，重启」即可。
@@ -109,6 +109,14 @@ ui/index.html, ui/app.js, ui/icon.png
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.004（2026-11-22）
+
+- 修小窗：`body.theater` 的 `.viewer{left:236px}` 残留把 430 宽窗口挤成 178 宽画面区，进小窗时摘掉该类 + CSS 四边清零兜底
+- 小窗窗口尺寸改为跟片源比例走：横屏 560×315、竖屏 430×764，`cover` 铺满不裁人；尺寸写入 `hg_mini_size`，下次进小窗先按上次的
+- 修小窗底部控件挤成四行：`#vQual` 的内联 `display:flex` 压过 CSS，改 `!important` 后只留必要按钮
+- 进小窗时 `MinimumSize` 从 300×420 放到 260×200，横屏矮条不再被高度下限拦下
+- 自检 `?mini=1` 不再被「打开即全屏」抢占形态
 
 ### v1.003（2026-11-22）
 
