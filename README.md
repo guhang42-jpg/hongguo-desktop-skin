@@ -3,15 +3,15 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.011**（2026-11-22）
+**当前版本：v1.012**（2026-11-23）
 
 ## 下载
 
-- 最新版：`v1.011` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.011
-- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.011/hongguo-skin-1.011-win64.zip`
-- 文件：`hongguo-skin-1.011-win64.zip`（约 6.6 MB，解压即用）
-- SHA256：`D2B84E9BCFFCD2F90AEC46E891E99555C4FC844C6F20D97780D8024CC9DCEBF2`
-- 上一版（v1.010）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.010
+- 最新版：`v1.012` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.012
+- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.012/hongguo-skin-1.012-win64.zip`
+- 文件：`hongguo-skin-1.012-win64.zip`（约 6.6 MB，解压即用）
+- SHA256：`39045B02058218E24744F1B3953383B28E6A4473C01FE93B6B712FCE97801CDF`
+- 上一版（v1.011）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.011
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -64,6 +64,7 @@ ui/index.html, ui/app.js, ui/icon.png
 - 整窗毛玻璃质感 + 深空底色统一，窗口边缘直角不圆润（Win11 的 DWM 圆角也关掉了）
 - 幽光 / 星空 / 流星 / 光尘动态背景，按剧的类型换配色，播放时更活跃，鼠标有视差
 - **小果**：侧栏「我的」下面一颗小球，点开是一卷往上长出来的对话气泡。查你看到哪了、按关键词或集数找剧、翻收藏、报本机记录，说「看《XX》」直接开播。**零模型、零常驻、不联网**，全部走 core 的本地接口
+- 小果的对话框是一块**玻璃**：半透明底 + 背景模糊 + 一层薄膜厚度，没有描边；说话气泡左右分色、各带一个朝向说话人的尖角，尾巴和气泡同色零重叠，放大也看不出接缝
 
 播放：
 
@@ -122,6 +123,15 @@ ui/index.html, ui/app.js, ui/icon.png
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.012（2026-11-23）
+
+- 小果对话框整块改成**真玻璃**：底从 56% 降到 74% 不透明度 + 42px 背景模糊，靠"上缘提亮 / 下缘压暗"的一层薄膜做出厚度，去掉 1px 实线描边
+- 消息从方角灰块改成**左右对话气泡**：送话人在右、橙色，小果在左、灰色，各带一个朝向说话人的尖角；气泡本身不再单独做 backdrop-filter，尾巴与气泡同色零重叠，所以放大 4 倍也看不接缝
+- 每条消息左侧加了小果的头像点，消息进场有 8px 上浮 + 淡入
+- **无痕迹处理**：消息区上下两端用 mask 渐隐，滚到边上的气泡自然化进面板；分隔线改成两端消失的渐变线；滚动条从 6px 压到 3px、透明度压到 9%，几乎看不见
+- 输入框 focus 改成内描边 + 外发光，发送键 hover 提亮
+- 首屏文案压短一行，气泡上限从 486 提到 512，落地首屏不再被上下裁
 
 ### v1.011（2026-11-22）
 

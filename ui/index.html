@@ -664,18 +664,24 @@
   .aiball.on::before{animation-duration:1.5s}
   @media (max-height:720px){.aiball{width:44px;height:44px;margin-top:8px}}
 
-  .aipop{position:fixed;left:112px;bottom:120px;width:344px;height:min(486px,70vh);z-index:64;
-    display:flex;flex-direction:column;border-radius:20px;overflow:hidden;
-    background:linear-gradient(180deg,rgba(24,27,36,.9),rgba(15,17,24,.95));
-    backdrop-filter:blur(30px) saturate(140%);
-    border:1px solid rgba(255,255,255,.15);
-    box-shadow:0 30px 70px -22px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.1);
-    transform:translateY(16px) scale(.9);transform-origin:0 100%;opacity:0;pointer-events:none;
-    transition:transform .36s var(--ease),opacity .24s ease}
+  .aipop{position:fixed;left:112px;bottom:120px;width:344px;height:min(512px,72vh);z-index:64;
+    display:flex;flex-direction:column;border-radius:22px;overflow:hidden;
+    background:rgba(17,20,27,.74);
+    -webkit-backdrop-filter:blur(42px) saturate(155%);backdrop-filter:blur(42px) saturate(155%);
+    box-shadow:0 34px 76px -28px rgba(0,0,0,.95),
+      inset 0 0 0 1px rgba(255,255,255,.08),inset 0 1px 0 rgba(255,255,255,.17);
+    transform:translateY(18px) scale(.9);transform-origin:0 100%;opacity:0;pointer-events:none;
+    transition:transform .42s var(--ease),opacity .26s ease}
+  /* 一层"玻璃厚度"：上缘提亮、下缘压暗，代替生硬的描边 */
+  .aipop::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
+    background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.015) 22%,
+      rgba(0,0,0,.05) 62%,rgba(0,0,0,.16))}
   .aipop.on{transform:none;opacity:1;pointer-events:auto}
 
-  .aiph{display:flex;align-items:center;gap:9px;padding:12px 12px 10px;flex:none;
-    border-bottom:1px solid rgba(255,255,255,.09)}
+  .aiph{position:relative;display:flex;align-items:center;gap:9px;padding:13px 13px 11px;flex:none;z-index:1;
+    background:linear-gradient(180deg,rgba(255,255,255,.055),transparent)}
+  .aiph::after{content:"";position:absolute;left:14px;right:14px;bottom:0;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent)}
   .aiph .av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;flex:none;color:#fff;
     background:radial-gradient(circle at 36% 26%,#ffdcae,#ff7a55 52%,#c4431f);box-shadow:0 0 14px rgba(255,122,85,.6)}
   .aiph .tt{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
@@ -687,17 +693,33 @@
     padding:2px 4px;border-radius:8px;transition:all .16s}
   .aiph .x:hover{background:rgba(255,255,255,.12);color:#fff}
 
-  .aibody{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:9px;
-    scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
-  .aibody::-webkit-scrollbar{width:6px}
-  .aibody::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:99px}
-  .am{display:flex;gap:7px;align-items:flex-end}
+  .aibody{position:relative;z-index:1;flex:1;overflow-y:auto;padding:15px 12px 12px;
+    display:flex;flex-direction:column;gap:10px;
+    scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.09) transparent;
+    -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 16px,#000 calc(100% - 8px),transparent 100%);
+    mask-image:linear-gradient(180deg,transparent 0,#000 16px,#000 calc(100% - 8px),transparent 100%)}
+  .aibody::-webkit-scrollbar{width:3px}
+  .aibody::-webkit-scrollbar-thumb{background:rgba(255,255,255,.09);border-radius:99px}
+
+  /* 气泡：纯半透明色，尾巴与气泡零重叠同色，所以在同一片上完全看不出接缝 */
+  .am{display:flex;gap:9px;align-items:flex-end;animation:amIn .36s var(--ease) both}
   .am.me{flex-direction:row-reverse}
-  .am .bb{max-width:241px;padding:8px 11px;border-radius:13px;font-size:12.3px;line-height:1.62;color:#eef1f8;
-    background:rgba(255,255,255,.085);border:1px solid rgba(255,255,255,.08);word-break:break-word}
-  .am.me .bb{background:linear-gradient(135deg,rgba(255,122,85,.44),rgba(255,122,85,.24));
-    border-color:rgba(255,122,85,.38);color:#fff}
+  @keyframes amIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+  .am .amv{width:20px;height:20px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:9px;
+    color:#fff;background:radial-gradient(circle at 36% 26%,#ffdcae,#ff7a55 52%,#c4431f);
+    box-shadow:0 4px 12px -5px rgba(255,110,70,.85),inset 0 1px 0 rgba(255,255,255,.5)}
+  .am .bb{position:relative;max-width:248px;padding:9px 12px;border-radius:15px 15px 15px 3px;
+    font-size:12.3px;line-height:1.6;color:#eef1f8;word-break:break-word;
+    background:rgba(255,255,255,.085);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+  .am .bb::after{content:"";position:absolute;left:-6px;bottom:3px;width:7px;height:13px;
+    background:rgba(255,255,255,.085);clip-path:polygon(100% 0,100% 100%,0 100%)}
+  .am.me .bb{background:rgba(255,122,85,.38);color:#fff;border-radius:15px 15px 3px 15px;
+    box-shadow:inset 0 1px 0 rgba(255,205,185,.22)}
+  .am.me .bb::after{left:auto;right:-6px;bottom:3px;width:7px;height:13px;
+    background:rgba(255,122,85,.38);clip-path:polygon(0 0,0 100%,100% 100%)}
   .am .bb b{color:#ffd2b8;font-weight:700}
+  .am.me .bb b{color:#ffe9dc}
   .am.tp .bb{color:var(--muted-2);letter-spacing:2px}
   .am.tp .bb i{display:inline-block;width:4px;height:4px;border-radius:50%;background:currentColor;margin-right:3px;
     opacity:.4;animation:tpDot 1.2s infinite}
@@ -705,30 +727,46 @@
   .am.tp .bb i:nth-child(3){animation-delay:.4s}
   @keyframes tpDot{0%,100%{opacity:.25}45%{opacity:1}}
 
-  .ami{display:flex;gap:9px;align-items:center;padding:6px 8px;border-radius:11px;cursor:pointer;
-    background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.1);transition:all .18s var(--ease)}
-  .ami:hover{background:rgba(255,255,255,.12);border-color:rgba(255,122,85,.45);transform:translateY(-1px)}
+  .ami{position:relative;z-index:1;display:flex;gap:9px;align-items:center;padding:6px 8px;border-radius:12px;
+    cursor:pointer;background:rgba(255,255,255,.045);
+    -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);
+    transition:background .2s var(--ease),box-shadow .2s var(--ease),transform .2s var(--ease);
+    animation:amIn .3s var(--ease) both}
+  .ami:hover{background:rgba(255,255,255,.1);transform:translateY(-1px);
+    box-shadow:inset 0 0 0 1px rgba(255,122,85,.42),0 12px 24px -16px rgba(0,0,0,.85)}
   .ami img,.ami .ph{width:32px;height:43px;border-radius:7px;object-fit:cover;flex:none;background:rgba(255,255,255,.1)}
   .ami .tx{min-width:0;display:flex;flex-direction:column;gap:2px}
   .ami .tx b{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ami .tx span{font-size:10px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ami .go{margin-left:auto;flex:none;font-size:10px;color:#ffb98f}
 
-  .aichips{display:flex;flex-wrap:wrap;gap:5px;padding:0 12px 9px;flex:none}
-  .aichips button{border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.06);color:var(--muted);
-    font-family:inherit;font-size:10.5px;padding:5px 9px;border-radius:999px;cursor:pointer;white-space:nowrap;
-    transition:all .16s}
-  .aichips button:hover{background:rgba(255,122,85,.2);border-color:rgba(255,122,85,.42);color:#fff}
+  .aichips{position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:5px;padding:0 12px 10px;flex:none}
+  .aichips button{border:0;background:rgba(255,255,255,.06);color:var(--muted);
+    font-family:inherit;font-size:10.5px;padding:5px 10px;border-radius:999px;cursor:pointer;white-space:nowrap;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.11);
+    -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+    transition:background .18s,box-shadow .18s,color .18s}
+  .aichips button:hover{background:rgba(255,122,85,.18);color:#fff;
+    box-shadow:inset 0 0 0 1px rgba(255,122,85,.45),0 8px 18px -12px rgba(255,110,70,.9)}
 
-  .aiin{display:flex;gap:7px;padding:9px 10px 10px;flex:none;border-top:1px solid rgba(255,255,255,.09);
-    background:rgba(0,0,0,.2)}
-  .aiin input{flex:1;min-width:0;height:34px;border-radius:999px;border:1px solid rgba(255,255,255,.13);
-    background:rgba(255,255,255,.07);color:#fff;font-family:inherit;font-size:12px;padding:0 13px;outline:none;
-    transition:all .2s}
-  .aiin input:focus{border-color:rgba(255,122,85,.5);background:rgba(255,255,255,.13)}
+  .aiin{position:relative;z-index:1;display:flex;gap:7px;padding:10px 11px 11px;flex:none;
+    background:linear-gradient(0deg,rgba(0,0,0,.16),rgba(0,0,0,.02))}
+  .aiin::before{content:"";position:absolute;left:14px;right:14px;top:0;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent)}
+  .aiin input{flex:1;min-width:0;height:34px;border-radius:999px;border:0;outline:none;
+    background:rgba(255,255,255,.065);color:#fff;font-family:inherit;font-size:12px;padding:0 14px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),inset 0 1px 0 rgba(255,255,255,.09);
+    -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+    transition:background .2s,box-shadow .22s}
+  .aiin input:focus{background:rgba(255,255,255,.11);
+    box-shadow:inset 0 0 0 1px rgba(255,122,85,.42),0 0 0 3px rgba(255,122,85,.1)}
   .aiin input::placeholder{color:var(--muted-2)}
   .aiin button{width:34px;height:34px;flex:none;border:0;border-radius:50%;cursor:pointer;font-size:14px;color:#1a1207;
-    background:linear-gradient(135deg,#ffc46b,#ff6b46);box-shadow:0 6px 16px -6px rgba(255,110,70,.9);transition:transform .16s}
+    background:linear-gradient(135deg,#ffc46b,#ff6b46);
+    box-shadow:0 6px 16px -6px rgba(255,110,70,.9),inset 0 1px 0 rgba(255,255,255,.35);
+    transition:transform .16s var(--ease),box-shadow .2s}
+  .aiin button:hover{box-shadow:0 8px 20px -6px rgba(255,110,70,1),inset 0 1px 0 rgba(255,255,255,.45)}
   .aiin button:active{transform:scale(.93)}
   body.fs .aipop,body.mini .aipop{display:none}
 
@@ -1175,7 +1213,7 @@ body.mini .hevcbar{display:none !important}
   <div class="aibody" id="aiBody"></div>
   <div class="aichips" id="aiChips"></div>
   <div class="aiin">
-    <input id="aiInput" placeholder="问：我上次看到哪了 / 找部短的" maxlength="60">
+    <input id="aiInput" placeholder="问点什么，比如 我上次看到哪了" maxlength="60">
     <button id="aiSend" title="发送（回车）">↑</button>
   </div>
 </div>

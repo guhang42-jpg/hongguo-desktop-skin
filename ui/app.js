@@ -2401,14 +2401,14 @@
     function msg(html, me) {
       var d = document.createElement("div");
       d.className = "am" + (me ? " me" : "");
-      d.innerHTML = '<div class="bb">' + html + "</div>";
+      d.innerHTML = (me ? "" : '<i class="amv">✦</i>') + '<div class="bb">' + html + "</div>";
       body.appendChild(d); down();
       return d;
     }
     function typing() {
       var d = document.createElement("div");
       d.className = "am tp";
-      d.innerHTML = '<div class="bb"><i></i><i></i><i></i></div>';
+      d.innerHTML = '<i class="amv">✦</i><div class="bb"><i></i><i></i><i></i></div>';
       body.appendChild(d); down();
       return d;
     }
@@ -2625,18 +2625,17 @@
       var bottom = Math.max(10, window.innerHeight - b.top + 10);
       var avail = window.innerHeight - bottom - 12;   /* 不留这层限制，气泡头部会被窗口上边裁掉 */
       pop.style.bottom = bottom + "px";
-      pop.style.height = Math.max(236, Math.min(486, avail)) + "px";
+      pop.style.height = Math.max(236, Math.min(512, avail)) + "px";
       pop.style.left = Math.max(6, b.left - 10) + "px";
     }
     function seed() {
-      var d = msg("我是小果，本机剧库助理——不联网，也不吃内存。");
+      var d = msg("我是小果 · 本机剧库助理。");
       lib(function (l) {
         var h = hist(l);
         if (!h.length) return;
         var e = h[0], dr = dOf(e), bb = d.querySelector(".bb");
         if (bb) {
-          bb.innerHTML += "<br>你上次停在 <b>《" + esc(dr.title || "那部剧") + "》</b>第 " + (Number(e.episode) || 1) + " 集。";
-          down();
+          bb.innerHTML += "<br>你上次停在 <b>《" + esc(dr.title || "那部剧") + "》</b>第 " + (Number(e.episode) || 1) + " 集。";          down();
         }
       });
     }
