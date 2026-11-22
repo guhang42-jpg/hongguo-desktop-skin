@@ -3,17 +3,19 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.016**（2026-11-23）
+**当前版本：v1.017**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.017-ff7a45?style=flat-square)
+
+> **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.016` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.016
-- **轻量版**（不含语义模型，6.9 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.016/hongguo-skin-1.016-win64.zip`
-  - SHA256：`AEEA11EC5B4AFE91F8FD0F66F8EC084C954D3D33F5A52C9E1C9810B908A807B5`
-- **语义版**（含本机模型，25 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.016/hongguo-skin-1.016-win64-ai.zip`
-  - SHA256：`EDB8C9EE7FD42049BF0BBBEE5C3BF580CE110733E132652CC645BE88622A831D`
+- 最新版：`v1.017` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.017
+- **轻量版**（不含语义模型，6.95 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.017/hongguo-skin-1.017-win64.zip`
+  - SHA256：`873CA3281BEBEFD066D0297A8F4BF7EE1050CCC44C28F3F07BF96BA360C80858`
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.017/hongguo-skin-1.017-win64-ai.zip`
+  - SHA256：`DE030180057D8B8C810FA0990E243585FE05257A5719CFFD2212798F16A2EC13`
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
-- 上一版（v1.015）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.015
+- 上一版（v1.016）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.016
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -32,6 +34,7 @@ Microsoft.Web.WebView2.WinForms.dll
 WebView2Loader.dll
 core/hongguo-tv-core.exe         ← 官方数据核心，原封不动
 ui/index.html, ui/app.js, ui/icon.png
+ui/version.txt                   ← 程序自己的版本号，更新检查要用
 ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB 运行时
 ```
 
@@ -65,6 +68,10 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 |---|---|
 | ![](docs/preview-mem2.jpg) | ![](docs/preview-pref.jpg) |
 
+| 有新版本时顶上一句，点了直接去 Release 页 | 仓库主页（GitHub Pages） |
+|---|---|
+| ![](docs/preview-update.jpg) | [![主页](docs/preview-home.jpg)](https://guhang42-jpg.github.io/hongguo-desktop-skin/) |
+
 ## 这版有什么
 
 界面：
@@ -88,6 +95,9 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - **记忆能拿出来看**：每次变化后 1.2 秒去抖，另写一份到 `%APPDATA%\HonggoDesktop\xiaoguo-memory.md`（人话版）和 `.json`（可回灌版），能打开核对；本地存储万一空了就从这个文件兜底恢复。md 是快照，手改不生效，想清空还是说「忘了吧」
 - **「推荐一部」不再随口给**：把"推荐 / 来一部 / 随便 / 好看"这些泛词剥完什么都不剩时，才承认这是句空话，然后按你记过的偏好去找 —— 「爱看修仙的」剥成 `修仙` 当语义种子，记过「不喜欢太长的」就真的按集数升序挑
 - **你不来找她也会吭一声**：托盘图标常驻（右键：打开小果 / 随便挑一部 / 今天别打扰我 / 退出）。每 45 分钟醒一次，只比记忆里的几个时间戳，**不截屏、不联网、不调模型**；8:00–22:00 之外一句话不说，一天最多一句，摸鱼态、看片中、小窗挂机都不打扰。点气泡会把窗口唤起来，并自动问一句「推荐一部」，直接出卡。不想要托盘就 `--notray` 完全关掉；点 X 仍是真退出，不留后台
+- **出新版了它会自己说**：程序把自己版本号读 `ui/version.txt`，界面起来 12 秒后去仓库根目录读一次 `version.json`（十几 KB，超时 12 秒、静默失败），比自己高就在顶部胶囊换成「新版 vX 出来了 · 点这里看看」——暖橙边框、能点、停 9 秒，托盘同时冒一个气泡，点哪儿都是打开 Release 页。**只放行 `https://github.com/` 开头的链接**，界面别想借这台机器开任意程序。不做自动下载、不碰自己的 exe，`--noupd` 整套关掉
+- 上面这条是**唯一**一处外连：只 GET 那一个 JSON，不带你看了什么剧、记了什么偏好，不统计。托盘右键也有「检查更新」可以手动点一次
+- **仓库有主页了**：`docs/index.html` 走 GitHub Pages，深色玻璃风，一页说完是什么、截图墙、能干什么、版本时间线，单文件零依赖
 
 播放：
 
@@ -149,6 +159,20 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.017（2026-11-23）
+
+- **程序知道自己是不是旧的了**：版本号写在 `ui/version.txt`（一行为准），仓库根 `version.json` 五个字段（version / tag / date / url / notes）
+- 界面起来 **12 秒后**才去问（不跟启动抢资源，也不会卡开屏），拉 raw 上那个 JSON，超时 12 秒、失败静默；`VerCmp` 逐段比数字，比自己高才算新版
+- 有新版的三个提示一起上：顶部胶囊换成「新版 vX 出来了 · 点这里看看」（**暖橙边框、能点、停 9 秒**）、托盘冒气泡、点哪儿都是打开 Release 页
+- **只放行 `https://github.com/` 开头的 URL**，其余一律拒绝并记日志——不给界面留"借这台机器开任意程序"的口子
+- 托盘右键加「检查更新」，手动查会在托盘回「已经是最新版 vX」或「没连上」；`--noupd` 整套关掉
+- **这是本项目唯一的外连**：只 GET 那个十几 KB 的 JSON，不上传任何本机数据（看了什么、记了什么偏好都不带出去）
+- **仓库多了主页**：`docs/index.html` 单文件、零依赖、深色玻璃风，走 GitHub Pages；截图墙 + 能力四块 + 版本时间线
+- 修了两个"看着能用、其实不能用"的 bug：
+  - 检查更新**一条日志都没有** —— 网络异常时 `body` 为 `null` 被 `if (body == null) return;` 静默吞掉。现在异常先存 `err`、拿不到内容如实写日志；同时把 `SecurityProtocol` 抬到 TLS 1.1/1.2（.NET Framework 默认可能只到 1.0，raw 域名只收 1.2+），系统代理不通再绕开代理直连重试一次
+  - **胶囊看得见点不动** —— `.toast` 基础样式带 `pointer-events:none`，`.toast.upd` 只加了 `cursor:pointer`，鼠标变手型但点了没反应，最容易骗过测试。补 `pointer-events:auto` 后真机点击日志立刻出现「打开链接 …」
+- 新增联调参数：`--noupd`
 
 ### v1.016（2026-11-23）
 

@@ -762,21 +762,37 @@ namespace HongguoSkin
             catch (Exception ex) { Log("弹更新提示失败: " + ex.Message); }
         }
 
+        private string FetchVerJson(bool useProxy)
+        {
+            using (var wc = new WebClient())
+            {
+                wc.Encoding = Encoding.UTF8;
+                wc.Headers["User-Agent"] = "HongguoSkin/" + LocalVersion();
+                if (!useProxy) wc.Proxy = null;
+                return wc.DownloadString(UpdateUrl);
+            }
+        }
+
         private void CheckUpdate(bool manual)
         {
             Task.Run(async delegate
             {
                 string local = LocalVersion();
+                Log("检查更新（当前 " + local + (manual ? "，手动" : "") + "）");
                 try
                 {
-                    string body = null;
+                    /* .NET Framework 的 WebClient 默认可能只到 TLS 1.0，raw.githubusercontent.com 只收 1.2+，
+                       先把协议抬上去，否则连不上还看不出原因 */
+                    try { ServicePointManager.SecurityProtocol |= (SecurityProtocolType)768 | (SecurityProtocolType)3072; } catch { }
+                    string body = null, err = null;
                     Task fetch = Task.Run(delegate
                     {
-                        using (var wc = new WebClient())
+                        try { body = FetchVerJson(true); }
+                        catch (Exception e1)
                         {
-                            wc.Encoding = Encoding.UTF8;
-                            wc.Headers["User-Agent"] = "HongguoSkin/" + local;
-                            body = wc.DownloadString(UpdateUrl);
+                            err = e1.Message;
+                            try { body = FetchVerJson(false); err = null; }   /* 系统代理不通就绕开直连再试一次 */
+                            catch (Exception e2) { err = e1.Message + " / 直连: " + e2.Message; }
                         }
                     });
                     if (await Task.WhenAny(fetch, Task.Delay(12000)) != fetch)
@@ -785,7 +801,12 @@ namespace HongguoSkin
                         if (manual) SayOnTray("检查更新", "连不上，网络或代理的问题。");
                         return;
                     }
-                    if (body == null) return;
+                    if (body == null)
+                    {
+                        Log("检查更新拿不到内容：" + (err == null ? "空响应" : err));
+                        if (manual) SayOnTray("检查更新", "没连上，网络或代理不通。");
+                        return;
+                    }
                     string remote = JStr(body, "version"), url = JStr(body, "url"), notes = JStr(body, "notes");
                     if (string.IsNullOrEmpty(remote)) { Log("version.json 里没读到版本号"); return; }
                     if (VerCmp(remote, local) > 0)

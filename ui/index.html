@@ -448,7 +448,7 @@
     animation:islandDot 1.8s ease-in-out infinite}
   .toast.pop{animation:islandPop .5s cubic-bezier(.16,1.32,.28,1)}
   /* 版本推送那条：能点、停得久，边框挑亮一点提示"可以点" */
-  .toast.upd{cursor:pointer;border-color:rgba(255,150,90,.55)}
+  .toast.upd{pointer-events:auto;cursor:pointer;border-color:rgba(255,150,90,.55)}
   .toast.upd .tdot{background:linear-gradient(135deg,#ff9d5c,#ff5f45)}
   @keyframes islandDot{0%,100%{transform:scale(.82);opacity:.7}50%{transform:scale(1.18);opacity:1}}
   @keyframes islandPop{0%{transform:translate(-50%,-6px) scale(.94,1)}45%{transform:translate(-50%,0) scale(1.035,1)}100%{transform:translate(-50%,0) scale(1)}}
