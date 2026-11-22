@@ -604,10 +604,94 @@
 .hevcbar .hb-b.ghost{background:rgba(255,255,255,.09);color:#ffd9c2;border:1px solid rgba(255,255,255,.16);font-weight:500}
 .hevcbar .hb-x{border:0;background:transparent;color:rgba(255,217,194,.55);cursor:pointer;font-size:13px;padding:2px 5px;line-height:1}
 .hevcbar .hb-x:hover{color:#fff}
+/* ---- 一键摸鱼：盖成一张 Excel 台账（Ctrl+Shift+M 来回切） ---- */
+.moyu{position:fixed;inset:0;z-index:300;display:none;flex-direction:column;background:#fff;color:#1f2328;
+  font:12.5px/1.45 "Segoe UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;letter-spacing:0}
+body.moyu-on .moyu{display:flex}
+body.moyu-on .shell,body.moyu-on .bg,body.moyu-on .veil,body.moyu-on .ambient,body.moyu-on .toast{display:none!important}
+.mo-title{height:33px;display:flex;align-items:center;gap:9px;background:#f3f3f3;border-bottom:1px solid #e4e6eb;padding-left:11px;flex:none;cursor:default}
+.mo-logo{width:17px;height:17px;border-radius:3px;background:#185c37;color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;letter-spacing:.5px}
+.mo-name{flex:1;font-size:12.5px;color:#26292e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mo-name i{font-style:normal;color:#7a7f87;margin-left:6px;font-size:11.5px}
+.mo-wbtns{display:flex;height:100%;flex:none}
+.mo-wb{width:42px;height:33px;display:grid;place-items:center;font-size:11px;color:#3c4048;cursor:pointer;user-select:none}
+.mo-wb:hover{background:#e6e8ec}
+.mo-wb.close:hover{background:#e81123;color:#fff}
+.mo-ribbon{flex:none;background:#f7f7f8;border-bottom:1px solid #e4e6eb}
+.mo-tabs{display:flex;align-items:center;gap:2px;padding:0 8px;height:30px;border-bottom:1px solid #eceef2}
+.mo-t{font-size:12px;color:#3c4048;padding:5px 11px;border-radius:4px 4px 0 0;cursor:default}
+.mo-t.on{color:#185c37;font-weight:600;box-shadow:inset 0 -2px 0 #217346}
+.mo-t:hover{background:#eceef1}
+.mo-tools{display:flex;align-items:flex-end;gap:16px;padding:7px 10px 8px}
+.mo-grp{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:38px;padding-right:14px;border-right:1px solid #e6e8ec}
+.mo-grp:last-child{border-right:0}
+.mo-ic{width:19px;height:19px;border-radius:3px;background:#e8eaee;display:grid;place-items:center;font-size:10px;color:#5c626b}
+.mo-grp span{font-size:10.5px;color:#636a73}
+.mo-fxbar{flex:none;display:flex;align-items:stretch;height:26px;background:#fff;border-bottom:1px solid #e4e6eb}
+.mo-namebox{width:88px;display:flex;align-items:center;padding:0 8px;font-size:11.5px;color:#3c4048;border-right:1px solid #e4e6eb;background:#fbfbfc}
+.mo-fx{flex:1;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:11.5px;color:#2b2f36}
+.mo-fx b{color:#8a8f98;font-style:italic;font-weight:600}
+.mo-fx span{color:#2b2f36}
+.mo-sheetwrap{flex:1;overflow:auto;background:#fff}
+.mo-grid{display:grid;grid-template-columns:44px 96px 84px 300px 132px 100px 100px 100px 80px 1fr;align-content:start;font-size:11.5px}
+.mo-grid>div{height:23px;display:flex;align-items:center;padding:0 7px;border-right:1px solid #e4e6eb;border-bottom:1px solid #e4e6eb;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.mo-ch{background:#f5f6f8;color:#4a4f57;justify-content:center;font-weight:600;position:sticky;top:0;z-index:2}
+.mo-rh{background:#f5f6f8;color:#8a8f98;justify-content:center;font-size:10.5px}
+.mo-c{color:#25282e;background:#fff}
+.mo-c.num{justify-content:flex-end;font-variant-numeric:tabular-nums}
+.mo-c.sel{box-shadow:inset 0 0 0 2px #217346;background:#f2f8f4}
+.mo-c.edit{box-shadow:inset 0 0 0 2px #a6c4b2}
+.mo-c.edit::after{content:"";width:1px;height:14px;background:#217346;margin-left:1px;animation:mocur .95s steps(1) infinite}
+@keyframes mocur{0%,50%{opacity:1}50.01%,100%{opacity:0}}
+.mo-foot{flex:none;display:flex;align-items:center;height:28px;background:#f3f3f3;border-top:1px solid #e4e6eb;padding:0 8px;font-size:11.5px;color:#454a52}
+.mo-sheets{display:flex;gap:2px;margin-right:auto;align-items:center}
+.mo-sheets span{padding:3px 12px;border-radius:0 0 3px 3px}
+.mo-sheets .on{background:#fff;border-bottom:2px solid #217346;font-weight:600}
+.mo-status{display:flex;gap:18px;color:#5d636c;font-variant-numeric:tabular-nums}
+.mo-tip{position:fixed;right:16px;bottom:42px;z-index:310;background:rgba(24,26,31,.9);color:#f2f4f7;font-size:11.5px;
+  padding:6px 11px;border-radius:8px;opacity:0;transform:translateY(6px);transition:.25s var(--ease);pointer-events:none}
+.mo-tip.on{opacity:1;transform:none}
 body.mini .hevcbar{display:none !important}
 </style>
 </head>
 <body>
+<div class="moyu" id="moyu">
+  <div class="mo-title">
+    <div class="mo-logo">X</div>
+    <div class="mo-name">2026年度费用统计.xlsx <i>— 已保存</i></div>
+    <div class="mo-wbtns">
+      <div class="mo-wb" data-host="min" title="最小化">—</div>
+      <div class="mo-wb" data-host="max" title="最大化">▢</div>
+      <div class="mo-wb close" data-host="close" title="关闭">✕</div>
+    </div>
+  </div>
+  <div class="mo-ribbon">
+    <div class="mo-tabs">
+      <span class="mo-t on">文件</span><span class="mo-t">开始</span><span class="mo-t">插入</span><span class="mo-t">页面布局</span><span class="mo-t">公式</span><span class="mo-t">数据</span><span class="mo-t">审阅</span><span class="mo-t">视图</span><span class="mo-t">帮助</span>
+    </div>
+    <div class="mo-tools">
+      <div class="mo-grp"><div class="mo-ic">📋</div><span>粘贴</span></div>
+      <div class="mo-grp"><div class="mo-ic">B</div><span>加粗</span></div>
+      <div class="mo-grp"><div class="mo-ic">≡</div><span>对齐</span></div>
+      <div class="mo-grp"><div class="mo-ic">%</div><span>数字格式</span></div>
+      <div class="mo-grp"><div class="mo-ic">▦</div><span>边框</span></div>
+      <div class="mo-grp"><div class="mo-ic">Σ</div><span>求和</span></div>
+      <div class="mo-grp"><div class="mo-ic">🔍</div><span>查找</span></div>
+      <div class="mo-grp"><div class="mo-ic">⌗</div><span>筛选</span></div>
+    </div>
+  </div>
+  <div class="mo-fxbar">
+    <div class="mo-namebox">E6</div>
+    <div class="mo-fx"><b>fx</b><span>=SUM(E5:E28)</span></div>
+  </div>
+  <div class="mo-sheetwrap"><div class="mo-grid" id="moGrid"></div></div>
+  <div class="mo-foot">
+    <div class="mo-sheets"><span class="on">费用明细</span><span>汇总</span><span>2025全年</span></div>
+    <div class="mo-status"><span>就绪</span><span id="moSum">计数 22　求和 271,605.74</span><span>100%</span></div>
+  </div>
+</div>
+<div class="mo-tip" id="moTip">按 Ctrl+Shift+M 回到红果</div>
+
 <div class="bg" id="bg"></div>
 <div class="veil"></div>
 <div class="ambient" id="ambient">
@@ -620,7 +704,7 @@ body.mini .hevcbar{display:none !important}
 
 <div class="shell">
   <div class="winbar" id="winbar">
-    <button class="wb" id="wbMini" title="小窗模式（刷剧小窗）">⧉</button><button class="wb" id="wbMin">—</button><button class="wb" id="wbMax">▢</button><button class="wb close" id="wbClose">✕</button>
+    <button class="wb" id="wbMo" title="一键摸鱼（Ctrl+Shift+M）">☕</button><button class="wb" id="wbMini" title="小窗模式（刷剧小窗）">⧉</button><button class="wb" id="wbMin">—</button><button class="wb" id="wbMax">▢</button><button class="wb close" id="wbClose">✕</button>
   </div>
 
   <div class="hevcbar" id="hevcBar" hidden>

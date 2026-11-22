@@ -677,7 +677,7 @@
     loadStream();
     wake();
     /* 默认直接进真·全屏自动播放（退出全屏就是剧场面板） */
-    if (AUTO_FS && !S.mini && !S.fs && !qs.get("mini")) {
+    if (AUTO_FS && !S.mini && !S.fs && !qs.get("mini") && !qs.get("moyu")) {
       setTimeout(function () {
         if (viewer.classList.contains("on") && !S.mini && !S.fs) setFs(true);
       }, 220);
@@ -1426,6 +1426,119 @@
   $("#miniExit").onclick = function () { setMini(false); };
   $("#wbMini").onclick = function () { setMini(!S.mini); };
 
+  /* ---------- 一键摸鱼（Ctrl+Shift+M，全局热键由外壳注册） ----------
+     按一下：暂停 + 静音 + 整个窗口盖成一张财务台账，标题也换成 "Microsoft Excel - ...";
+     再按一下：原样恢复（音量、播放、之前的小窗/全屏形态）。 */
+  var MO_ROWS = [
+    ["2026-11-02", "记-0182", "支付潞州区办公用品采购款", "办公费", "1,280.00", "", "综合部", "张伟"],
+    ["2026-11-03", "记-0183", "预缴本月增值税", "应交税费", "", "8,640.00", "财务部", "李静"],
+    ["2026-11-05", "记-0185", "收到通城车检服务费", "主营收入", "", "26,500.00", "业务部", "王强"],
+    ["2026-11-06", "记-0187", "支付11月房屋租金", "管理费用", "6,200.00", "", "综合部", "张伟"],
+    ["2026-11-08", "记-0189", "报销差旅费（太原往返）", "差旅费", "860.00", "", "业务部", "刘敏"],
+    ["2026-11-09", "记-0191", "计提11月职工工资", "应付职工薪酬", "42,800.00", "", "人事部", "陈芳"],
+    ["2026-11-10", "记-0192", "缴纳社保及公积金", "应付职工薪酬", "11,340.00", "", "人事部", "陈芳"],
+    ["2026-11-11", "记-0194", "采购检测设备配件", "低值易耗品", "2,340.00", "", "技术部", "赵鹏"],
+    ["2026-11-12", "记-0196", "支付11月电费", "水电费", "1,876.40", "", "后勤部", "孙丽"],
+    ["2026-11-13", "记-0198", "客户回款—市交运集团", "应收账款", "", "38,000.00", "业务部", "王强"],
+    ["2026-11-15", "记-0201", "支付物业费", "物业费", "2,150.00", "", "后勤部", "孙丽"],
+    ["2026-11-16", "记-0203", "办公软件年度订阅", "软件服务费", "3,600.00", "", "综合部", "张伟"],
+    ["2026-11-17", "记-0205", "报销业务招待费", "业务招待费", "1,240.00", "", "业务部", "刘敏"],
+    ["2026-11-18", "记-0207", "支付检测样品运输费", "运输费", "780.00", "", "后勤部", "孙丽"],
+    ["2026-11-19", "记-0209", "收到检测服务预收款", "预收账款", "", "15,000.00", "业务部", "王强"],
+    ["2026-11-20", "记-0211", "计提本月固定资产折旧", "累计折旧", "5,320.00", "", "财务部", "李静"],
+    ["2026-11-21", "记-0213", "支付银行账户手续费", "财务费用", "126.00", "", "财务部", "李静"],
+    ["2026-11-22", "记-0215", "采购车间防护用品", "劳保用品", "890.00", "", "后勤部", "孙丽"],
+    ["2026-11-23", "记-0217", "支付线上推广费用", "销售费用", "4,500.00", "", "市场部", "周涛"],
+    ["2026-11-24", "记-0219", "收到稳岗补贴", "其他收益", "", "6,000.00", "财务部", "李静"],
+    ["2026-11-25", "记-0221", "支付11月水费", "水电费", "620.00", "", "后勤部", "孙丽"],
+    ["2026-11-26", "记-0223", "结转本月检测成本", "主营业务成本", "18,600.00", "", "财务部", "李静"]
+  ];
+  var MO_HEAD = ["#", "日期", "凭证号", "摘要", "科目", "借方", "贷方", "部门", "经办人", "备注"];
+  var moBuilt = false, moPrev = null, moTipT = null;
+  function moMoney(s) { return Number(String(s).replace(/,/g, "")) || 0; }
+  function buildMoyu() {
+    if (moBuilt) return;
+    moBuilt = true;
+    var grid = $("#moGrid");
+    if (!grid) return;
+    var out = [];
+    MO_HEAD.forEach(function (h) { out.push('<div class="mo-ch">' + h + "</div>"); });
+    var sum = 0;
+    MO_ROWS.forEach(function (row, i) {
+      out.push('<div class="mo-rh">' + (i + 1) + "</div>");
+      row.forEach(function (v, j) {
+        var cls = "mo-c" + (j === 4 || j === 5 ? " num" : "") +
+          (i === 5 && j === 4 ? " sel" : "") +      /* 选中 E6：正好是那笔大额工资，看着像在核对 */
+          (i === 3 && j === 3 ? " edit" : "");      /* 有一格在"正在输入"，光标在闪 */
+        out.push('<div class="' + cls + '">' + v + "</div>");
+        if (j === 4) sum += moMoney(v);
+      });
+      out.push('<div class="mo-c"></div>');          /* 备注列留空 */
+    });
+    /* 补空白行把版面填满：真实 Excel 不会在数据后面突然断成一片白 */
+    for (var r = MO_ROWS.length + 1; r <= 38; r++) {
+      out.push('<div class="mo-rh">' + r + "</div>");
+      for (var c = 0; c < 9; c++) out.push('<div class="mo-c"></div>');
+    }
+    grid.innerHTML = out.join("");
+    var sumEl = $("#moSum");
+    if (sumEl) sumEl.textContent = "计数 " + MO_ROWS.length + "　求和 " + sum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function setMoyu(on) {
+    var body = document.body;
+    if (on === body.classList.contains("moyu-on")) return;
+    buildMoyu();
+    if (on) {
+      moPrev = { playing: !video.paused, vol: video.volume, muted: video.muted, fs: S.fs, mini: S.mini };
+      try { video.pause(); } catch (e) { }
+      video.muted = true;
+      if (S.fs) setFs(false);
+      if (S.mini) setMini(false);
+      body.classList.add("moyu-on");
+      var tip = $("#moTip");
+      if (tip) {
+        tip.classList.add("on");
+        clearTimeout(moTipT);
+        moTipT = setTimeout(function () { tip.classList.remove("on"); }, 4200);
+      }
+      post2host({ action: "moyu", on: true });
+    } else {
+      body.classList.remove("moyu-on");
+      if (moPrev) {
+        video.muted = moPrev.muted; video.volume = moPrev.vol;
+        if (moPrev.playing && viewer.classList.contains("on")) { try { video.play(); } catch (e) { } }
+      }
+      post2host({ action: "moyu", on: false });
+      if (moPrev && moPrev.mini) setTimeout(function () { setMini(true); }, 70);
+      if (moPrev && moPrev.fs) setTimeout(function () { setFs(true); }, 120);
+      moPrev = null;
+    }
+  }
+  function post2host(o) {
+    try { if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify(o)); } catch (e) { }
+  }
+  $("#wbMo").onclick = function () { setMoyu(!document.body.classList.contains("moyu-on")); };
+  /* 伪装窗口自己的标题栏：能拖、最小化/最大化/关掉都照宿主来 */
+  var moTitle = $(".mo-title");
+  if (moTitle) {
+    moTitle.addEventListener("mousedown", function (e) {
+      if (e.target.closest && e.target.closest(".mo-wb")) return;
+      post2host({ action: "drag" });
+    });
+  }
+  document.querySelectorAll(".mo-wb").forEach(function (b) {
+    b.addEventListener("click", function (e) {
+      e.stopPropagation();
+      post2host({ action: b.dataset.host });
+    });
+  });
+  if (window.chrome && window.chrome.webview) {
+    window.chrome.webview.addEventListener("message", function (e) {
+      var d = e.data || {};
+      if (d.action === "moyuT") setMoyu(!document.body.classList.contains("moyu-on"));
+    });
+  }
+
   /* 小窗透明：鼠标进入变清晰，离开回到半透明 */
   var alpha = 94;
   function sendAlpha(v) {
@@ -1987,6 +2100,8 @@
   refreshAccount();
   loadLibrary();
   if (qs.get("mine")) setTimeout(function () { switchView("mine"); }, 1600);
+  /* 自检用：?moyu=1 启动两秒后自动进摸鱼态，方便截图核对伪装效果 */
+  if (qs.get("moyu")) setTimeout(function () { setMoyu(true); }, 2200);
   /* 自检用：?view=cat|rank 直接切页，不播放 */
   var vParam = qs.get("view");
   if (vParam) setTimeout(function () { switchView(vParam === "cat" ? "category" : "rank"); }, 2000);

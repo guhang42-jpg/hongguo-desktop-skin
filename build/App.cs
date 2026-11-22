@@ -30,6 +30,7 @@ namespace HongguoSkin
         internal static bool Fixed;
         internal static bool VolProbe;
         internal static bool NoHevc;
+        internal static bool Moyu;
         [STAThread]
         static void Main(string[] args)
         {
@@ -44,6 +45,7 @@ namespace HongguoSkin
             Fixed = args != null && Array.IndexOf(args, "--fixed") >= 0;
             VolProbe = args != null && Array.IndexOf(args, "--vol") >= 0;
             NoHevc = args != null && Array.IndexOf(args, "--nohev") >= 0;
+            Moyu = args != null && Array.IndexOf(args, "--moyu") >= 0;
             if (args != null)
             {
                 int vi = Array.IndexOf(args, "--view");
@@ -171,6 +173,7 @@ namespace HongguoSkin
                 if (Program.Fixed) extra += "&fixed=1";
                 if (Program.VolProbe) extra += "&vol=1";
                 if (Program.NoHevc) extra += "&nohev=1";
+                if (Program.Moyu) extra += "&moyu=1";
                 if (Program.Dbg) extra += "&dbg=1";
                 web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + extra);
             }
@@ -396,6 +399,14 @@ namespace HongguoSkin
                             SetMiniMode(om2.Success && om2.Groups[1].Value == "true");
                             return;
                         }
+                    /* 摸鱼：标题也换成 Excel，任务栏扫一眼看不出破绽 */
+                    case "moyu":
+                        {
+                            var mm = Regex.Match(msg, "\"on\"\\s*:\\s*(true|false)");
+                            isMoyu = mm.Success && mm.Groups[1].Value == "true";
+                            Text = isMoyu ? "Microsoft Excel - 2026年度费用统计.xlsx" : "红果短剧";
+                            return;
+                        }
                     /* 缺 HEVC 解码器时，界面上的按钮点这里，直接拉商店的扩展页 */
                     case "openStore":
                         try { Process.Start(new ProcessStartInfo("ms-windows-store://pdp/?ProductId=9n4wgh0z6vhq") { UseShellExecute = true }); }
@@ -504,12 +515,35 @@ namespace HongguoSkin
         {
             base.OnHandleCreated(e);
             ApplyCorners();
+            /* 全局热键：就算在别的程序前台按，也能一键把界面收成 Excel（Ctrl+Shift+M） */
+            try
+            {
+                hotOk = RegisterHotKey(Handle, HotId, 0x2 | 0x4, 0x4D);
+                Log("摸鱼热键 Ctrl+Shift+M " + (hotOk ? "已注册" : "注册失败（可能被别的程序占用）"));
+            }
+            catch { }
         }
+
+        private const int HotId = 0xA11;
+        private bool hotOk;
+        private bool isMoyu;
 
         // 无边框窗口的四边拖拽缩放
         protected override void WndProc(ref Message m)
         {
             const int WM_NCHITTEST = 0x84;
+            const int WM_HOTKEY = 0x312;
+            if (m.Msg == WM_HOTKEY && m.WParam.ToInt32() == HotId)
+            {
+                /* 把切换交给前端：前端才知道播放要不要暂停、界面怎么盖 */
+                try
+                {
+                    if (web != null && web.CoreWebView2 != null)
+                        web.CoreWebView2.PostWebMessageAsJson("{\"action\":\"moyuT\"}");
+                }
+                catch { }
+                return;
+            }
             if (m.Msg == WM_NCHITTEST && WindowState == FormWindowState.Normal)
             {
                 Point p = PointToClient(new Point(m.LParam.ToInt32() & 0xFFFF, m.LParam.ToInt32() >> 16));
@@ -555,5 +589,9 @@ namespace HongguoSkin
         private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, int lParam);
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+        [DllImport("user32.dll")]
+        private static extern bool RegisterHotKey(IntPtr hWnd, int id, int fsModifiers, int vk);
+        [DllImport("user32.dll")]
+        private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
     }
 }

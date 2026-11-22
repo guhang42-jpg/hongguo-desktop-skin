@@ -3,15 +3,17 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.004**（2026-11-22）
+**当前版本：v1.005**（2026-11-22）
 
 ## 下载
 
-- 最新版：`v1.004` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.004
-- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.004/hongguo-skin-1.004-win64.zip`
-- 文件：`hongguo-skin-1.004-win64.zip`（约 6.6 MB，解压即用）
-- SHA256：`00F0BF6DDEC85E634CC0AB69D698E30EB7144493AB10A106AC9B5157609125F6`
-- 上一版（v1.003）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.003
+- 最新版：`v1.005` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.005
+- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.005/hongguo-skin-1.005-win64.zip`
+- 文件：`hongguo-skin-1.005-win64.zip`（约 6.6 MB，解压即用）
+- SHA256：`45C03CC037A58155AA76C6B54853C8B592CA9C1A087A14275E1C9A03B870A70D`
+- 上一版（v1.004）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.004
+
+> **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
 > **换到别的 Windows 电脑上播放只有声音、画面全黑？** 那台机器缺 HEVC 解码器（片源是 H.265）。
 > 启动后顶上会顶出一条橙色提示，点「去安装」拉商店装 `HEVC Video Extensions`（￥0），装完点「装好了，重启」即可。
@@ -109,6 +111,14 @@ ui/index.html, ui/app.js, ui/icon.png
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.005（2026-11-22）
+
+- 新增**一键摸鱼**：全局热键 `Ctrl+Shift+M`（`RegisterHotKey` 注册，别的程序前台也能触发），窗口当场变成 Excel 台账
+- 伪装包括：Excel 标题栏 + 功能区 + 名称框/公式栏 + 带行号列标的网格（22 条分录 + 空白行铺满）+ sheet 标签 + 状态栏求和；选中格与闪烁输入光标，像真在核对
+- 窗口标题同步改为 `Microsoft Excel - 2026年度费用统计.xlsx`，任务栏与 Alt+Tab 一致；伪装的标题栏三颗按钮与拖动都是真的
+- 进摸鱼自动 `pause` + 静音，退出还原音量/播放/小窗或全屏形态，进度接着走
+- 顶栏加 ☕ 按钮作为图形入口；自检 `--moyu`
 
 ### v1.004（2026-11-22）
 
