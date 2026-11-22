@@ -671,7 +671,7 @@
     box-shadow:0 34px 76px -28px rgba(0,0,0,.95),
       inset 0 0 0 1px rgba(255,255,255,.08),inset 0 1px 0 rgba(255,255,255,.17);
     transform:translateY(18px) scale(.9);transform-origin:0 100%;opacity:0;pointer-events:none;
-    transition:transform .42s var(--ease),opacity .26s ease}
+    transition:transform .42s var(--ease),opacity .26s ease,height .3s var(--ease)}
   /* 一层"玻璃厚度"：上缘提亮、下缘压暗，代替生硬的描边 */
   .aipop::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
     background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.015) 22%,
@@ -707,7 +707,13 @@
   @keyframes amIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
   .am .amv{width:20px;height:20px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:9px;
     color:#fff;background:radial-gradient(circle at 36% 26%,#ffdcae,#ff7a55 52%,#c4431f);
-    box-shadow:0 4px 12px -5px rgba(255,110,70,.85),inset 0 1px 0 rgba(255,255,255,.5)}
+    box-shadow:0 4px 12px -5px rgba(255,110,70,.85),inset 0 1px 0 rgba(255,255,255,.5);
+    transition:box-shadow .6s var(--ease)}
+  /* 亲密度三档：见得多、聊得多，她的光就厚一点；刚认识时是薄薄一圈 */
+  .aipop[data-bond="1"] .amv,
+  .aiball[data-bond="1"]{filter:saturate(.86)}
+  .aipop[data-bond="3"] .amv{box-shadow:0 4px 14px -4px rgba(255,110,70,1),0 0 0 1px rgba(255,190,150,.18),inset 0 1px 0 rgba(255,255,255,.55)}
+  .aiball[data-bond="3"]::before{box-shadow:0 0 0 1px rgba(255,190,150,.22),0 0 26px -6px rgba(255,120,80,.75)}
   .am .bb{position:relative;max-width:248px;padding:9px 12px;border-radius:15px 15px 15px 3px;
     font-size:12.3px;line-height:1.6;color:#eef1f8;word-break:break-word;
     background:rgba(255,255,255,.085);
@@ -722,6 +728,7 @@
   .am.me .bb b{color:#ffe9dc}
   .am .bb .semnote{display:block;margin-top:4px;font-size:10.5px;line-height:1.5;color:rgba(238,242,250,.5);
     border-top:1px solid rgba(255,255,255,.09);padding-top:4px}
+  .am .bb .mnote{font:400 10.5px/1.5 inherit;color:rgba(238,242,250,.42);margin-left:7px}
   .am.tp .bb{color:var(--muted-2);letter-spacing:2px}
   .am.tp .bb i{display:inline-block;width:4px;height:4px;border-radius:50%;background:currentColor;margin-right:3px;
     opacity:.4;animation:tpDot 1.2s infinite}

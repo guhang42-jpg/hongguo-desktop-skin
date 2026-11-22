@@ -39,6 +39,8 @@ namespace HongguoSkin
         internal static bool Ach;
         internal static bool Ai;
         internal static bool Sem;
+        internal static bool Mem;
+        internal static bool NoAsk;
         internal static string AskArg;
         [STAThread]
         static void Main(string[] args)
@@ -62,6 +64,8 @@ namespace HongguoSkin
             Ach = args != null && Array.IndexOf(args, "--ach") >= 0;
             Ai = args != null && Array.IndexOf(args, "--ai") >= 0;
             Sem = args != null && Array.IndexOf(args, "--sem") >= 0;
+            Mem = args != null && Array.IndexOf(args, "--mem") >= 0;
+            NoAsk = args != null && Array.IndexOf(args, "--noa") >= 0;
             if (args != null)
             {
                 int ai = Array.IndexOf(args, "--a");
@@ -208,6 +212,8 @@ namespace HongguoSkin
                 if (Program.Ach) extra += "&ach=1";
                 if (Program.Ai) extra += "&ai=1";
                 if (Program.Sem) extra += "&sem=1";
+                if (Program.Mem) extra += "&mem=old";
+                if (Program.NoAsk) extra += "&noa=1";
                 if (Program.AskArg != null) extra += "&a=" + Uri.EscapeDataString(Program.AskArg);
                 if (Program.Dbg) extra += "&dbg=1";
                 web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + extra);

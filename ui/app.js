@@ -2391,6 +2391,128 @@
         return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c];
       });
     }
+
+    /* ============ 记忆 · 陪伴 · 情感 ============
+       参照 Miru 的三件事（记得你 / 自己决定开口 / 有情绪），但这里一个都不靠大模型：
+       · 记忆是结构化的本地事实，你一打开就能看见她记了什么、也能让她忘掉
+       · 开口不用定时器：只在「你打开面板」这一下算一次，算完就睡，不轮询、不截屏、不联网
+       · 情绪是几个数字（亲密度 / 精力）驱动的语气档位，不是生成出来的 */
+    var MKEY = "xg.mem.v1";
+    var MO = null;
+
+    function moLoad() {
+      var d = { v: 1, bond: 0, seenN: 0, seenLast: 0, seenFirst: 0,
+                talkN: 0, talkLast: 0, talkDay: "", talkToday: 0,
+                playsN: 0, playLast: 0, facts: [], asked: [],
+                saidDay: "", said: [] };
+      try {
+        var raw = localStorage.getItem(MKEY);
+        if (raw) {
+          var p = JSON.parse(raw);
+          for (var k in d) if (p[k] !== undefined) d[k] = p[k];
+        }
+      } catch (e) { }
+      return d;
+    }
+    function moSave() {
+      if (!MO) return;
+      if (MO.facts.length > 24) MO.facts = MO.facts.slice(-24);
+      if (MO.asked.length > 24) MO.asked = MO.asked.slice(-24);
+      try { localStorage.setItem(MKEY, JSON.stringify(MO)); } catch (e) { }
+    }
+    function dayOf(ts) {
+      var d = new Date(ts || Date.now());
+      return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+    }
+    function dayGap(a, b) { return Math.floor(b / 864e5) - Math.floor(a / 864e5); }
+
+    /* --- 记什么：只记你亲口说的偏好，或者你真点开过的剧；从不自己编 --- */
+    var LIKERE = /(我|咱)(?:比较|特别|很|最)?(喜欢|爱看|爱追|想看|只看|不看|讨厌|受不了|不喜欢)([^。！？!?，,]{1,16})/;
+    var NOPERE = /(别|不要|不用)(?:给我|再)?(推荐|推|发)([^。！？!?，,]{1,14})/;
+
+    function learn(text) {
+      if (!MO) MO = moLoad();
+      var m = LIKERE.exec(text), s = null;
+      if (m) s = m[2] + (m[3] || "").trim();
+      if (!s) {
+        var n = NOPERE.exec(text);
+        if (n && n[3]) s = "不喜欢" + n[3].replace(/的$/, "").trim();
+      }
+      if (!s || s.length < 2) return null;
+      for (var i = 0; i < MO.facts.length; i++) {
+        if (MO.facts[i].t === s) { MO.facts[i].n++; MO.facts[i].at = Date.now(); moSave(); return s; }
+      }
+      MO.facts.push({ t: s, at: Date.now(), n: 1 });
+      moSave();
+      return s;
+    }
+
+    function recall(topic) {
+      /* 找一条跟你这句话最沾边的旧记忆，沾不上就不硬凑 */
+      if (!topic) return null;
+      var best = null, bl = 0;
+      for (var i = 0; i < MO.facts.length; i++) {
+        var f = MO.facts[i];
+        for (var k = 0; k + 2 <= f.t.length; k++) {
+          var seg = f.t.substr(k, 2);
+          if (topic.indexOf(seg) >= 0 || f.t.indexOf(topic) >= 0) {
+            if (f.t.length > bl) { bl = f.t.length; best = f; }
+            break;
+          }
+        }
+      }
+      return best;
+    }
+
+    /* --- 亲密度：见面 +1，说话 +2，真点开卡片 +3；隔一天不来掉 1 --- */
+    function touch(kind) {
+      if (!MO) MO = moLoad();
+      var now = Date.now(), today = dayOf(now), gap = MO.seenLast ? dayGap(MO.seenLast, now) : 0;
+      if (gap > 0) MO.bond = Math.max(0, MO.bond - Math.min(4, gap));
+      if (MO.talkDay !== today) { MO.talkDay = today; MO.talkToday = 0; }
+      if (kind === "open") {
+        MO.seenN++; MO.seenLast = now;
+        if (!MO.seenFirst) MO.seenFirst = now;
+        MO.bond = Math.min(100, MO.bond + 1);
+      } else if (kind === "talk") {
+        MO.talkN++; MO.talkLast = now; MO.talkToday++;
+        MO.bond = Math.min(100, MO.bond + 2);
+      } else if (kind === "play") {
+        MO.playsN++; MO.playLast = now;
+        MO.bond = Math.min(100, MO.bond + 3);
+      }
+      moSave();
+      paintBond();
+    }
+
+    function bondBand() { return MO.bond >= 60 ? 3 : (MO.bond >= 25 ? 2 : 1); }
+    function paintBond() {
+      if (!MO) return;
+      var b = String(bondBand());
+      if (pop) pop.setAttribute("data-bond", b);
+      if (ball) ball.setAttribute("data-bond", b);
+    }
+
+    /* --- 说什么：一天一种话只说一次，说过的当天不再重复 --- */
+    function opener() {
+      if (!MO) MO = moLoad();
+      var now = Date.now(), today = dayOf(now), hr = new Date(now).getHours();
+      if (MO.saidDay !== today) { MO.saidDay = today; MO.said = []; }
+      function once(k) {
+        if (MO.said.indexOf(k) >= 0) return false;
+        MO.said.push(k); moSave(); return true;
+      }
+      if (MO.seenN <= 1) return { k: "first", t: "我是小果 · 本机剧库助理。" };
+      if (MO.talkToday >= 5) return { k: "quiet", t: "又来了。" };
+      var gap = dayGap(MO.seenLast, now);
+      if (gap >= 7 && once("miss")) return { k: "miss", t: "你有 " + gap + " 天没来了。" };
+      if (gap >= 3 && once("miss3")) return { k: "miss", t: "三天没见着你了。" };
+      if (hr < 6 && once("late")) return { k: "late", t: "这个点还没睡。" };
+      if (hr >= 23 && once("late2")) return { k: "late", t: "又是这个点。" };
+      if (hr < 11 && once("morning")) return { k: "morning", t: "早。" };
+      if (MO.bond >= 60 && once("warm")) return { k: "warm", t: "你来了。" };
+      return { k: "plain", t: "我是小果 · 本机剧库助理。" };
+    }
     function tagText(x) {
       var t = x && x.tags;
       if (!t) return "";
@@ -2403,6 +2525,7 @@
       d.className = "am" + (me ? " me" : "");
       d.innerHTML = (me ? "" : '<i class="amv">✦</i>') + '<div class="bb">' + html + "</div>";
       body.appendChild(d); down();
+      if (opened) setTimeout(place, 70);
       return d;
     }
     function typing() {
@@ -2422,11 +2545,14 @@
         (eps ? eps + " 集" : "") + (it.score ? " · ★" + esc(it.score) : "") +
         (item && item._why ? " · " + esc(item._why) : "") +
         '</span></div><div class="go">' + (goText || "看看") + "</div>";
-      d.onclick = function () { close(); openDetail(it, 0); };
+      d.onclick = function () { touch("play"); close(); openDetail(it, 0); };
       body.appendChild(d); down();
+      if (opened) setTimeout(place, 70);
     }
+    var pendNote = "";      /* 这一问里刚记下的偏好，答完正事补在气泡底下 */
     function reply(html, tp) {
       if (tp) tp.remove();
+      if (pendNote) { html += "<span class='semnote'>" + pendNote + "</span>"; pendNote = ""; }
       msg(html);
       busy = false;
     }
@@ -2654,14 +2780,23 @@
       if (!body || busy) return;
       busy = true;
       if (chips && chips.style.display !== "none") chips.style.display = "none";   /* 说上话之后就把快捷句收掉，把高度让给对话 */
+      touch("talk");
+      var learned = learn(text);      /* 你亲口说的偏好，边聊边记 */
+      var q = String(text).slice(0, 40);
+      MO.asked = (MO.asked || []).filter(function (x) { return x.q !== q; });   /* 同一句只留最近一次，别在“最近问过的”里刷屏 */
+      MO.asked.push({ q: q, at: Date.now() });
+      moSave();
       msg(esc(text), true);
       var tp = typing();
-      setTimeout(function () { route(text, tp); }, 300);
+      setTimeout(function () { route(text, tp, learned); }, 300);
     }
 
-    function route(text, tp) {
+    function route(text, tp, learned) {
       var t = String(text).replace(/[\s，。！？、]/g, ""), q = pick(text);
+      if (learned) pendNote = "记下了：" + esc(learned);
 
+      if (/(你记得|记得什么|记得我啥|还记得我|记了什么|你记了啥)/.test(t)) return doMemory(tp);
+      if (/(忘了|忘掉|清空记忆|别记了|忘了我|重新记)/.test(t)) return doForget(tp);
       if (/(看到哪|追到哪|上次看|继续看|没看完|接着看|看到第几|进度|上次那部|上次那个)/.test(t)) return doResume(tp);
       if (/(收藏|我的列表|收藏夹)/.test(t)) return doFav(tp);
       if (/(看了多少|看了几部|总共看|花了多少时间|我的记录|多少集|追了几部)/.test(t)) return doStats(tp);
@@ -2692,6 +2827,43 @@
       });
     }
 
+    function ago(ts) {
+      var d = Date.now() - (ts || 0), m = Math.floor(d / 6e4), h = Math.floor(d / 36e5), dy = Math.floor(d / 864e5);
+      if (dy >= 1) return dy + " 天前";
+      if (h >= 1) return h + " 小时前";
+      if (m >= 1) return m + " 分钟前";
+      return "刚才";
+    }
+
+    function doMemory(tp) {
+      lib(function () {
+        var out = [];
+        if (MO.facts.length) {
+          out.push("<b>你自己说过的</b>");
+          MO.facts.slice(-6).forEach(function (f) {
+            out.push("· " + esc(f.t) + "<b class='mnote'>" + ago(f.at) + (f.n > 1 ? " · 提过 " + f.n + " 次" : "") + "</b>");
+          });
+        }
+        if (MO.asked.length) {
+          out.push("<b>最近问过的</b>");
+          out.push("· " + MO.asked.slice(-5).map(function (a) { return esc(a.q); }).join("　"));
+        }
+        if (!out.length) return reply("我还什么都没记。你跟我说「我爱看修仙的」这种话，我就记下来。", tp);
+        out.push("<span class='semnote'>" + MO.facts.length + " 条偏好 · 聊过 " + MO.talkN + " 次 · 见过 " + MO.seenN +
+          " 回 · 全在这台机器的本地存储里，不联网，说「忘了吧」就清空</span>");
+        reply(out.join("<br>"), tp);
+      });
+    }
+
+    function doForget(tp) {
+      MO.facts = []; MO.asked = [];
+      MO.bond = 0; MO.talkN = 0; MO.talkToday = 0; MO.playsN = 0;
+      MO.seenN = 0; MO.seenFirst = 0; MO.seenLast = 0; MO.playLast = 0;
+      MO.said = []; MO.saidDay = "";
+      moSave(); paintBond();
+      reply("忘了。刚才那些都没了。<br><span class='semnote'>下次你说什么，我重新记。</span>", tp);
+    }
+
     function doResume(tp) {
       lib(function (l) {
         var h = hist(l);
@@ -2700,7 +2872,7 @@
         var total = Number(d.episode_count) || 0;
         var dur = Number(e.duration) || 0, pos = Number(e.position) || 0;
         var pct = (dur > 0 && pos > 0) ? "，这一集看到 " + Math.min(99, Math.round(pos / dur * 100)) + "%" : "";
-        var left = total ? "（全 " + total + " 集，还剩 " + Math.max(0, total - ep + 1) + " 集）" : "";
+        var left = total ? "（全 " + total + " 集，前面 " + Math.max(0, ep - 1) + " 集看过了）" : "";
         var when = ago(e.last_played_at);
         reply("你上次停在 <b>《" + esc(d.title || "那部剧") + "》</b>第 " + ep + " 集" + pct +
           (when ? "，是 " + when : "") + "。" + left + "<br>要接着看就点下面这张卡。", tp);
@@ -2839,37 +3011,64 @@
     }
 
     function doHelp(tp) {
-      reply("我只认这部剧库：<br>· 你看到哪了、还剩几集<br>· 按集数或关键词找剧<br>· 收藏夹、本机统计<br>· 说「看《XX》」直接给你放<br>" +
-        "<span style='color:rgba(238,242,250,.55)'>不联网、不加载模型，答案全来自 core 的本地数据。</span>", tp);
+      reply("我只认这部剧库：<br>· 你看到哪了、还剩几集<br>· 按集数或关键词找剧（装语义版还能按意思找）<br>· 收藏夹、本机统计<br>· 说「看《XX》」直接给你放<br>· 你说过的偏好我记着，说「你记得什么」能看<br>" +
+        "<span style='color:rgba(238,242,250,.55)'>不联网、不调模型、不截屏。记忆只存这台机器的本地存储，说「忘了吧」就清空。</span>", tp);
     }
 
     /* --- 打开 / 收起 --- */
+    function needH() {
+      /* 内容少的时候别留一片空白：按实际内容估高，超过 512 才封顶 */
+      if (!body || !pop) return 512;
+      var fixed = pop.offsetHeight - body.getBoundingClientRect().height;   /* 头部 + 短语行 + 输入区，按真实排版量，不猜 */
+      var n = 0, k = body.children, i;
+      for (i = 0; i < k.length; i++) n += k[i].offsetHeight;
+      n += 12;
+      if (body.scrollHeight > body.clientHeight + 2) n = Math.max(n, body.scrollHeight);   /* 挤到溢出时以内容全高为准 */
+      return Math.max(184, n + fixed);
+    }
     function place() {
       var b = ball.getBoundingClientRect();
       var bottom = Math.max(10, window.innerHeight - b.top + 10);
       var avail = window.innerHeight - bottom - 12;   /* 不留这层限制，气泡头部会被窗口上边裁掉 */
       pop.style.bottom = bottom + "px";
-      pop.style.height = Math.max(236, Math.min(512, avail)) + "px";
+      pop.style.height = Math.max(184, Math.min(512, avail, needH())) + "px";
       pop.style.left = Math.max(6, b.left - 10) + "px";
     }
-    function seed() {
-      var d = msg("我是小果 · 本机剧库助理。");
+    function seed(o) {
+      o = o || opener();
+      var d = msg(o.t);
       lib(function (l) {
-        var h = hist(l);
-        if (!h.length) return;
-        var e = h[0], dr = dOf(e), bb = d.querySelector(".bb");
-        if (bb) {
-          bb.innerHTML += "<br>你上次停在 <b>《" + esc(dr.title || "那部剧") + "》</b>第 " + (Number(e.episode) || 1) + " 集。";          down();
+        var extra = [];
+        /* 记忆：只提一条，而且一天最多提一次，不啰嗦 */
+        if (MO.facts.length) {
+          var said = MO.saidDay === dayOf() && MO.said.indexOf("mem") >= 0;
+          if (!said) {
+            var f = MO.facts[MO.facts.length - 1];
+            extra.push("我记得你说过「" + esc(f.t) + "」。");
+            if (MO.saidDay !== dayOf()) { MO.saidDay = dayOf(); MO.said = []; }
+            MO.said.push("mem"); moSave();
+          }
         }
+        var h = hist(l);
+        if (h.length) {
+          var e = h[0], dr = dOf(e), ep = Number(e.episode) || 1, eps = Number(dr.episode_count) || 0;
+          extra.push("你上次停在 <b>《" + esc(dr.title || "那部剧") + "》</b>第 " + ep + " 集" +
+            (eps && ep < eps ? "，还剩 " + (eps - ep) + " 集" : "") + "。");
+        }
+        if (!extra.length) return;
+        var bb = d.querySelector(".bb");
+        if (bb) { bb.innerHTML += "<br>" + extra.join("<br>"); down(); }
       });
     }
     function open() {
       if (!pop || opened) return;
       if (document.body.classList.contains("mini") || document.body.classList.contains("fs")) return;   /* 全屏/小窗下侧栏本来就不在，别让气泡浮在画面上 */
       opened = true;
+      var o = opener();          /* 先算开场白，再 touch —— 不然 touch 会把 seenLast 刷成"刚刚"，她就说不出"三天没见"了 */
+      touch("open");
       place();
       pop.classList.add("on"); ball.classList.add("on");
-      if (!seeded) { seeded = true; seed(); }
+      if (!seeded) { seeded = true; seed(o); }
       setTimeout(function () { if (input) input.focus(); }, 320);
       SEM.boot();   /* 开着面板的时候悄悄把模型热起来，第一次问就不用等 */
     }
@@ -2887,6 +3086,17 @@
     function boot() {
       pop = $("#aiPop"); ball = $("#aiBall"); body = $("#aiBody"); chips = $("#aiChips"); input = $("#aiInput");
       if (!pop || !ball) return;
+      MO = moLoad();
+      if (/[?&]mem=old/.test(location.search)) {
+        /* 联调用：装作"三天没来、已经很熟"，验收开场白和亲密度档位，真机不触发 */
+        MO.seenN = 6; MO.seenLast = Date.now() - 3 * 864e5; MO.seenFirst = Date.now() - 20 * 864e5;
+        MO.talkN = 8; MO.talkDay = dayOf(); MO.talkToday = 1; MO.bond = 72; MO.saidDay = ""; MO.said = [];
+        MO.asked = [];
+        MO.facts = [{ t: "爱看修仙的", at: Date.now() - 864e5, n: 3 },
+                    { t: "不喜欢太长的", at: Date.now() - 7200e3, n: 1 }];
+        moSave();
+      }
+      paintBond();
       chips.innerHTML = "";
       CHIPS.forEach(function (c) {
         var b = document.createElement("button");
@@ -2919,7 +3129,7 @@
   /* 自检用：?ai=1 打开小果气泡并自动问一句；?a=xxx 指定问什么（多个问题用 | 隔开，依次问） */
   if (qs.get("ai") || qs.get("a")) setTimeout(function () {
     AI.open();
-    var asks = (qs.get("a") || "我上次看到哪了").split("|");
+    var asks = (qs.get("a") || (qs.get("noa") ? "" : "我上次看到哪了")).split("|").filter(Boolean);
     if (qs.get("a") || qs.get("ai") === "1") asks.forEach(function (t, i) {
       setTimeout(function () { AI.ask(t); }, 800 + i * 1800);
     });
