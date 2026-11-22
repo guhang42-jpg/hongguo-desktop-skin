@@ -25,6 +25,7 @@ namespace HongguoSkin
         internal static bool Ff;
         internal static bool Seq;
         internal static string ViewArg;
+        internal static string JumpArg;
         internal static bool Dbg;
         internal static bool Sheet;
         internal static bool Fixed;
@@ -88,6 +89,12 @@ namespace HongguoSkin
             {
                 int vi = Array.IndexOf(args, "--view");
                 if (vi >= 0 && vi + 1 < args.Length) ViewArg = args[vi + 1];
+            }
+            if (args != null)
+            {
+                /* 联调：--jump <series_id>~<集号>，直接验证"点剧名跳那一集"这条链路 */
+                int ji = Array.IndexOf(args, "--jump");
+                if (ji >= 0 && ji + 1 < args.Length) JumpArg = args[ji + 1];
             }
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -240,6 +247,7 @@ namespace HongguoSkin
                 if (Program.NoAsk) extra += "&noa=1";
                 if (Program.MemFile) extra += "&memfile=1";
                 if (Program.AskArg != null) extra += "&a=" + Uri.EscapeDataString(Program.AskArg);
+                if (Program.JumpArg != null) extra += "&jump=" + Uri.EscapeDataString(Program.JumpArg);
                 if (Program.Dbg) extra += "&dbg=1";
                 web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + extra);
                 /* 托盘与"到点看一眼"：界面起来了才有意义，放这儿建 */

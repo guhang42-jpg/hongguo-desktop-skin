@@ -3,17 +3,17 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.017**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.017-ff7a45?style=flat-square)
+**当前版本：v1.018**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.018-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.017` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.017
-- **轻量版**（不含语义模型，6.95 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.017/hongguo-skin-1.017-win64.zip`
-  - SHA256：`2B7BA824623B7615E4F35995F7222A2CFB8978D8AE741F07D4ACCBBB652346A3`
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.017/hongguo-skin-1.017-win64-ai.zip`
-  - SHA256：`55B65BAA054AE2BC03347A95FE8B9DDC2BC72A8350B32FDF93CC13F7EA681E0B`
+- 最新版：`v1.018` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.018
+- **轻量版**（不含语义模型，6.95 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.018/hongguo-skin-1.018-win64.zip`
+  - SHA256：`BFA304E6497C6ACA7C1BCD0E219581CA42E084B4495CA8453F4E3E4BF885900D`
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.018/hongguo-skin-1.018-win64-ai.zip`
+  - SHA256：`3D579A69E6363C0A4B709E9EEF714E0F8333CABA547903C88971E7F18C7DA223`
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
 - 上一版（v1.016）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.016
 
@@ -72,6 +72,10 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 |---|---|
 | ![](docs/preview-update.jpg) | [![主页](docs/preview-home.jpg)](https://guhang42-jpg.github.io/hongguo-desktop-skin/) |
 
+| 气泡里的剧名可点（暖橙那行） | 点完直接进详情，选集落在那一集 |
+|---|---|
+| ![](docs/preview-jump.jpg) | ![](docs/preview-jump2.jpg) |
+
 ## 这版有什么
 
 界面：
@@ -98,6 +102,7 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - **出新版了它会自己说**：程序把自己版本号读 `ui/version.txt`，界面起来 12 秒后去仓库根目录读一次 `version.json`（十几 KB，超时 12 秒、静默失败），比自己高就在顶部胶囊换成「新版 vX 出来了 · 点这里看看」——暖橙边框、能点、停 9 秒，托盘同时冒一个气泡，点哪儿都是打开 Release 页。**只放行 `https://github.com/` 开头的链接**，界面别想借这台机器开任意程序。不做自动下载、不碰自己的 exe，`--noupd` 整套关掉
 - 上面这条是**唯一**一处外连：只 GET 那一个 JSON，不带你看了什么剧、记了什么偏好，不统计。托盘右键也有「检查更新」可以手动点一次
 - **仓库有主页了**：`docs/index.html` 走 GitHub Pages，深色玻璃风，一页说完是什么、截图墙、能干什么、版本时间线，单文件零依赖
+- **说的剧名能点进去**：开场白、追剧追问里那句「你上次停在《某部剧》第 109 集」，书名号里的字是暖橙色的链接，点一下面板关掉、右侧详情抽屉打开，选集直接落在那一集（`touch("play")` 顺手记一笔）。老会话里存下来的旧消息没有锚点，点了按书名号里的字回库里认一次再跳，认不出就当普通文字放过 —— 宁可没反应，也不跳错剧
 
 播放：
 
@@ -159,6 +164,16 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.018（2026-11-23）
+
+- **气泡里的剧名能点了**：`jp(drama, ep, text)` 统一拼 `<b><a class="jp" data-sid data-ep>《剧名》</a></b>`，开场白 / 追剧追问 / 托盘回合三处同源。点击走事件委托，`preventDefault + stopPropagation`，关面板 → 回库按 `series_id` 认剧 → `touch("play")` → `openDetail(item, ep-1)`
+- 样式：`#ffbe7d` 暖橙、底线用 `border-bottom`、hover 变亮、按下回暗，`padding:1px 2px` 把命中区比字面撑开一点
+- **老消息也能点**：上一次会话存进 localStorage 的旧消息没有锚点，补了兜底——点到的 `<b>` 里匹配到 `《…》` 就按标题精确回库里认一次，认不出当普通文字放过（不做模糊匹配，宁可没反应也不跳错剧）
+- 认不出剧时弹「库里没找到这部剧」，不静默失败
+- 真机验证：启动 `--ai` 后 `SetCursorPos + mouse_event` 点剧名，日志三行齐全（`点到了 … 第 110 集` / `打开详情 …` / `库内 1131 条，命中=徒儿对不起，功法是我瞎编的`），截图里详情抽屉打开、选集 101–110 段、第 110 集高亮
+- 顺带记一个教训：桌面自动化一直失败的真因是**窗口被最小化**（`GetWindowRect` 返回 `-32000, -32000, 160×28`），点击全打在桌面上。`ShowWindow(SW_RESTORE)` 再取坐标、再置前台、再点，一次命中
+- 新增联调参数：`--jump <sid>~<ep>`（直接打开某部剧并定位到某集，正式使用不需要）
 
 ### v1.017（2026-11-23）
 

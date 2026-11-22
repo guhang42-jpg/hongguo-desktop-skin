@@ -2651,10 +2651,66 @@
       return arr.map(function (s) { return String(s).trim(); }).filter(Boolean).slice(0, 2).join(" / ");
     }
     function down() { if (body) body.scrollTop = body.scrollHeight; }
+    /* 气泡里提到的剧名做成可点的锚点：点一下直接进那部剧，定位到说的那一集。
+       不给"知道是哪部剧却只能自己再去搜一遍"这种事。 */
+    function jumpTo(sid, epi) {
+      if (!sid) return;
+      close();
+      lib(function (l) {
+        var entries = (l && l.entries) || [], it = null, i, dr;
+        for (i = 0; i < entries.length; i++) {
+          dr = entries[i].drama || entries[i];
+          if (dr && String(dr.series_id) === String(sid)) { it = dr; break; }
+        }
+        if (!it) { toast("库里没找到这部剧"); return; }
+        touch("play");
+        openDetail(it, isNaN(epi) ? 0 : Math.max(0, epi - 1));
+      });
+    }
+    function bindJump(box) {
+      box.addEventListener("click", function (ev) {
+        var a = ev.target && ev.target.closest ? ev.target.closest("a.jp") : null;
+        if (a) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          jumpTo(a.getAttribute("data-sid"), parseInt(a.getAttribute("data-ep"), 10));
+          return;
+        }
+        /* 老消息（旧版本存下来的、没带锚点的）里也有《剧名》，
+           点它同样要能进那部剧：按书名号里的字回库里认一次。 */
+        var el = ev.target;
+        if (el && el.nodeType === 3) el = el.parentNode;
+        if (!el || !el.closest || !el.closest(".am")) return;
+        var b = el.closest(".bb b");
+        if (!b) return;
+        var m = String(b.textContent || "").match(/《([^》]{1,40})》/);
+        if (!m) return;
+        var name = m[1], keep = ev;
+        keep.preventDefault();
+        keep.stopPropagation();
+        lib(function (l) {
+          var es = (l && l.entries) || [], it = null, ep = 0, i, dr;
+          for (i = 0; i < es.length; i++) {
+            dr = es[i].drama || es[i];
+            if (dr && String(dr.title || "") === name) { it = dr; ep = es[i].episode || 0; break; }
+          }
+          if (!it) return;
+          close();
+          touch("play");
+          openDetail(it, ep > 0 ? ep - 1 : 0);
+        });
+      });
+    }
+    /* 剧名 + 集号拼成一个可点片段，各处共用同一套写法 */
+    function jp(dr, ep, txt) {
+      return '<b><a class="jp" data-sid="' + esc(dr.series_id) + '" data-ep="' + (ep || "") + '">' +
+        (txt || ("《" + esc(dr.title || "那部剧") + "》")) + '</a></b>';
+    }
     function msg(html, me) {
       var d = document.createElement("div");
       d.className = "am" + (me ? " me" : "");
       d.innerHTML = (me ? "" : '<i class="amv">✦</i>') + '<div class="bb">' + html + "</div>";
+      bindJump(d);
       body.appendChild(d); down();
       if (opened) setTimeout(place, 70);
       return d;
@@ -3005,8 +3061,8 @@
         var pct = (dur > 0 && pos > 0) ? "，这一集看到 " + Math.min(99, Math.round(pos / dur * 100)) + "%" : "";
         var left = total ? "（全 " + total + " 集，前面 " + Math.max(0, ep - 1) + " 集看过了）" : "";
         var when = ago(e.last_played_at);
-        reply("你上次停在 <b>《" + esc(d.title || "那部剧") + "》</b>第 " + ep + " 集" + pct +
-          (when ? "，是 " + when : "") + "。" + left + "<br>要接着看就点下面这张卡。", tp);
+        reply("你上次停在 " + jp(d, ep) + "第 " + ep + " 集" + pct +
+          (when ? "，是 " + when : "") + "。" + left + "<br>点剧名或下面这张卡都能接着看。", tp);
         e._why = "第 " + ep + " 集";
         card(e, "接着看");
       });
@@ -3209,7 +3265,7 @@
         var h = hist(l);
         if (h.length) {
           var e = h[0], dr = dOf(e), ep = Number(e.episode) || 1, eps = Number(dr.episode_count) || 0;
-          extra.push("你上次停在 <b>《" + esc(dr.title || "那部剧") + "》</b>第 " + ep + " 集" +
+          extra.push("你上次停在 " + jp(dr, ep) + "第 " + ep + " 集" +
             (eps && ep < eps ? "，还剩 " + (eps - ep) + " 集" : "") + "。");
         }
         if (!extra.length) return;
@@ -3243,6 +3299,9 @@
     function boot() {
       pop = $("#aiPop"); ball = $("#aiBall"); body = $("#aiBody"); chips = $("#aiChips"); input = $("#aiInput");
       if (!pop || !ball) return;
+      /* 联调：?jump=<series_id>~<集号>，验证"点剧名直接跳到那一集"这条链路 */
+      var jv = (function () { try { return new URLSearchParams(location.search).get("jump"); } catch (e) { return null; } })();
+      if (jv) setTimeout(function () { var a2 = jv.split("~"); jumpTo(a2[0], parseInt(a2[1], 10)); }, 1600);
       /* 联调：把浏览器存储里的记忆清掉，逼它只靠文件兜底，验证"文件能当真备份" */
       if (/[?&]memfile=1/.test(location.search)) { try { localStorage.removeItem(MKEY); } catch (e) { } }
       MO = moLoad();

@@ -76,6 +76,8 @@
   .big{display:block}
   .big img{width:100%;display:block;border-radius:22px}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+  .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:14px}
+  .grid2 .card img{width:100%;display:block}
   .grid3 .card img{width:100%;display:block}
   .cap{padding:9px 14px 11px;font-size:12px;color:var(--muted)}
 
@@ -111,7 +113,7 @@
 
   @media(max-width:760px){
     .hero h1{font-size:30px}
-    .cols,.grid3{grid-template-columns:1fr}
+    .cols,.grid3,.grid2{grid-template-columns:1fr}
     .nav{display:none}
     .hero{padding:52px 0 24px}
   }
@@ -124,7 +126,7 @@
   <div class="wrap in">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#2a1105" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>
     <div class="brand">红果短剧<small>桌面皮肤版 · 非官方界面项目</small></div>
-    <span class="tag-v">v1.017</span>
+    <span class="tag-v">v1.018</span>
     <nav class="nav">
       <a href="#shots">截图</a>
       <a href="#feat">能干什么</a>
@@ -155,6 +157,10 @@
       <div class="card"><img src="./preview-moyu-hero.jpg" alt="一键摸鱼"><div class="cap">Ctrl+Shift+M 当场变成 Excel 台账</div></div>
       <div class="card"><img src="./preview-mem.jpg" alt="小果"><div class="cap">她会记得你说过什么</div></div>
       <div class="card"><img src="./preview-pref.jpg" alt="按偏好找剧"><div class="cap">「推荐一部」按你记的偏好挑</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><img src="./preview-jump.jpg" alt="剧名可点"><div class="cap">气泡里的剧名是链接，暖橙色那行</div></div>
+      <div class="card"><img src="./preview-jump2.jpg" alt="跳转详情"><div class="cap">点完直接进详情，选集落在那一集</div></div>
     </div>
   </section>
 
@@ -205,6 +211,7 @@
     <div class="h2">最近的版本</div>
     <div class="sub">每个版本的细节都写在仓库的 <a href="https://github.com/guhang42-jpg/hongguo-desktop-skin/tree/main/docs" style="color:#ffb057">docs/</a> 里。</div>
     <div class="timeline">
+      <div class="item"><b>v1.018</b><time>2026-11-23</time><p>她说的剧名能点了。开场白那句「你上次停在《某部剧》第 109 集」里，书名号就是链接，点一下关掉面板、打开详情、选集落在那一集；上一次会话留下的旧消息也能点，按书名号里的字回库里认一次再跳。</p></div>
       <div class="item"><b>v1.017</b><time>2026-11-23</time><p>版本推送：启动 12 秒后读一次 <code>version.json</code>，有新版本就在顶部胶囊和托盘各说一句，点了直接开浏览器。同一个版本只喊一次，全屏看片时不打扰。仓库也多了一个独立主页（就是你现在看的这页）。</p></div>
       <div class="item"><b>v1.016</b><time>2026-11-23</time><p>记忆落成可打开的文件（md + json，空存储能兜底恢复）；「推荐一部」按记过的偏好挑；托盘常驻，到点吭一声。</p></div>
       <div class="item"><b>v1.015</b><time>2026-11-23</time><p>小果开始记得住你、会等你、有点情绪：偏好抽取、开场白按见面间隔选句、一天一种话只说一次、亲密度三档光晕。</p></div>
