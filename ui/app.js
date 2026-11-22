@@ -3245,7 +3245,9 @@
       var avail = window.innerHeight - bottom - 12;   /* 不留这层限制，气泡头部会被窗口上边裁掉 */
       pop.style.bottom = bottom + "px";
       pop.style.height = Math.max(184, Math.min(512, avail, needH())) + "px";
-      pop.style.left = Math.max(6, b.left - 10) + "px";
+      /* 侧栏收窄后球贴近左边，气泡若还按球左侧起会压住整条侧栏，改为从球右侧起 */
+      var lft = Math.min(b.right + 8, Math.max(6, window.innerWidth - 352));
+      pop.style.left = Math.max(6, lft) + "px";
     }
     function seed(o) {
       o = o || opener();

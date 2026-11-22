@@ -14,7 +14,7 @@
     --accent:#ff7a55;
     --accent-2:#ffb057;
     --r:20px;
-    --railw:104px;
+    --railw:68px;
     --ease:cubic-bezier(.22,.61,.36,1);
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -618,6 +618,74 @@
   .side .who .xbar{width:100%;height:2px}
   .side .who .lvt{margin:0;font-size:9px;padding:2px 6px;letter-spacing:0}
 
+  /* ---------- v1.019：侧栏抽屉化 —— 平时只露图标，鼠标进来才铺开 ---------- */
+  .side{padding:0;position:relative;z-index:30}
+  .side::after{display:none}
+  .side::before{display:none}
+  .sideIn{position:absolute;top:0;bottom:0;left:0;width:68px;display:flex;flex-direction:column;
+    padding:4px 6px 10px;overflow:hidden;border-radius:0 20px 20px 0;background:transparent;
+    transition:width .34s cubic-bezier(.22,.82,.24,1),background .28s ease,
+      box-shadow .34s ease,backdrop-filter .28s ease}
+  .side:hover .sideIn{width:196px;background:linear-gradient(180deg,rgba(15,17,24,.74),rgba(9,11,17,.84));
+    backdrop-filter:blur(22px) saturate(1.15);
+    box-shadow:26px 0 54px -24px rgba(0,0,0,.9),inset -1px 0 0 rgba(255,255,255,.07)}
+
+  .side .brand{flex-direction:column;align-items:flex-start;gap:9px;width:184px;flex:none;
+    padding:10px 0 14px 9px}
+  .side .brand .mark{flex:none}
+  .side .brand .txt{flex-direction:column;align-items:flex-start;opacity:0;transform:translateX(-7px);white-space:nowrap;
+    transition:opacity .2s ease .04s,transform .3s cubic-bezier(.22,.82,.24,1)}
+  .side:hover .brand .txt{opacity:1;transform:none}
+  .side .brand .txt b{width:auto;word-break:normal;font-size:15px;line-height:1.2;
+    letter-spacing:.4px;color:#f2f5fa;font-weight:700}
+  .side .brand .txt small{display:block;font-size:9.5px;letter-spacing:1.5px}
+  .side:hover .brand .txt b{letter-spacing:.4px;color:#f2f5fa}
+
+  .side .nav{gap:6px;width:184px;flex:none}
+  .side .nav button{flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;
+    height:50px;min-height:0;padding:0 10px 0 17px;border-radius:13px;text-align:left}
+  .side .nav button svg{width:22px;height:22px;flex:none;opacity:.8;
+    transition:opacity .2s ease,transform .24s var(--ease),color .2s ease}
+  .side .nav button span{width:auto!important;word-break:normal!important;line-height:1!important;
+    font-size:14px!important;font-weight:600!important;letter-spacing:0!important;
+    padding:0!important;margin:0!important;background:transparent!important;box-shadow:none!important;
+    text-shadow:none!important;text-align:left!important;opacity:0;transform:translateX(-6px);
+    transition:opacity .2s ease .05s,transform .3s cubic-bezier(.22,.82,.24,1),color .2s ease}
+  .side:hover .nav button span{opacity:1;transform:none}
+  .side .nav button:hover svg{opacity:1;transform:scale(1.08)}
+  .side .nav button.on svg{opacity:1;color:var(--accent)}
+  .side .nav button.on span{color:#fff;font-weight:700!important;text-shadow:none}
+  .side .nav button::before{left:0;right:auto;width:56px;top:2px;bottom:2px;border-radius:13px;transform:none}
+  .side:hover .nav button::before{left:0;right:4px;width:auto}
+  .side .nav button.on::before{background:linear-gradient(90deg,rgba(255,122,85,.30),rgba(255,122,85,.14));
+    box-shadow:inset 0 0 0 1px rgba(255,158,120,.40)}
+  .side .nav button.on span::after{display:none}
+  .side .nav button.on::after{display:none!important}
+
+  .side .aiball{margin:14px 0 0 8px;flex:none}
+
+  .side .who{display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:10px;
+    width:184px;flex:none;padding:11px 9px;
+    border-radius:15px;text-align:left;background:transparent!important;box-shadow:none!important;
+    backdrop-filter:none}
+  .side:hover .who{background:rgba(255,255,255,.055)!important;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.09)!important}
+  .side .who .av{width:38px;height:38px;flex:none;font-size:15px}
+  .side .who .tt{min-width:0;align-items:flex-start;gap:4px;width:auto;opacity:0;transform:translateX(-6px);
+    transition:opacity .2s ease .05s,transform .3s cubic-bezier(.22,.82,.24,1)}
+  .side:hover .who .tt{opacity:1;transform:none}
+  .side .who .tt b{width:100%;min-width:0;font-size:11.5px;max-width:none;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .side .who .tt span{display:none}
+  .side .who .xbar{width:100%;height:2px}
+  .side .who .lvt{flex:none;opacity:0;margin:0;font-size:9px;padding:2px 6px;transition:opacity .2s ease .05s}
+  .side:hover .who .lvt{opacity:1}
+  @media (max-height:720px){
+    .side .nav button{height:44px}
+    .side .brand{padding:8px 0 10px 9px;gap:6px}
+    .side .nav{gap:5px}
+  }
+
   /* ---------- v1.010：播放器 / 详情页也换成竖排 ---------- */
   /* 播放器左侧竖栏：返回 + 竖排剧名 + 集数，鼠标动才浮出来 */
   .vtop{left:0;right:auto;top:0;width:96px;height:100%;flex-direction:column;align-items:center;
@@ -1035,16 +1103,17 @@ body.mini .hevcbar{display:none !important}
 
   <div class="app">
     <aside class="side">
+      <div class="sideIn">
       <div class="brand">
         <div class="mark"><img src="icon.png" alt="红果短剧"></div>
         <div class="txt"><b>红果</b><small>DESKTOP</small></div>
       </div>
 
       <nav class="nav rail">
-        <button class="on" data-view="home"><i>▦</i><span>发现</span></button>
-        <button data-view="category"><i>▤</i><span>找剧</span></button>
-        <button data-view="rank"><i>◈</i><span>榜单</span></button>
-        <button data-view="mine"><i>◍</i><span>我的</span></button>
+        <button class="on" data-view="home" title="发现"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.6"/><path d="M15.2 8.8l-1.9 4.4-4.5 1.9 1.9-4.4 4.5-1.9z"/></svg><span>发现</span></button>
+        <button data-view="category" title="找剧"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.6" cy="10.6" r="6.6"/><path d="M15.4 15.4L20.4 20.4"/></svg><span>找剧</span></button>
+        <button data-view="rank" title="榜单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20.2h16"/><rect x="4.6" y="12.4" width="4.2" height="6" rx="1.3"/><rect x="9.9" y="8.2" width="4.2" height="10.2" rx="1.3"/><rect x="15.2" y="4.6" width="4.2" height="13.8" rx="1.3"/></svg><span>榜单</span></button>
+        <button data-view="mine" title="我的"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.6" r="3.7"/><path d="M5.3 20.4c0-3.5 3-5.7 6.7-5.7s6.7 2.2 6.7 5.7"/></svg><span>我的</span></button>
       </nav>
 
       <button class="aiball" id="aiBall" title="小果 · 本机剧库助理"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><circle cx="12" cy="12" r="7.4" fill="none" stroke="#fff" stroke-width="2.1" opacity=".92"/><circle cx="12" cy="12" r="2.7" fill="#fff"/></svg></button>
@@ -1059,6 +1128,7 @@ body.mini .hevcbar{display:none !important}
           <div class="xbar"><i id="sideExp" style="width:6%"></i></div>
         </div>
         <div class="lvt" id="sideLv">Lv 1</div>
+      </div>
       </div>
     </aside>
 

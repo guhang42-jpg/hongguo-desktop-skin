@@ -3,19 +3,19 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.018**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.018-ff7a45?style=flat-square)
+**当前版本：v1.019**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.019-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.018` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.018
-- **轻量版**（不含语义模型，6.95 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.018/hongguo-skin-1.018-win64.zip`
-  - SHA256：`BFA304E6497C6ACA7C1BCD0E219581CA42E084B4495CA8453F4E3E4BF885900D`
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.018/hongguo-skin-1.018-win64-ai.zip`
-  - SHA256：`3D579A69E6363C0A4B709E9EEF714E0F8333CABA547903C88971E7F18C7DA223`
+- 最新版：`v1.019` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.019
+- **轻量版**（不含语义模型，6.95 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.019/hongguo-skin-1.019-win64.zip`
+  - SHA256：`B8A22127F959A862924447AF4471A18B2AC9BF40F7C93052CE75D373CEDFDACB`
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.019/hongguo-skin-1.019-win64-ai.zip`
+  - SHA256：`E1AEC3F6D56CB84B46660BA2612DBB1B73F71AA074D3A3382A5545EF752C2DA1`
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
-- 上一版（v1.016）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.016
+- 上一版（v1.017）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.017
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -76,11 +76,16 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 |---|---|
 | ![](docs/preview-jump.jpg) | ![](docs/preview-jump2.jpg) |
 
+| 左侧栏平时只有图标（68px） | 鼠标移进去铺开成抽屉 |
+|---|---|
+| ![](docs/preview-side.jpg) | ![](docs/preview-side2.jpg) |
+
 ## 这版有什么
 
 界面：
 
 - 左侧固定导航 + 品牌标 + 底部账号卡；顶部胶囊标签 + 搜索 + 账号
+- **左侧栏收成 68px 图标窄条**：只留 logo、四个线性图标（罗盘 / 放大镜 / 柱状 / 人像）、小果那颗球、底部头像，全在 x=34 这条竖线上。鼠标移进来自动铺开成 196px 玻璃抽屉（右侧 20px 圆角 + 投影），文字和账号卡在铺开的同时淡入；移开自己收回。抽屉浮在内容之上，不推挤主内容，看片时瞄一眼侧栏不会整页横跳
 - 大 Hero、继续观看横滑、热播榜带名次横条、推荐瀑布流、底部悬浮播放条
 - **首页折叠**：热播榜默认收起、推荐区只露两行，点了才展开；找剧 / 榜单 / 我的页不再摆 Hero 和两条横滑
 - **找剧细化**：排序（推荐 / 热度 / 口碑 / 集数少 / 集数多）+ 集数段（≤40 / 41–80 / 80+）+ 题材标签（从已加载剧集里统计出的热门前 10）
@@ -164,6 +169,17 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.019（2026-11-23）
+
+- **左侧栏从 104px 竖排文字改成 68px 图标窄条**：`--railw` 一个值改完，栅格第一列、剧场模式的 `left` 一起跟着走，内容区多出 36px
+- 鼠标移进侧栏，内层 `.sideIn` 从 68 过渡到 196（`.34s cubic-bezier(.22,.82,.24,1)`），玻璃底淡入、右侧 20px 圆角 + 外投影；移开自己退回 68
+- 文字不是被裁出来，是**淡入 + 位移 6px 归位**，比宽度过渡晚 40ms 起，看起来像铺开的同时字浮上来
+- 抽屉绝对定位浮在内容上，**不推挤主内容**
+- 四个图标换成内联 SVG（罗盘 / 放大镜 / 柱状 / 人像），选中项从"字下面一个点"改成整行橙色渐变块：折叠态 56px 圆角小方框，展开态铺满
+- 账号卡改网格 `38px | 1fr | auto`，长名字走省略号，Lv 胶囊不再被挤到文字上面
+- 连带修：小果气泡原来按"球左侧 -10"定位，球左移后会压在侧栏上，改成从球右侧 +8 起并夹在窗口内
+- 真机三次截图验证：折叠 68 / 悬停 196 / 移开复原，主内容无位移
 
 ### v1.018（2026-11-23）
 
