@@ -44,7 +44,7 @@
     LS.set("hg_resume_v1", RESUME);
   }
 
-  function api(path, opts) {
+  function api(path, opts, ms) {
     opts = opts || {};
     if (opts.json) {
       opts.method = opts.method || "POST";
@@ -53,7 +53,17 @@
       delete opts.json;
     }
     opts.cache = "no-store";
+    /* 带超时的取数：core 对没缓存过的剧，play/info 要走上游现拉片源，实测 20~60 秒；
+       原来没有超时，请求一直挂着，界面就只能干转圈。这里给一个上限，超了按失败处理。 */
+    var ctl = null, timer = null;
+    if (ms && typeof AbortController !== "undefined") {
+      ctl = new AbortController();
+      opts.signal = ctl.signal;
+      timer = setTimeout(function () { try { ctl.abort(); } catch (e) { } }, ms);
+    }
+    var clear = function () { if (timer) { clearTimeout(timer); timer = null; } };
     return fetch(BASE + path, opts).then(function (r) {
+      clear();
       return r.text().then(function (t) {
         var payload = null;
         try { payload = JSON.parse(t); } catch (e) { payload = null; }
@@ -62,6 +72,10 @@
         }
         return payload ? payload.data : null;
       });
+    }, function (e) {
+      clear();
+      if (e && e.name === "AbortError") throw new Error("等太久了（" + Math.round(ms / 1000) + " 秒没有响应）");
+      throw e;
     });
   }
 
@@ -166,7 +180,42 @@
     var img = el.querySelector("img");
     if (img) img.onerror = function () { if (item.cover && img.src !== item.cover) img.src = item.cover; };
     el.onclick = function () { openDetail(item, i); };
+    /* 鼠标在卡片上停一会儿就先把第 1 集拉上来——他真点进去时大概率已经拉完了。
+       延迟 700ms 且只排队，慢慢扫过去不会乱开枪。 */
+    var hovT = null;
+    el.onmouseenter = function () {
+      clearTimeout(hovT);
+      hovT = setTimeout(function () { warmSeries(item); }, 700);
+    };
+    el.onmouseleave = function () { clearTimeout(hovT); };
     return el;
+  }
+
+  /* 卡片级预热：先要分集表，再把第 1 集（或续播那一集）的流排队 */
+  var warmCache = {}, warmQ = [], warmBusy = false;
+  function warmSeries(item) {
+    if (!item || !item.series_id) return;
+    var sid = String(item.series_id);
+    if (S.active && String(S.active.series_id) === sid && S.vids.length) {
+      prefetchStream(S.detail || S.active, Math.max(0, Math.min(S.epIndex, S.vids.length - 1)));
+      return;
+    }
+    if (warmCache[sid]) return;
+    warmQ.push(item);
+    if (!warmBusy) pumpWarm();
+  }
+  function pumpWarm() {
+    var item = warmQ.shift();
+    if (!item) { warmBusy = false; return; }
+    warmBusy = true;
+    var sid = String(item.series_id);
+    warmCache[sid] = 1;
+    api("/api/v1/series/detail?series_id=" + encodeURIComponent(item.series_id) +
+      (item.content_type ? "&content_type=" + encodeURIComponent(item.content_type) : ""))
+      .then(function (d) { if (d) prefetchStream(d, 0); })
+      .catch(function () { })
+      .then(function () { warmBusy = false; setTimeout(pumpWarm, 400); });
+    return;
   }
 
   function renderList(list, append, snapMap) {
@@ -526,6 +575,10 @@
       var rv = resumeOf(S.active && S.active.series_id, i);
       if (rv > 4) b.classList.add("seen");
       b.onclick = (function (n) { return function () { playEpisode(n); }; })(i);
+      /* 鼠标扫过哪一集就先给那一集排队预取，点下去基本已经在拉了 */
+      b.onmouseenter = (function (n) {
+        return function () { prefetchStream(S.detail, n); };
+      })(i);
       eps.appendChild(b);
     }
     if (!total) eps.innerHTML = '<div class="foot" style="padding:16px 0">暂时取不到分集</div>';
@@ -597,6 +650,8 @@
         $("#sEpCount").textContent = "共 " + (d.episode_count || S.vids.length) + " 集";
         var total = S.vids.length || (d.episode_count || 0);
         renderEpisodeGrid(total, Math.floor(S.epIndex / EP_SEG));
+        /* 他这会儿正在看简介，先把这一集（默认第 1 集 / 上次那集）的播放源拉上来 */
+        prefetchStream(d, Math.max(0, Math.min(S.epIndex, total - 1)));
       }).catch(function (e) {
         $("#sEps").innerHTML = '<div class="foot" style="padding:16px 0">分集获取失败：' + e.message + "</div>";
       });
@@ -685,25 +740,129 @@
   }
 
   var lastStreamVid = null;
-  function loadStream(qual, seamless) {
-    var d = S.active;
-    var vid = S.vids[S.epIndex];
-    if (!vid) return;
-    if (seamless) {
-      /* 无缝接集：不弹海报/不弹 loading，直接用同一个视频面切源 */
-      $("#vLoad").classList.add("hide");
-      $("#vPoster").classList.add("hide");
-    } else {
-      $("#vLoad").classList.remove("hide");
-      $("#vPoster").classList.remove("hide");
-    }
-    var params = "series_id=" + encodeURIComponent(d.series_id) +
+
+  /* ---------- 取流：前端缓存 + 并发去重 + 预取 ---------- */
+  var STREAM_CACHE = {}, STREAM_PEND = {}, STREAM_MAX = 75000;   /* 实测最慢的一集 56 秒，给到 75 秒封顶 */
+  var SLOW_TEST = qs.get("slow") ? 12000 : 0;   /* 自检用：?slow=1 人为把取流拖慢 12 秒，用来核对等待提示 */
+  function streamKey(d, vid, epIndex, qual) {
+    return (d && d.series_id ? d.series_id : "?") + "|" + vid + "|" + epIndex + "|" + (qual || "");
+  }
+  function streamParams(d, vid, epIndex, qual) {
+    return "series_id=" + encodeURIComponent(d.series_id) +
       "&vid=" + encodeURIComponent(vid) +
-      "&episode=" + (S.epIndex + 1) +
+      "&episode=" + (epIndex + 1) +
       (d.content_type ? "&content_type=" + encodeURIComponent(d.content_type) : "") +
       (qual ? "&quality=" + encodeURIComponent(qual) : "") +
       "&mode=full";
-    api("/api/v1/play/info?" + params).then(function (data) {
+  }
+  function getPlayInfo(d, vid, epIndex, qual) {
+    var key = streamKey(d, vid, epIndex, qual);
+    if (STREAM_CACHE[key]) {
+      dbgLog("stream cache hit ep" + (epIndex + 1));
+      return Promise.resolve(STREAM_CACHE[key]);
+    }
+    if (STREAM_PEND[key]) return STREAM_PEND[key];
+    var t0 = Date.now();
+    var p = api("/api/v1/play/info?" + streamParams(d, vid, epIndex, qual), null, STREAM_MAX)
+      .then(function (data) {
+        delete STREAM_PEND[key];
+        if (data) STREAM_CACHE[key] = data;
+        dbgLog("stream req ep" + (epIndex + 1) + " " + (Date.now() - t0) + "ms path=" + ((data && data.path) || "-"));
+        return data;
+      }, function (e) {
+        delete STREAM_PEND[key];
+        dbgLog("stream req FAIL ep" + (epIndex + 1) + " " + (Date.now() - t0) + "ms " + (e && e.message));
+        throw e;
+      });
+    STREAM_PEND[key] = p;
+    if (SLOW_TEST) {
+      p = p.then(function (d) { return new Promise(function (res) { setTimeout(function () { res(d); }, SLOW_TEST); }); });
+      STREAM_PEND[key] = p;
+    }
+    return p;
+  }
+  function dbgLog(t) {
+    if (!qs.get("dbg") || !(window.chrome && window.chrome.webview)) return;
+    try { window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: t })); } catch (e) { }
+  }
+
+  /* 预取：用户还在看简介 / 翻合集的时候，就把这一集（默认第 1 集）先拉上来。
+     core 那边缓存好了，等他真按播放基本就是秒开。排队串行，不一次打十几枪。 */
+  var prefQ = [], prefBusy = false;
+  function prefetchStream(d, epIndex) {
+    if (!d || !d.series_id) return;
+    var vids = d.vid_list || [];
+    var vid = vids[epIndex];
+    if (!vid) return;
+    if (prefQ.length >= 3) prefQ.shift();
+    prefQ.push({ d: d, vid: vid, ep: epIndex });
+    if (!prefBusy) pumpPrefetch();
+  }
+  function pumpPrefetch() {
+    var job = prefQ.shift();
+    if (!job) { prefBusy = false; return; }
+    prefBusy = true;
+    getPlayInfo(job.d, job.vid, job.ep, "").catch(function () { }).then(function () {
+      prefBusy = false;
+      setTimeout(pumpPrefetch, 200);
+    });
+  }
+
+  /* 加载提示分阶段升级：先说是"正在解析"，等久了告诉他是首开慢，别让他以为死机 */
+  var loadStageT = null;
+  function stopLoadStage() { if (loadStageT) { clearInterval(loadStageT); loadStageT = null; } }
+  function startLoadStage() {
+    stopLoadStage();
+    var t0 = Date.now();
+    var paint = function () {
+      var box = $("#vLoadMsg");
+      if (!box) return;
+      var s = (Date.now() - t0) / 1000;
+      if (s < 4) box.innerHTML = "正在解析播放源…";
+      else if (s < 14) box.innerHTML = "正在解析播放源…<br><i>这部剧没缓存过，官方要把片源现拉一遍，通常十几秒</i>";
+      else if (s < 40) box.innerHTML = "还在解析，第一次打开确实慢<br><i>拉过一次就缓存住了，同一集下次是秒开；也可以点「重试」</i>";
+      else box.innerHTML = "解析已经超过 40 秒<br><i>多半是官方片源侧慢，点「重试」再来一次，或退回列表重新点开</i>";
+    };
+    paint();
+    loadStageT = setInterval(paint, 1000);
+  }
+  function showLoad(on) {
+    $("#vLoad").classList.remove("err");
+    if (on) {
+      $("#vLoadMsg").innerHTML = "";
+      $("#vLoad").classList.remove("hide");
+      $("#vPause").classList.add("hide");   /* 那颗大暂停键会正好压在转圈和文案上，等的时候收起来 */
+      startLoadStage();
+    } else {
+      $("#vLoad").classList.add("hide");
+      stopLoadStage();
+    }
+  }
+  function showLoadError(text) {
+    stopLoadStage();
+    $("#vLoad").classList.remove("hide");
+    $("#vLoad").classList.add("err");
+    $("#vLoadMsg").innerHTML = text;
+  }
+
+  function loadStream(qual, seamless, force) {
+    var d = S.active;
+    var vid = S.vids[S.epIndex];
+    if (!vid) return;
+    if (force) {
+      /* 重试：把这一集的缓存标记清掉，重新问一次 core（core 那边若已缓存会秒回） */
+      delete STREAM_CACHE[streamKey(d, vid, S.epIndex, qual)];
+      delete STREAM_CACHE[streamKey(d, vid, S.epIndex, "")];
+    }
+    if (seamless) {
+      /* 无缝接集：不弹海报/不弹 loading，直接用同一个视频面切源 */
+      showLoad(false);
+      $("#vPoster").classList.add("hide");
+    } else {
+      showLoad(true);
+      $("#vPoster").classList.remove("hide");
+    }
+    getPlayInfo(d, vid, S.epIndex, qual).then(function (data) {
       S.playInfo = data;
       S.quality = data.quality || "";
       renderQuality(data);
@@ -720,7 +879,7 @@
         video.removeAttribute("src");
         try { video.load(); } catch (e) { }
         $("#vPoster").classList.add("hide");
-        if (!seamless) $("#vLoad").classList.remove("hide");
+        if (!seamless) showLoad(true);
       }
       video.src = BASE + data.path + (sameEp ? "" : "#ep" + (S.epIndex + 1));
       if (!sameEp) {
@@ -759,12 +918,17 @@
       $("#pSub").textContent = epLabel(S.epIndex) + (data.quality ? " · " + data.quality : "");
       loadDanmaku(vid);
       saveProgress();
+      /* 播起来了就顺手把下一集拉上来：这样播完自动接集不用再等（串行排队，只拉一集） */
+      setTimeout(function () {
+        var dd = S.detail || S.active;
+        if (dd && viewer.classList.contains("on")) prefetchStream(dd, S.epIndex + 1);
+      }, 4000);
       if (qs.get("dbg") && window.chrome && window.chrome.webview) {
         window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "ep" + (S.epIndex + 1) + " vid=" + vid + " t0=" + (video.currentTime || 0).toFixed(2) + " seamless=" + !!seamless }));
       }
     }).catch(function (e) {
-      $("#vLoad").classList.add("hide");
-      toast("取流失败：" + e.message);
+      showLoadError("取不到播放源：<i>" + (e && e.message ? e.message : "未知原因") + "</i><br><i>点下面的「重试」再来一次（重试会绕过这一次的等待）</i>");
+      toast("取流失败：" + (e && e.message ? e.message : "未知原因"));
     });
   }
 
@@ -836,11 +1000,16 @@
     /* 有声无画的兜底：解码器缺了时音频照常推进，但 videoWidth 一直是 0 */
     if (!video.paused && t > 2 && video.videoWidth === 0) warnNoPicture();
   });
-  video.addEventListener("loadeddata", function () { $("#vLoad").classList.add("hide"); $("#vPoster").classList.add("hide"); });
-  video.addEventListener("playing", function () { $("#vLoad").classList.add("hide"); $("#vPause").classList.add("hide"); });
-  video.addEventListener("waiting", function () { $("#vLoad").classList.remove("hide"); });
+  video.addEventListener("loadeddata", function () { showLoad(false); $("#vPoster").classList.add("hide"); });
+  video.addEventListener("playing", function () { showLoad(false); $("#vPause").classList.add("hide"); });
+  video.addEventListener("waiting", function () {
+    /* 缓冲等数据时也给一句话，别让人对着空画面发呆 */
+    if ($("#vLoad").classList.contains("err")) return;
+    $("#vLoad").classList.remove("hide");
+    if (!$("#vLoadMsg").innerHTML) $("#vLoadMsg").innerHTML = "画面缓冲中…";
+  });
   video.addEventListener("error", function () {
-    $("#vLoad").classList.add("hide");
+    showLoad(false);
     if (NOHEVC) { warnNoPicture(); return; }
     toast("播放源打不开，点击⟳重试或换一集");
   });
@@ -926,7 +1095,7 @@
   $("#vPlay").onclick = togglePlay;
   $("#vPrev").onclick = function () { if (S.epIndex > 0) playEpisode(S.epIndex - 1); else toast("已经是第 1 集"); };
   $("#vNext").onclick = function () { if (S.epIndex < S.vids.length - 1) playEpisode(S.epIndex + 1); else toast("已经是最后一集"); };
-  $("#vRetry").onclick = function () { loadStream(S.quality); };
+  $("#vRetry").onclick = function () { loadStream(S.quality, false, true); };
   $("#vEps").onclick = function () { exitFs(); closeViewer(); if (S.active) openDetail(S.active, S.epIndex); };
   $("#vBar").onclick = function (e) {
     var r = e.currentTarget.getBoundingClientRect();

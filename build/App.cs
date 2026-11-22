@@ -31,6 +31,8 @@ namespace HongguoSkin
         internal static bool VolProbe;
         internal static bool NoHevc;
         internal static bool Moyu;
+        internal static bool Mask;
+        internal static bool Slow;
         [STAThread]
         static void Main(string[] args)
         {
@@ -46,6 +48,8 @@ namespace HongguoSkin
             VolProbe = args != null && Array.IndexOf(args, "--vol") >= 0;
             NoHevc = args != null && Array.IndexOf(args, "--nohev") >= 0;
             Moyu = args != null && Array.IndexOf(args, "--moyu") >= 0;
+            Mask = args != null && Array.IndexOf(args, "--mask") >= 0;
+            Slow = args != null && Array.IndexOf(args, "--slow") >= 0;
             if (args != null)
             {
                 int vi = Array.IndexOf(args, "--view");
@@ -174,6 +178,8 @@ namespace HongguoSkin
                 if (Program.VolProbe) extra += "&vol=1";
                 if (Program.NoHevc) extra += "&nohev=1";
                 if (Program.Moyu) extra += "&moyu=1";
+                if (Program.Mask) extra += "&mask=1";
+                if (Program.Slow) extra += "&slow=1";
                 if (Program.Dbg) extra += "&dbg=1";
                 web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + extra);
             }
