@@ -44,6 +44,7 @@ namespace HongguoSkin
         internal static bool NoTray;
         internal static bool Poke;
         internal static bool MemFile;
+        internal static bool NoUpd;
         internal static string AskArg;
         [STAThread]
         static void Main(string[] args)
@@ -72,6 +73,7 @@ namespace HongguoSkin
             NoTray = args != null && Array.IndexOf(args, "--notray") >= 0;
             Poke = args != null && Array.IndexOf(args, "--poke") >= 0;
             MemFile = args != null && Array.IndexOf(args, "--memfile") >= 0;
+            NoUpd = args != null && Array.IndexOf(args, "--noupd") >= 0;
             if (args != null)
             {
                 int ai = Array.IndexOf(args, "--a");
@@ -114,7 +116,9 @@ namespace HongguoSkin
         private DateTime pokeMutedUntil = DateTime.MinValue;
         private string lastPokeDay = "";
         private string pendingAsk = "";
+        private string pendingUrl = "";
         private bool navDone;
+        private const string UpdateUrl = "https://raw.githubusercontent.com/guhang42-jpg/hongguo-desktop-skin/main/version.json";
 
         public MainForm()
         {
@@ -244,6 +248,12 @@ namespace HongguoSkin
                     SetupTray();
                     SetupPoke();
                     if (Program.Poke) { await Task.Delay(2600); Log("--poke 强制走一次"); PokeTick(true); }
+                }
+                if (!Program.NoUpd)
+                {
+                    /* 版本推送：起来 12 秒后去 main 分支拿一个 version.json，几 KB，静默失败。
+                       这是本程序唯一的外连，专为"告诉你出新版了"，不涉及任何本机数据。 */
+                    Task.Run(async delegate { await Task.Delay(12000); CheckUpdate(false); });
                 }
             }
             catch (Exception ex)
@@ -506,6 +516,13 @@ namespace HongguoSkin
                             }
                             return;
                         }
+                    /* 只放行 GitHub 的 https 链接，别让界面借我的手开任意程序 */
+                    case "openUrl":
+                        {
+                            var um = Regex.Match(msg, "\"url\"\\s*:\\s*\"([^\"]+)\"");
+                            if (um.Success) OpenUrl(um.Groups[1].Value);
+                            return;
+                        }
                     default: return;
                 }
             }
@@ -578,6 +595,7 @@ namespace HongguoSkin
                 var menu = new ContextMenuStrip();
                 menu.Items.Add("打开小果", null, new EventHandler(delegate { ShowMain(); OpenAi(""); }));
                 menu.Items.Add("随便挑一部", null, new EventHandler(delegate { ShowMain(); OpenAi("推荐一部"); }));
+                menu.Items.Add("检查更新", null, new EventHandler(delegate { ShowMain(); CheckUpdate(true); }));
                 menu.Items.Add("今天别打扰我", null, new EventHandler(delegate
                 {
                     /* 关掉主动出声只到明天 8 点，第二天照旧 —— 免得一次手滑变成永久失联 */
@@ -589,7 +607,16 @@ namespace HongguoSkin
                 menu.Items.Add("退出", null, new EventHandler(delegate { closing = true; Close(); }));
                 tray.ContextMenuStrip = menu;
                 tray.DoubleClick += new EventHandler(delegate { ShowMain(); });
-                tray.BalloonTipClicked += new EventHandler(delegate { ShowMain(); OpenAi(pendingAsk); });
+                tray.BalloonTipClicked += new EventHandler(delegate
+                {
+                    if (pendingUrl.Length > 0)
+                    {
+                        string u = pendingUrl; pendingUrl = "";
+                        OpenUrl(u);
+                        return;
+                    }
+                    ShowMain(); OpenAi(pendingAsk);
+                });
                 tray.Visible = true;
                 Log("托盘就位");
             }
@@ -667,6 +694,131 @@ namespace HongguoSkin
         }
 
         private void PokeTick() { PokeTick(false); }
+
+        /* ========= 版本推送 ========= */
+
+        private string LocalVersion()
+        {
+            try
+            {
+                string p = Path.Combine(Program.AppDir, "ui", "version.txt");
+                if (File.Exists(p))
+                {
+                    string v = File.ReadAllText(p, Encoding.UTF8).Trim();
+                    if (v.Length > 0 && v.Length < 20) return v;
+                }
+            }
+            catch { }
+            return "0.0.0";
+        }
+
+        private static int VerCmp(string a, string b)
+        {
+            string[] x = a.Split('.'), y = b.Split('.');
+            int n = Math.Max(x.Length, y.Length);
+            for (int i = 0; i < n; i++)
+            {
+                int xi = 0, yi = 0;
+                if (i < x.Length) int.TryParse(x[i], out xi);
+                if (i < y.Length) int.TryParse(y[i], out yi);
+                if (xi != yi) return xi > yi ? 1 : -1;
+            }
+            return 0;
+        }
+
+        private void OpenUrl(string url)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(url)) return;
+                if (!url.StartsWith("https://github.com/"))
+                {
+                    Log("拒绝打开非 GitHub 链接: " + url);
+                    return;
+                }
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                Log("打开链接 " + url);
+            }
+            catch (Exception ex) { Log("打开链接失败: " + ex.Message); }
+        }
+
+        private void NotifyUpdate(string v, string notes, string url)
+        {
+            try
+            {
+                if (tray != null)
+                {
+                    pendingAsk = "";
+                    string tip = notes.Length > 0 ? notes : "点这里去看看";
+                    tray.ShowBalloonTip(9000, "有新版本 v" + v, tip + "（点这里打开）", ToolTipIcon.None);
+                }
+                if (web != null && web.CoreWebView2 != null)
+                {
+                    string n = notes.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                    string u = url.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                    web.CoreWebView2.PostWebMessageAsJson("{\"action\":\"update\",\"v\":\"" + v + "\",\"url\":\"" + u + "\",\"notes\":\"" + n + "\"}");
+                }
+            }
+            catch (Exception ex) { Log("弹更新提示失败: " + ex.Message); }
+        }
+
+        private void CheckUpdate(bool manual)
+        {
+            Task.Run(async delegate
+            {
+                string local = LocalVersion();
+                try
+                {
+                    string body = null;
+                    Task fetch = Task.Run(delegate
+                    {
+                        using (var wc = new WebClient())
+                        {
+                            wc.Encoding = Encoding.UTF8;
+                            wc.Headers["User-Agent"] = "HongguoSkin/" + local;
+                            body = wc.DownloadString(UpdateUrl);
+                        }
+                    });
+                    if (await Task.WhenAny(fetch, Task.Delay(12000)) != fetch)
+                    {
+                        Log("检查更新超时（网络或代理不通）");
+                        if (manual) SayOnTray("检查更新", "连不上，网络或代理的问题。");
+                        return;
+                    }
+                    if (body == null) return;
+                    string remote = JStr(body, "version"), url = JStr(body, "url"), notes = JStr(body, "notes");
+                    if (string.IsNullOrEmpty(remote)) { Log("version.json 里没读到版本号"); return; }
+                    if (VerCmp(remote, local) > 0)
+                    {
+                        pendingUrl = url;
+                        Log("发现新版本 " + remote + "（当前 " + local + "）");
+                        try { BeginInvoke(new Action(delegate { NotifyUpdate(remote, notes, url); })); } catch { }
+                    }
+                    else
+                    {
+                        Log("已是最新 " + local + (manual ? "（手动检查）" : ""));
+                        if (manual) SayOnTray("红果短剧", "已经是最新版 v" + local);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log("检查更新失败: " + ex.Message);
+                    if (manual) SayOnTray("检查更新", "没连上：" + ex.Message);
+                }
+            });
+        }
+
+        private void SayOnTray(string title, string body)
+        {
+            try
+            {
+                BeginInvoke(new Action(delegate
+                {
+                    if (tray != null) tray.ShowBalloonTip(5000, title, body, ToolTipIcon.None);
+                }));
+            }
+            catch { }
+        }
 
         private void PokeTick(bool force)
         {

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>红果短剧 · 桌面皮肤版</title>
+<meta name="description" content="官方客户端一个字没动，只把那张呆板的脸换了。纯前端换皮 + 一层很薄的 C# 外壳，双击就能用。">
+<style>
+  :root{
+    --bg:#0b0d12; --bg2:#11141b; --line:rgba(255,255,255,.08);
+    --txt:#eef2fa; --muted:rgba(238,242,250,.62); --muted2:rgba(238,242,250,.42);
+    --orange:#ff7a45; --orange2:#ffb057;
+    --ease:cubic-bezier(.22,1,.36,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.7}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* 顶部氛围光 */
+  .glow{position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(760px 460px at 18% -8%,rgba(255,122,69,.20),transparent 62%),
+      radial-gradient(660px 420px at 88% 4%,rgba(96,132,255,.16),transparent 60%),
+      radial-gradient(900px 600px at 50% 108%,rgba(255,176,87,.10),transparent 64%)}
+
+  /* 顶部条 */
+  .top{position:sticky;top:0;z-index:5;backdrop-filter:blur(24px) saturate(150%);
+    -webkit-backdrop-filter:blur(24px) saturate(150%);background:rgba(11,13,18,.72);
+    border-bottom:1px solid var(--line)}
+  .top .in{display:flex;align-items:center;gap:14px;height:60px}
+  .logo{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#ff6a3d,#ff9d5c);box-shadow:0 8px 22px -8px rgba(255,122,69,.9)}
+  .logo svg{width:17px;height:17px}
+  .brand{font-size:15.5px;font-weight:800;letter-spacing:.2px}
+  .brand small{display:block;font-size:11px;font-weight:600;color:var(--muted2);letter-spacing:.6px}
+  .nav{margin-left:auto;display:flex;gap:20px;font-size:13px;color:var(--muted)}
+  .nav a:hover{color:var(--orange2)}
+  .tag-v{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;color:#ffd7bf;
+    background:rgba(255,122,69,.16);border:1px solid rgba(255,122,69,.34);white-space:nowrap}
+
+  /* Hero */
+  .hero{position:relative;z-index:1;padding:76px 0 40px;text-align:center}
+  .hero h1{font-size:44px;line-height:1.22;font-weight:800;letter-spacing:-.5px}
+  .hero h1 em{font-style:normal;background:linear-gradient(120deg,#ffb057,#ff6a3d);-webkit-background-clip:text;
+    background-clip:text;color:transparent}
+  .hero p{margin:18px auto 0;max-width:640px;font-size:14.5px;color:var(--muted)}
+  .btns{margin-top:32px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .btn{padding:13px 26px;border-radius:14px;font-size:14px;font-weight:700;
+    transition:transform .3s var(--ease),box-shadow .3s var(--ease),background .3s}
+  .btn.p{background:linear-gradient(135deg,#ff6a3d,#ff9d5c);color:#1a0f08;
+    box-shadow:0 18px 38px -16px rgba(255,122,69,.95)}
+  .btn.p:hover{transform:translateY(-2px);box-shadow:0 24px 44px -16px rgba(255,122,69,1)}
+  .btn.g{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:var(--txt)}
+  .btn.g:hover{transform:translateY(-2px);background:rgba(255,255,255,.09)}
+  .meta{margin-top:16px;font-size:12px;color:var(--muted2)}
+
+  /* 玻璃卡 */
+  .card{position:relative;z-index:1;border-radius:22px;overflow:hidden;
+    background:rgba(17,20,27,.72);backdrop-filter:blur(34px) saturate(150%);
+    -webkit-backdrop-filter:blur(34px) saturate(150%);
+    border:1px solid var(--line);box-shadow:0 30px 70px -34px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.14)}
+
+  /* 截图 */
+  .shots{position:relative;z-index:1;padding:26px 0 8px}
+  .shot-lead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:14px}
+  .shot-lead h2{font-size:19px;font-weight:800}
+  .shot-lead span{font-size:12px;color:var(--muted2)}
+  .big{display:block}
+  .big img{width:100%;display:block;border-radius:22px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+  .grid3 .card img{width:100%;display:block}
+  .cap{padding:9px 14px 11px;font-size:12px;color:var(--muted)}
+
+  /* 能力 */
+  .feat{position:relative;z-index:1;padding:56px 0 8px}
+  .h2{font-size:26px;font-weight:800;letter-spacing:-.3px;margin-bottom:8px}
+  .sub{font-size:13.5px;color:var(--muted);margin-bottom:26px}
+  .cols{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .box{padding:22px 22px 20px;border-radius:18px;background:rgba(255,255,255,.035);
+    border:1px solid var(--line)}
+  .box h3{font-size:15px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .dot{width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#ff9d5c,#ff5f45);flex:none;
+    box-shadow:0 0 10px rgba(255,122,69,.8)}
+  .box ul{list-style:none;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:7px}
+  .box li::before{content:"·";color:var(--orange2);margin-right:7px}
+
+  /* 版本 */
+  .ver{position:relative;z-index:1;padding:56px 0 8px}
+  .timeline{margin-top:22px;border-left:1px solid rgba(255,255,255,.1);padding-left:22px;
+    display:flex;flex-direction:column;gap:20px}
+  .item{position:relative}
+  .item::before{content:"";position:absolute;left:-27px;top:7px;width:9px;height:9px;border-radius:50%;
+    background:linear-gradient(135deg,#ff9d5c,#ff5f45);box-shadow:0 0 12px rgba(255,122,69,.8)}
+  .item b{font-size:14px}
+  .item time{font-size:11.5px;color:var(--muted2);margin-left:9px}
+  .item p{font-size:13px;color:var(--muted);margin-top:4px}
+
+  /* 底部 */
+  .foot{position:relative;z-index:1;margin-top:64px;padding:30px 0 54px;border-top:1px solid var(--line);
+    font-size:12.5px;color:var(--muted2);display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between}
+  .foot a{color:var(--muted)}
+  .foot a:hover{color:var(--orange2)}
+
+  @media(max-width:760px){
+    .hero h1{font-size:30px}
+    .cols,.grid3{grid-template-columns:1fr}
+    .nav{display:none}
+    .hero{padding:52px 0 24px}
+  }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+
+<div class="top">
+  <div class="wrap in">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#2a1105" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>
+    <div class="brand">红果短剧<small>桌面皮肤版 · 非官方界面项目</small></div>
+    <span class="tag-v">v1.017</span>
+    <nav class="nav">
+      <a href="#shots">截图</a>
+      <a href="#feat">能干什么</a>
+      <a href="#ver">版本</a>
+      <a href="https://github.com/guhang42-jpg/hongguo-desktop-skin">源码</a>
+    </nav>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>官方客户端一个字没动<br>只把那张<em>呆板的脸</em>换了</h1>
+    <p>纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用。不需要 Docker、不需要另起服务、不用登录新账号。里面还住着一个不联网的小果 —— 记得你说过什么，会在你不来找她的时候吭一声。</p>
+    <div class="btns">
+      <a class="btn p" href="https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/latest">下载最新版</a>
+      <a class="btn g" href="https://github.com/guhang42-jpg/hongguo-desktop-skin">看源码</a>
+    </div>
+    <div class="meta">轻量版 6.9 MB　·　语义版 25 MB（带本机向量模型）　·　Win10 / 11 + WebView2</div>
+  </section>
+
+  <section class="shots" id="shots">
+    <div class="shot-lead">
+      <h2>就是长这样</h2>
+      <span>全部是真机截图，不是效果图</span>
+    </div>
+    <div class="card big"><img src="./preview-home.jpg" alt="发现页"></div>
+    <div class="grid3">
+      <div class="card"><img src="./preview-moyu-hero.jpg" alt="一键摸鱼"><div class="cap">Ctrl+Shift+M 当场变成 Excel 台账</div></div>
+      <div class="card"><img src="./preview-mem.jpg" alt="小果"><div class="cap">她会记得你说过什么</div></div>
+      <div class="card"><img src="./preview-pref.jpg" alt="按偏好找剧"><div class="cap">「推荐一部」按你记的偏好挑</div></div>
+    </div>
+  </section>
+
+  <section class="feat" id="feat">
+    <div class="h2">能干什么</div>
+    <div class="sub">四块：界面、播放、小果、加上一个能一键装死的摸鱼开关。</div>
+    <div class="cols">
+      <div class="box">
+        <h3><i class="dot"></i>界面</h3>
+        <ul>
+          <li>左侧 104px 竖排导航，整窗毛玻璃 + 深空底色，直角不收圆</li>
+          <li>幽光 / 星空 / 流星 / 光尘动态背景，按剧的类型换配色，鼠标有视差</li>
+          <li>首页折叠、找剧细化（排序 + 集数段 + 题材）、榜单名次牌与涨跌</li>
+          <li>详情页多季切换，选集按 10 集分段</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3><i class="dot"></i>播放</h3>
+        <ul>
+          <li>打开即真全屏 + 铺满裁剪 + 自动播放，播完原地接下一集</li>
+          <li>每集都从头，续播点精确到秒，看过的集标暖色</li>
+          <li>倍速 / 音量滑条 / 弹幕开关 / 画面三档</li>
+          <li>换源一键切六条线路，快失败的自动往下换</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3><i class="dot"></i>小果（本机剧库助理）</h3>
+        <ul>
+          <li>查进度、按关键词找剧、翻收藏、报本机记录，说「看《XX》」直接开播</li>
+          <li>零联网、零模型、零截屏；语义版才带一个 24 MB 的本机向量模型，单句 13–39 ms</li>
+          <li>记得你亲口说过的偏好，「推荐一部」时按记过的来挑（记过「不喜欢太长的」就真的挑短的）</li>
+          <li>记忆另写一份可打开核对的 Markdown，本地存储空了还能从文件兜底恢复</li>
+          <li>托盘常驻，45 分钟醒一次，只在 8:00–22:00 说一句，一天最多一句</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3><i class="dot"></i>摸鱼</h3>
+        <ul>
+          <li>任意时候按 <b>Ctrl+Shift+M</b>，窗口当场变成一张 Excel 财务台账</li>
+          <li>标题栏、任务栏标题一并改掉，剧也顺手暂停静音</li>
+          <li>再按一次原样回来，进度接着走</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="ver" id="ver">
+    <div class="h2">最近的版本</div>
+    <div class="sub">每个版本的细节都写在仓库的 <a href="https://github.com/guhang42-jpg/hongguo-desktop-skin/tree/main/docs" style="color:#ffb057">docs/</a> 里。</div>
+    <div class="timeline">
+      <div class="item"><b>v1.017</b><time>2026-11-23</time><p>版本推送：启动 12 秒后读一次 <code>version.json</code>，有新版本就在顶部胶囊和托盘各说一句，点了直接开浏览器。仓库也多了一个独立主页（就是你现在看的这页）。</p></div>
+      <div class="item"><b>v1.016</b><time>2026-11-23</time><p>记忆落成可打开的文件（md + json，空存储能兜底恢复）；「推荐一部」按记过的偏好挑；托盘常驻，到点吭一声。</p></div>
+      <div class="item"><b>v1.015</b><time>2026-11-23</time><p>小果开始记得住你、会等你、有点情绪：偏好抽取、开场白按见面间隔选句、一天一种话只说一次、亲密度三档光晕。</p></div>
+      <div class="item"><b>v1.014</b><time>2026-11-23</time><p>意图判定：122 条不同说法做成向量表，「我上次停在哪集了」这种原文接不住的话也能认得。</p></div>
+      <div class="item"><b>v1.013</b><time>2026-11-23</time><p>接了个本机向量模型（bge-small-zh-v1.5 int8，24 MB），没剧名也能按意思找剧。</p></div>
+      <div class="item"><b>v1.001 – v1.012</b><time>2026-11-21 → 22</time><p>整套界面重做、剧场模式与小窗、换源与续播、成长成就、一键摸鱼、小果上线、对话框玻璃化。</p></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div>非官方第三方界面项目 · 仅做客户端界面研究与个人使用 · 侵权立删</div>
+    <div><a href="https://github.com/guhang42-jpg/hongguo-desktop-skin">GitHub</a>　·　<a href="https://github.com/guhang42-jpg/hongguo-desktop-skin/releases">全部版本</a></div>
+  </footer>
+</main>
+</body>
+</html>
