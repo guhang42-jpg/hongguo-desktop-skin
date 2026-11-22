@@ -15,6 +15,8 @@
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
+![](docs/preview-moyu-hero.jpg)
+
 > **换到别的 Windows 电脑上播放只有声音、画面全黑？** 那台机器缺 HEVC 解码器（片源是 H.265）。
 > 启动后顶上会顶出一条橙色提示，点「去安装」拉商店装 `HEVC Video Extensions`（￥0），装完点「装好了，重启」即可。
 
@@ -40,9 +42,9 @@ ui/index.html, ui/app.js, ui/icon.png
 |---|---|
 | ![](docs/preview-rank.jpg) | ![](docs/preview-mine.jpg) |
 
-| 剧场播放 · 真全屏 | 一键摸鱼（Ctrl+Shift+M） |
+| 剧场播放 · 真全屏 | 小窗模式（右下角挂机） |
 |---|---|
-| ![](docs/preview-theater.jpg) | ![](docs/preview-moyu.jpg) |
+| ![](docs/preview-theater.jpg) | ![](docs/preview-mini.jpg) |
 
 ## 这版有什么
 

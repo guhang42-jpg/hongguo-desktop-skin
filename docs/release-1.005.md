@@ -5,6 +5,8 @@
 **下载**：`hongguo-skin-1.005-win64.zip`（约 6.6 MB）
 SHA256 `45C03CC037A58155AA76C6B54853C8B592CA9C1A087A14275E1C9A03B870A70D`
 
+![一键摸鱼对比](https://raw.githubusercontent.com/guhang42-jpg/hongguo-desktop-skin/main/docs/preview-moyu-hero.jpg)
+
 ---
 
 ### 新东西：一键摸鱼（Ctrl+Shift+M）
