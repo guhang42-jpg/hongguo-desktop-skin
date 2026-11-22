@@ -709,7 +709,9 @@ namespace HongguoSkin
                 }
             }
             catch { }
-            return "0.0.0";
+            /* 没有版本号就是没有：返回空串让调用方跳过比对。
+               千万别返回 "0.0.0" —— 那样远端任何版本都比它大，每次启动都会提示新版。 */
+            return "";
         }
 
         private static int VerCmp(string a, string b)
@@ -742,11 +744,35 @@ namespace HongguoSkin
             catch (Exception ex) { Log("打开链接失败: " + ex.Message); }
         }
 
-        private void NotifyUpdate(string v, string notes, string url)
+        /* 提示过一次的版本号记在这，下次启动不再重复喊同一个版本。
+           只在"有新版本但还没更新"的期间起作用（一更新版本号自然对不上）。 */
+        private string UpdSeenPath() { return Path.Combine(MemDir(), "update-seen.txt"); }
+
+        private string UpdSeen()
         {
             try
             {
-                if (tray != null)
+                string p = UpdSeenPath();
+                if (File.Exists(p)) return File.ReadAllText(p, Encoding.UTF8).Trim();
+            }
+            catch { }
+            return "";
+        }
+
+        private void MarkUpdSeen(string v)
+        {
+            try { File.WriteAllText(UpdSeenPath(), v, new UTF8Encoding(false)); }
+            catch (Exception ex) { Log("记更新提示失败: " + ex.Message); }
+        }
+
+        private void NotifyUpdate(string v, string notes, string url, bool manual)
+        {
+            try
+            {
+                /* 气泡/胶囊里塞不下换行，先压成一行，免得拼出来的 JSON 破掉 */
+                notes = (notes ?? "").Replace("\r", " ").Replace("\n", " ").Trim();
+                /* 手动点「检查更新」时窗口已经被唤起来了，胶囊够用，不再多弹一个气泡 */
+                if (tray != null && !manual)
                 {
                     pendingAsk = "";
                     string tip = notes.Length > 0 ? notes : "点这里去看看";
@@ -756,7 +782,7 @@ namespace HongguoSkin
                 {
                     string n = notes.Replace("\\", "\\\\").Replace("\"", "\\\"");
                     string u = url.Replace("\\", "\\\\").Replace("\"", "\\\"");
-                    web.CoreWebView2.PostWebMessageAsJson("{\"action\":\"update\",\"v\":\"" + v + "\",\"url\":\"" + u + "\",\"notes\":\"" + n + "\"}");
+                    web.CoreWebView2.PostWebMessageAsJson("{\"action\":\"update\",\"v\":\"" + v + "\",\"url\":\"" + u + "\",\"notes\":\"" + n + "\",\"manual\":" + (manual ? "true" : "false") + "}");
                 }
             }
             catch (Exception ex) { Log("弹更新提示失败: " + ex.Message); }
@@ -767,7 +793,8 @@ namespace HongguoSkin
             using (var wc = new WebClient())
             {
                 wc.Encoding = Encoding.UTF8;
-                wc.Headers["User-Agent"] = "HongguoSkin/" + LocalVersion();
+                string v = LocalVersion();
+                wc.Headers["User-Agent"] = "HongguoSkin/" + (v.Length > 0 ? v : "unknown");
                 if (!useProxy) wc.Proxy = null;
                 return wc.DownloadString(UpdateUrl);
             }
@@ -778,6 +805,12 @@ namespace HongguoSkin
             Task.Run(async delegate
             {
                 string local = LocalVersion();
+                if (local.Length == 0)
+                {
+                    Log("没有 ui/version.txt，跳过更新检查");
+                    if (manual) SayOnTray("检查更新", "包里没有版本号文件，这台机器上是旧包？");
+                    return;
+                }
                 Log("检查更新（当前 " + local + (manual ? "，手动" : "") + "）");
                 try
                 {
@@ -813,7 +846,29 @@ namespace HongguoSkin
                     {
                         pendingUrl = url;
                         Log("发现新版本 " + remote + "（当前 " + local + "）");
-                        try { BeginInvoke(new Action(delegate { NotifyUpdate(remote, notes, url); })); } catch { }
+                        try
+                        {
+                            BeginInvoke(new Action(delegate
+                            {
+                                /* 看片 / 摸鱼的时候不弹，也别把 pendingUrl 留着 —— 免得之后点别的气泡被这套地址劫走 */
+                                if (isMoyu || isFs)
+                                {
+                                    pendingUrl = "";
+                                    Log("正在" + (isMoyu ? "摸鱼" : "看片") + "，这次不打扰，下次启动再说");
+                                    return;
+                                }
+                                /* 同一个版本只喊一次，别每次开机都来一遍（手动点的不算） */
+                                if (!manual && UpdSeen() == remote)
+                                {
+                                    pendingUrl = "";
+                                    Log("v" + remote + " 已经提示过，不再重复");
+                                    return;
+                                }
+                                NotifyUpdate(remote, notes, url, manual);
+                                MarkUpdSeen(remote);
+                            }));
+                        }
+                        catch { }
                     }
                     else
                     {
@@ -835,6 +890,8 @@ namespace HongguoSkin
             {
                 BeginInvoke(new Action(delegate
                 {
+                    /* 新气泡盖旧语义：旧的待打开链接一律作废，免得点这个气泡开那个页面 */
+                    pendingUrl = "";
                     if (tray != null) tray.ShowBalloonTip(5000, title, body, ToolTipIcon.None);
                 }));
             }

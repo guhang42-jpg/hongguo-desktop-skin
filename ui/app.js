@@ -95,16 +95,24 @@
     clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("on"); }, 1900);
   }
   /* 版本推送：同一个胶囊，但停得久、点得动 —— 点了交给宿主开浏览器（只放行 GitHub 链接） */
-  function toastUpd(v, url) {
+  var UPDKEY = "xg.upd.v";
+  function toastUpd(v, url, manual) {
     var t = $("#toast"), s = $("#toastTxt");
+    if (!t) return;
+    if (!manual) {
+      var seen = "";
+      try { seen = localStorage.getItem(UPDKEY) || ""; } catch (e) { }
+      if (seen === v) return;            /* 同一版本只提一次，别每次开机都来一遍 */
+    }
     var line = "新版 v" + v + " 出来了 · 点这里看看";
-    if (s) s.textContent = line; else t.textContent = line;
+    if (s) s.textContent = line;
     t.classList.add("on", "upd");
     t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop");
     t.onclick = function () {
       try { if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "openUrl", url: url })); } catch (e) { }
       t.classList.remove("on", "upd"); t.onclick = null;
     };
+    try { localStorage.setItem(UPDKEY, v); } catch (e) { }
     clearTimeout(toastT);
     toastT = setTimeout(function () { t.classList.remove("on", "upd"); t.onclick = null; }, 9000);
   }
@@ -1822,7 +1830,7 @@
     window.chrome.webview.addEventListener("message", function (e) {
       var d = e.data || {};
       if (d.action === "moyuT") setMoyu(!document.body.classList.contains("moyu-on"));
-      if (d.action === "update") toastUpd(d.v || "?", d.url || "");
+      if (d.action === "update") toastUpd(d.v || "?", d.url || "", !!d.manual);
     });
   }
 

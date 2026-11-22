@@ -11,9 +11,9 @@
 
 - 最新版：`v1.017` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.017
 - **轻量版**（不含语义模型，6.95 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.017/hongguo-skin-1.017-win64.zip`
-  - SHA256：`873CA3281BEBEFD066D0297A8F4BF7EE1050CCC44C28F3F07BF96BA360C80858`
+  - SHA256：`2B7BA824623B7615E4F35995F7222A2CFB8978D8AE741F07D4ACCBBB652346A3`
 - **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.017/hongguo-skin-1.017-win64-ai.zip`
-  - SHA256：`DE030180057D8B8C810FA0990E243585FE05257A5719CFFD2212798F16A2EC13`
+  - SHA256：`55B65BAA054AE2BC03347A95FE8B9DDC2BC72A8350B32FDF93CC13F7EA681E0B`
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
 - 上一版（v1.016）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.016
 
@@ -173,6 +173,7 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
   - 检查更新**一条日志都没有** —— 网络异常时 `body` 为 `null` 被 `if (body == null) return;` 静默吞掉。现在异常先存 `err`、拿不到内容如实写日志；同时把 `SecurityProtocol` 抬到 TLS 1.1/1.2（.NET Framework 默认可能只到 1.0，raw 域名只收 1.2+），系统代理不通再绕开代理直连重试一次
   - **胶囊看得见点不动** —— `.toast` 基础样式带 `pointer-events:none`，`.toast.upd` 只加了 `cursor:pointer`，鼠标变手型但点了没反应，最容易骗过测试。补 `pointer-events:auto` 后真机点击日志立刻出现「打开链接 …」
 - 新增联调参数：`--noupd`
+- 发版后又自己过了一遍，补四条：**缺 `ui/version.txt` 时不再天天喊新版**（原来缺文件返回 `0.0.0`，远端永远比它大）；**同一个版本只提示一次**（记在 `%APPDATA%\HonggoDesktop\update-seen.txt`，托盘手动检查不受限）；**全屏看片 / 摸鱼时干脆不弹**；**`pendingUrl` 与 `pendingAsk` 不再串**（`SayOnTray` 进来先清地址，点哪个气泡干哪件事）
 
 ### v1.016（2026-11-23）
 
