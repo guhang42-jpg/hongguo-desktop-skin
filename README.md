@@ -3,15 +3,15 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.005**（2026-11-22）
+**当前版本：v1.006**（2026-11-22）
 
 ## 下载
 
-- 最新版：`v1.005` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.005
-- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.005/hongguo-skin-1.005-win64.zip`
-- 文件：`hongguo-skin-1.005-win64.zip`（约 6.6 MB，解压即用）
-- SHA256：`45C03CC037A58155AA76C6B54853C8B592CA9C1A087A14275E1C9A03B870A70D`
-- 上一版（v1.004）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.004
+- 最新版：`v1.006` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.006
+- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.006/hongguo-skin-1.006-win64.zip`
+- 文件：`hongguo-skin-1.006-win64.zip`（约 6.6 MB，解压即用）
+- SHA256：`4A5E472186DCDAF819CA8C0F55D24D63024CE38B0ADEC9DEFDA87BCE50FF2088`
+- 上一版（v1.005）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.005
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -117,6 +117,17 @@ ui/index.html, ui/app.js, ui/icon.png
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.006（2026-11-22）
+
+- 修**有的剧点开一直转圈**：定位到官方 core 首次取流极慢（实测某剧首集 56 秒、二次 0 秒），旧前端无超时、无提示、`throw` 无人接
+- 取流加 **75 秒超时**（`AbortController`），超时给红字错误态 + 重试；`#vRetry` 会清缓存强制重取
+- 同一集只取一次：`STREAM_CACHE` / `STREAM_PEND` 去重缓存，重复点秒开
+- 提前取：点开详情即预取第 1 集、剧卡 hover 0.7 秒预取、继续观看卡 hover 0.6 秒、播放 4 秒后预取下一集（串行队列，最多排 3 条）
+- 等待分档提示 4s/14s/40s，并把压在转圈上的大暂停键隐藏；`waiting` 事件补「画面缓冲中…」
+- **侧边栏重做**：玻璃氛围光 + 右缘亮线、品牌标彩环旋转与呼吸、导航悬停橙色胶囊横向展开 + 左亮条、选中态呼吸光、账号卡流光与头像光环
+- **提示改顶部灵动岛**：胶囊大→小展开、橙点脉冲、连续触发重播「回应」动画；全屏下移 62px、小窗等比缩小、摸鱼态隐藏
+- 新增 `--mask`（截图隐私：昵称 `用户****`、账号面板显示已隐藏）、`--slow`、`--tip` 自检参数
 
 ### v1.005（2026-11-22）
 
