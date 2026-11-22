@@ -1357,6 +1357,7 @@
 
     var wrap = document.createElement("div");
     wrap.style.display = "grid";
+    wrap.style.gridColumn = "1 / -1";   /* 不跨列会被 #grid 塞进第一列，整页塌成一条 290 宽的窄列 */
     wrap.style.gridTemplateColumns = "repeat(auto-fill,minmax(240px,1fr))";
     wrap.style.gap = "30px 26px";
 

@@ -14,6 +14,7 @@
     --accent:#ff7a55;
     --accent-2:#ffb057;
     --r:20px;
+    --railw:104px;
     --ease:cubic-bezier(.22,.61,.36,1);
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -55,7 +56,7 @@
   .wb:hover{background:rgba(255,255,255,.16);color:#fff}
   .wb.close:hover{background:#e5484d;color:#fff}
 
-  .app{flex:1;display:grid;grid-template-columns:216px minmax(0,1fr);min-height:0}
+  .app{flex:1;display:grid;grid-template-columns:var(--railw) minmax(0,1fr);min-height:0}
 
   /* ---------- 左侧栏 ---------- */
   .side{padding:4px 8px 10px;display:flex;flex-direction:column;min-height:0}
@@ -341,7 +342,7 @@
     background:#000;border:1px solid rgba(255,255,255,.14);box-shadow:0 30px 80px rgba(0,0,0,.6)}
 
   /* 剧场：在应用内播放，不接管整块屏幕 */
-  body.theater .viewer{left:216px;right:14px;top:92px;bottom:12px;border-radius:26px;overflow:hidden;
+  body.theater .viewer{left:var(--railw);right:14px;top:92px;bottom:12px;border-radius:26px;overflow:hidden;
     border:1px solid rgba(255,255,255,.14);
     box-shadow:0 0 0 1px rgba(255,255,255,.06),0 0 70px -12px var(--glow1,rgba(255,150,120,.5)),0 30px 80px rgba(0,0,0,.6);
     background:#05070a}
@@ -569,6 +570,51 @@
   .nav button:hover span{background:rgba(255,255,255,.11);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
   .nav button.on span{background:rgba(255,122,85,.22);box-shadow:inset 0 0 0 1px rgba(255,122,85,.34)}
 
+  /* ---------- v1.009：竖排文字导航（窄栏 / 单列竖字 / 选中竖胶囊） ---------- */
+  .side{padding:4px 6px 10px}
+  .brand{flex-direction:column;align-items:center;gap:8px;padding:10px 0 14px}
+  .brand .mark{width:38px;height:38px;border-radius:11px}
+  .brand .txt{align-items:center;gap:0}
+  .brand .txt b{font-size:12.5px;letter-spacing:0;width:1em;word-break:break-all;line-height:1.32;
+    text-align:center;color:var(--muted);font-weight:600}
+  .brand .txt small{display:none}
+  .brand:hover .txt b{letter-spacing:0;color:#fff}
+
+  .side .nav{gap:7px;align-items:stretch}
+  .side .nav button{flex-direction:column;align-items:center;justify-content:center;height:auto;min-height:76px;
+    padding:12px 0;border-radius:15px;gap:0;text-align:center}
+  .side .nav button i{display:none}
+  .side .nav button span{width:1em;word-break:break-all;line-height:1.62;font-size:15px;font-weight:500;
+    letter-spacing:0!important;padding:0!important;margin:0!important;background:transparent!important;
+    box-shadow:none!important;text-align:center;transition:color .2s ease,font-weight .2s ease,transform .3s var(--ease)}
+  .side .nav button::before{left:4px;right:4px;top:3px;bottom:3px;border-radius:15px;
+    transform:scaleY(.3);transform-origin:center center;
+    background:radial-gradient(120% 90% at 50% 0%,rgba(255,255,255,.17),rgba(255,255,255,.03))}
+  .side .nav button:hover::before{transform:scaleY(1);opacity:1}
+  .side .nav button.on::before{transform:scaleY(1);opacity:1;box-shadow:inset 0 0 0 1px rgba(255,158,120,.5);
+    background:linear-gradient(180deg,rgba(255,122,85,.3),rgba(255,122,85,.26))}
+  .side .nav button:hover span{transform:translateY(-1px);color:#fff}
+  .side .nav button.on span{color:#fff;font-weight:800;text-shadow:0 0 16px rgba(255,122,85,.55)}
+  .side .nav button.on{background:transparent!important;box-shadow:none}
+  .side .nav button.on::after{display:none}
+  /* 当前项的指示点放在字下面，不再往胶囊左边缘插竖线 */
+  .side .nav button.on span::after{content:"";position:absolute;left:50%;bottom:-10px;width:5px;height:5px;margin-left:-2.5px;
+    border-radius:50%;background:var(--accent-2);box-shadow:0 0 12px 1px rgba(255,176,87,.85);
+    animation:dotBreath 2.4s ease-in-out infinite}
+  @keyframes dotBreath{0%,100%{opacity:.55;transform:scale(.85)}50%{opacity:1;transform:scale(1)}}
+  @media (max-height:720px){
+    .side .nav button{min-height:60px;padding:8px 0}
+    .side .brand{padding:6px 0 10px;gap:6px}
+    .side .nav{gap:5px}
+  }
+  .side .who{flex-direction:column;align-items:center;gap:7px;padding:11px 7px 10px;border-radius:15px;text-align:center}
+  .side .who .av{width:38px;height:38px;font-size:15px}
+  .side .who .tt{align-items:center;gap:4px;width:100%}
+  .side .who .tt b{font-size:11px;max-width:82px;font-weight:600}
+  .side .who .tt span{display:none}
+  .side .who .xbar{width:100%;height:2px}
+  .side .who .lvt{margin:0;font-size:9px;padding:2px 6px;letter-spacing:0}
+
   /* 账号卡：流光扫过 + 头像旋转光环 + 经验条发光 */
   .who{position:relative;overflow:hidden;backdrop-filter:blur(10px);
     background:linear-gradient(135deg,rgba(255,255,255,.1),rgba(255,255,255,.025))}
@@ -661,9 +707,9 @@
   .lstat b{font-size:12.5px}
   /* 成就墙：横排小卡 + 默认只露两层，其余折叠起来，一屏先看完 */
   .achgrid{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}
-  .ach{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:13px;text-align:left;
+  .ach{display:flex;align-items:center;gap:9px;padding:10px 11px;border-radius:13px;text-align:left;
     background:rgba(255,255,255,.06);border:1px solid var(--line);transition:all .22s var(--ease);min-width:0}
-  .ach .tx{min-width:0;display:flex;flex-direction:column;gap:1px}
+  .ach .tx{min-width:0;display:flex;flex-direction:column;gap:3px}
   .ach i{font-size:19px;font-style:normal;filter:grayscale(1);opacity:.4;transition:all .25s var(--ease);flex:none}
   .ach b{font-size:12px;font-weight:700;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ach small{font-size:9.5px;color:var(--muted-2);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -819,7 +865,7 @@ body.mini .hevcbar{display:none !important}
     <aside class="side">
       <div class="brand">
         <div class="mark"><img src="icon.png" alt="红果短剧"></div>
-        <div class="txt"><b>红果短剧</b><small>DESKTOP</small></div>
+        <div class="txt"><b>红果</b><small>DESKTOP</small></div>
       </div>
 
       <nav class="nav rail">
