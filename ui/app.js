@@ -86,8 +86,12 @@
   };
   var toastT;
   function toast(msg) {
-    var t = $("#toast"); t.textContent = msg; t.classList.add("on");
-    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("on"); }, 1600);
+    var t = $("#toast"), s = $("#toastTxt");
+    if (s) s.textContent = msg; else t.textContent = msg;
+    t.classList.add("on");
+    /* 连续弹多条时重新播一次"展开"动画，像灵动岛回应你 */
+    t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop");
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("on"); }, 1900);
   }
   function coverOf(item) {
     if (!item) return "";
@@ -2282,6 +2286,12 @@
   refreshAccount();
   loadLibrary();
   if (qs.get("mine")) setTimeout(function () { switchView("mine"); }, 1600);
+  /* 自检用：?tip=1 弹一条常驻提示（不自动消失），方便截图核灵动岛样式 */
+  if (qs.get("tip")) setTimeout(function () {
+    var t = $("#toast"), s = $("#toastTxt");
+    if (s) s.textContent = "已收藏《轮椅绝尘》，追更通知已开启";
+    t.classList.add("on"); t.classList.add("pop");
+  }, 2600);
   /* 自检用：?moyu=1 启动两秒后自动进摸鱼态，方便截图核对伪装效果 */
   if (qs.get("moyu")) setTimeout(function () { setMoyu(true); }, 2200);
   /* 自检用：?view=cat|rank 直接切页，不播放 */
