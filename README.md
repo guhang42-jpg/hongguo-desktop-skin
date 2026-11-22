@@ -3,15 +3,16 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.012**（2026-11-23）
+**当前版本：v1.013**（2026-11-23）
 
 ## 下载
 
-- 最新版：`v1.012` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.012
-- 直链：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.012/hongguo-skin-1.012-win64.zip`
-- 文件：`hongguo-skin-1.012-win64.zip`（约 6.6 MB，解压即用）
-- SHA256：`39045B02058218E24744F1B3953383B28E6A4473C01FE93B6B712FCE97801CDF`
-- 上一版（v1.011）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.011
+- 最新版：`v1.013` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.013
+- **轻量版**（不含语义模型，6.6 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.013/hongguo-skin-1.013-win64.zip`
+  - SHA256：`29CDE2A7CBFB5D6D75452CB8A0260469148995C831C00A64FC4070E330A3C148`
+- **语义版**（含本机模型，24 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.013/hongguo-skin-1.013-win64-ai.zip`
+  - 小果能听懂"开局很惨后来翻身的"这类没剧名的话；不装模型也能用，字面搜不到时会如实说没搜到
+- 上一版（v1.012）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.012
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -30,6 +31,7 @@ Microsoft.Web.WebView2.WinForms.dll
 WebView2Loader.dll
 core/hongguo-tv-core.exe         ← 官方数据核心，原封不动
 ui/index.html, ui/app.js, ui/icon.png
+ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB 运行时
 ```
 
 ## 截图
@@ -50,6 +52,10 @@ ui/index.html, ui/app.js, ui/icon.png
 |---|---|
 | ![](docs/preview-ai.jpg) | ![](docs/preview-ai2.jpg) |
 
+| 没剧名也能问（语义版） | 「找部修仙的」 |
+|---|---|
+| ![](docs/preview-sem.jpg) | ![](docs/preview-sem2.jpg) |
+
 ## 这版有什么
 
 界面：
@@ -63,8 +69,9 @@ ui/index.html, ui/app.js, ui/icon.png
 - **选集按 10 集分段**：长剧不再一次铺几十个按钮，`1-10 / 11-20 …` 分段条，看过的集标成暖色
 - 整窗毛玻璃质感 + 深空底色统一，窗口边缘直角不圆润（Win11 的 DWM 圆角也关掉了）
 - 幽光 / 星空 / 流星 / 光尘动态背景，按剧的类型换配色，播放时更活跃，鼠标有视差
-- **小果**：侧栏「我的」下面一颗小球，点开是一卷往上长出来的对话气泡。查你看到哪了、按关键词或集数找剧、翻收藏、报本机记录，说「看《XX》」直接开播。**零模型、零常驻、不联网**，全部走 core 的本地接口
+- **小果**：侧栏「我的」下面一颗小球，点开是一卷往上长出来的对话气泡。查你看到哪了、按关键词或集数找剧、翻收藏、报本机记录，说「看《XX》」直接开播。**不联网、不带常驻进程**，全部走 core 的本地接口
 - 小果的对话框是一块**玻璃**：半透明底 + 背景模糊 + 一层薄膜厚度，没有描边；说话气泡左右分色、各带一个朝向说话人的尖角，尾巴和气泡同色零重叠，放大也看不出接缝
+- **小果还会"按意思找剧"（语义版独有）**：装 `ui/ai/` 之后，它带一个 24 MB 的本机向量模型 —— 说「有没有那种开局很惨后来翻身的」「宫斗的，娘娘那种」都能挑出对的剧，不看剧名。开面板时它顺手把模型热起来（约 0.47 s），问一句单句编码 13–39 ms，1130 部剧全在内存里点积，不联网、不占显存；不装 `ui/ai/` 就完全安静，不报错也不占内存
 
 播放：
 
@@ -108,6 +115,8 @@ ui/index.html, ui/app.js, ui/icon.png
 - 换集时别把上一集的 `currentTime` 带过去，不然新一集一开场就"播完"，看着像自动跳集
 - Win11 的 DWM 会给无边框窗口套一层大圆角，得用 `DwmSetWindowAttribute(33/34)` 手动关掉
 - 任务栏图标认的是窗口图标，光给 exe 换 `/win32icon` 不够，还得显式 `Form.Icon`
+- `ort.env.wasm.wasmPaths` 给字符串 `"ai/"` 会挂：ort 内部用动态 `import()` 加载 `.mjs`，`ai/...` 被当成裸模块名解析失败。必须给 `{mjs, wasm}` 对象 + 绝对 URL，顺带把 jsep（WebGPU）版绕掉
+- `Xenova/bge-small-zh-v1.5` 的 `vocab.txt` 和 `tokenizer.json` 里 vocab 不一致（前者有 `[unused58]` 占位、没有 `58` 整词），WordPiece 会乱切数字。得从 `tokenizer.json` 的 `model.vocab` 重建词表
 
 ## 已知限制
 
@@ -123,6 +132,16 @@ ui/index.html, ui/app.js, ui/icon.png
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.013（2026-11-23）
+
+- 小果接了个**本机向量模型**：`bge-small-zh-v1.5` int8（24 MB）+ `onnxruntime-web`（11.8 MB wasm），共 37.4 MB 放在 `ui/ai/`
+- 建库时给 1130 部剧各算一条 512 维向量（`title + intro`，float16 存成 1.1 MB 二进制），打开面板时预热，实测 **0.47 s 加载完成**；问一句单句编码 **13–39 ms**
+- 字面搜不到时才走语义：先做严格字面命中（剧名里含 query 连续 3 字以上），命中就用原结果，否则按意思挑 3 部，并在气泡里标一句「本机语义 · 单句 39 ms · 库内 1130 部」
+- 不带 `ui/ai/` 的轻量包**完全安静降级**：探测到没有模型就直接不启动，不报错、不占内存，字面搜不到就如实说没搜到
+- 分词器是自研 WordPiece（3.5 KB），用 `tokenizer.json` 的 vocab 重建过词表，10 句测试与官方 `tokenizers` **逐 token 完全一致**
+- **模型选型做了实测对比**，最后选了 small 而不是更大的 base：`bge-base-zh-v1.5` int8 在这台机器上反而更差 —— 随机向量对余弦均值 0.755（严重各向异性），几十部"hub 剧"霸占所有 query 的前五名，做中心化处理后仍无改善；`bge-small-zh-v1.5` int8 的余弦均值 0.381、9 个真实 query 里 top1 命中 6 个
+- 发两个包：轻量版 6.6 MB（跟以前一样）、语义版 24 MB
 
 ### v1.012（2026-11-23）
 

@@ -38,6 +38,7 @@ namespace HongguoSkin
         internal static bool Fail;
         internal static bool Ach;
         internal static bool Ai;
+        internal static bool Sem;
         internal static string AskArg;
         [STAThread]
         static void Main(string[] args)
@@ -60,6 +61,7 @@ namespace HongguoSkin
             Fail = args != null && Array.IndexOf(args, "--fail") >= 0;
             Ach = args != null && Array.IndexOf(args, "--ach") >= 0;
             Ai = args != null && Array.IndexOf(args, "--ai") >= 0;
+            Sem = args != null && Array.IndexOf(args, "--sem") >= 0;
             if (args != null)
             {
                 int ai = Array.IndexOf(args, "--a");
@@ -205,6 +207,7 @@ namespace HongguoSkin
                 if (Program.Fail) extra += "&fail=1";
                 if (Program.Ach) extra += "&ach=1";
                 if (Program.Ai) extra += "&ai=1";
+                if (Program.Sem) extra += "&sem=1";
                 if (Program.AskArg != null) extra += "&a=" + Uri.EscapeDataString(Program.AskArg);
                 if (Program.Dbg) extra += "&dbg=1";
                 web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + extra);
@@ -365,6 +368,10 @@ namespace HongguoSkin
                 case ".ico": return "image/x-icon";
                 case ".woff2": return "font/woff2";
                 case ".ttf": return "font/ttf";
+                case ".wasm": return "application/wasm";
+                case ".mjs": return "application/javascript; charset=utf-8";
+                case ".onnx": return "application/octet-stream";
+                case ".bin": return "application/octet-stream";
                 default: return "application/octet-stream";
             }
         }

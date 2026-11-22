@@ -2458,6 +2458,149 @@
         .catch(function () { cb([]); });
     }
 
+    /* ---------- 语义检索：bge-small-zh-v1.5 int8 + onnxruntime-web，模型和向量都在本机 ---------- */
+    var SEM = (function () {
+      var PREFIX = "为这个句子生成表示以用于检索相关文章：";
+      var BASE = "ai/";
+      var st = { on: false, loading: false, err: null, loadMs: 0, encMs: 0, n: 0 };
+      var sess = null, tk = null, VEC = null, IDX = null, pending = null;
+
+      function log(t) {
+        try {
+          if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "[sem] " + t }));
+        } catch (e) { }
+      }
+      function loadScript(src) {
+        return new Promise(function (res, rej) {
+          var s = document.createElement("script");
+          s.src = src;
+          s.onload = function () { res(); };
+          s.onerror = function () { rej(new Error("脚本没加载上 " + src)); };
+          document.head.appendChild(s);
+        });
+      }
+      function getBuf(u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + " " + r.status); return r.arrayBuffer(); }); }
+      function getText(u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + " " + r.status); return r.text(); }); }
+      function getJson(u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); }); }
+
+      /* float16 → float32，库向量一次性摊平，之后就是纯点积 */
+      function half(buf) {
+        var u = new Uint16Array(buf), out = new Float32Array(u.length);
+        for (var i = 0; i < u.length; i++) {
+          var h = u[i], sg = (h & 0x8000) ? -1 : 1, e = (h >> 10) & 0x1f, f = h & 0x3ff;
+          if (e === 0) out[i] = sg * f * 5.960464477539063e-8;
+          else if (e === 31) out[i] = f ? NaN : sg * Infinity;
+          else out[i] = sg * (1 + f / 1024) * Math.pow(2, e - 15);
+        }
+        return out;
+      }
+
+      function boot() {
+        if (st.on) return Promise.resolve(st);
+        if (pending) return pending;
+        st.loading = true;
+        var t0 = Date.now();
+        /* 先探一眼 ai/index.json：轻量包没有 ai 目录就直接收手，不报错、不吭声 */
+        pending = fetch(BASE + "index.json").then(function (r) {
+          if (r.status === 404) { var e = new Error("no ai"); e.silent = true; throw e; }
+          if (!r.ok) throw new Error("index.json " + r.status);
+          return r.json();
+        }).then(function (idx) {
+          IDX = idx;
+          st.n = IDX.length;
+          return Promise.all([
+            getText(BASE + "vocab.txt"), getBuf(BASE + "vectors.bin"), loadScript(BASE + "ort.min.js")
+          ]);
+        }).then(function (r) {
+          tk = window.BgeTok.create(r[0]);
+          VEC = half(r[1]);
+          ort.env.wasm.wasmPaths = {
+            mjs: new URL(BASE + "ort-wasm-simd-threaded.mjs", location.href).href,
+            wasm: new URL(BASE + "ort-wasm-simd-threaded.wasm", location.href).href
+          };
+          ort.env.wasm.numThreads = 1;
+          ort.env.wasm.simd = true;
+          return getBuf(BASE + "model.onnx");
+        }).then(function (buf) {
+          return ort.InferenceSession.create(buf, { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
+        }).then(function (s) {
+          sess = s;
+          st.on = true; st.loading = false; st.loadMs = Date.now() - t0;
+          log("ready " + st.loadMs + "ms n=" + st.n);
+          return st;
+        }).catch(function (e) {
+          st.loading = false; pending = null;
+          if (e && e.silent) { st.missing = true; return st; }
+          st.err = String((e && e.message) || e);
+          log("fail " + st.err);
+          return st;
+        });
+        return pending;
+      }
+
+      function enc(text) {
+        var ids = tk.encode(text, 192), n = ids.length;
+        var a = new BigInt64Array(n), m = new BigInt64Array(n), t = new BigInt64Array(n);
+        for (var i = 0; i < n; i++) { a[i] = BigInt(ids[i]); m[i] = 1n; }
+        return sess.run({
+          input_ids: new ort.Tensor("int64", a, [1, n]),
+          attention_mask: new ort.Tensor("int64", m, [1, n]),
+          token_type_ids: new ort.Tensor("int64", t, [1, n])
+        }).then(function (o) {
+          var h = o.last_hidden_state.data, v = new Float32Array(512), sq = 0;
+          for (var k = 0; k < 512; k++) { v[k] = h[k]; sq += v[k] * v[k]; }
+          sq = Math.sqrt(sq) || 1;
+          for (var j = 0; j < 512; j++) v[j] /= sq;
+          return v;
+        });
+      }
+
+      function top(text, k) {
+        return boot().then(function () {
+          if (!st.on) return [];
+          var t0 = Date.now();
+          return enc(PREFIX + text).then(function (qv) {
+            st.encMs = Date.now() - t0;
+            var n = st.n, dim = 512, arr = [];
+            for (var i = 0; i < n; i++) {
+              var off = i * dim, s = 0;
+              for (var j = 0; j < dim; j++) s += VEC[off + j] * qv[j];
+              arr.push([s, i]);
+            }
+            arr.sort(function (x, y) { return y[0] - x[0]; });
+            return arr.slice(0, k || 6).map(function (x) {
+              return { sid: IDX[x[1]].sid, title: IDX[x[1]].title, ep: IDX[x[1]].ep, score: x[0] };
+            });
+          });
+        });
+      }
+
+      return {
+        boot: boot, top: top, stat: function () { return st; }
+      };
+    })();
+    window.HONGUO_SEM = SEM;
+
+    /* 按意思找剧：语义结果回头去 library 里取完整的 drama 对象，才能出封面和跳详情 */
+    function findSem(q, cb) {
+      SEM.top(q, 8).then(function (rs) {
+        if (!rs.length) return cb([]);
+        lib(function (l) {
+          var by = {};
+          (l.entries || []).forEach(function (e) {
+            var d = dOf(e), sid = String(e.series_id || (d && d.series_id) || "");
+            if (sid && !by[sid]) by[sid] = e;
+          });
+          var items = [];
+          rs.forEach(function (r) {
+            var e = by[String(r.sid)];
+            if (e) { if (!e._why) e._why = "像"; items.push(e); }
+          });
+          cb(items, rs);
+        });
+      }).catch(function () { cb([]); });
+    }
+
     /* --- 从一句话里剥出"能拿去搜的词" --- */
     function pick(text) {
       var q = text.replace(/[？?。！!，,、~～""'']/g, " ")
@@ -2581,11 +2724,34 @@
       });
     }
 
+    /* 字面严格命中：剧名里有 query 里连续 3 个字以上的片段（2 字太松，会把「翻身」这种词误判） */
+    function litHit(title, q) {
+      var t = String(title || "").toLowerCase(), s = String(q || "").toLowerCase();
+      if (!t || !s) return false;
+      if (s.length >= 2 && t.indexOf(s) >= 0) return true;
+      for (var i = 0; i + 3 <= s.length; i++) {
+        if (t.indexOf(s.substr(i, 3)) >= 0) return true;
+      }
+      return false;
+    }
     function doSearch(q, tp, head) {
-      find(q, function (items) {
-        if (!items.length) return reply("剧库里没搜到「" + esc(q) + "」。换个说法试试——剧名里的两个字，或者「修仙」「重生」这类标签词。", tp);
-        reply(head || ("「" + esc(q) + "」这么几部："), tp);
-        items.slice(0, 2).forEach(function (x) { card(x, "看看"); });
+      findSem(q, function (sem) {
+        var s = SEM.stat();
+        find(q, function (items) {
+          var lit = items.filter(function (e) { var d = dOf(e); return litHit(d && d.title, q); });
+          if (lit.length) {
+            reply(head || ("「" + esc(q) + "」这么几部："), tp);
+            lit.slice(0, 2).forEach(function (x) { card(x, "看看"); });
+            return;
+          }
+          if (sem.length) {
+            reply((head || ("「" + esc(q) + "」字面上对不上，按意思挑的：")) +
+              "<span class='semnote'>本机语义 · 单句 " + (s.encMs || 0) + " ms · 库内 " + s.n + " 部</span>", tp);
+            sem.slice(0, 3).forEach(function (x) { card(x, "看看"); });
+            return;
+          }
+          reply("剧库里没搜到「" + esc(q) + "」。" + (s.err ? "<br><span class='semnote'>语义引擎没起来：" + esc(s.err) + "</span>" : "换个说法试试——剧名里的两个字，或者「修仙」「重生」这类标签词。"), tp);
+        });
       });
     }
 
@@ -2647,6 +2813,7 @@
       pop.classList.add("on"); ball.classList.add("on");
       if (!seeded) { seeded = true; seed(); }
       setTimeout(function () { if (input) input.focus(); }, 320);
+      SEM.boot();   /* 开着面板的时候悄悄把模型热起来，第一次问就不用等 */
     }
     function close() {
       if (!opened) return;
