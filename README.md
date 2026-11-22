@@ -11,6 +11,7 @@
 - **轻量版**（不含语义模型，6.6 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.013/hongguo-skin-1.013-win64.zip`
   - SHA256：`29CDE2A7CBFB5D6D75452CB8A0260469148995C831C00A64FC4070E330A3C148`
 - **语义版**（含本机模型，24 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.013/hongguo-skin-1.013-win64-ai.zip`
+  - SHA256：`1A975D8A65F2DD3A7049799B2C7BF30BB06E72581ACF8F8407B679C7D293E97D`
   - 小果能听懂"开局很惨后来翻身的"这类没剧名的话；不装模型也能用，字面搜不到时会如实说没搜到
 - 上一版（v1.012）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.012
 

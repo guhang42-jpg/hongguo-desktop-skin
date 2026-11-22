@@ -84,7 +84,7 @@ hongguo-skin-1.013-win64.zip      6,937,740 B
 29CDE2A7CBFB5D6D75452CB8A0260469148995C831C00A64FC4070E330A3C148
 
 hongguo-skin-1.013-win64-ai.zip   25,241,648 B
-（SHA256 见 Release 页，GitHub 自带 digest）
+1A975D8A65F2DD3A7049799B2C7BF30BB06E72581ACF8F8407B679C7D293E97D
 ```
 
 `ui/index.html` · `ui/app.js` · `ui/ai/*` · `build/App.cs` 均已更新并推送。
