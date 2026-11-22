@@ -3,16 +3,16 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.013**（2026-11-23）
+**当前版本：v1.014**（2026-11-23）
 
 ## 下载
 
-- 最新版：`v1.013` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.013
-- **轻量版**（不含语义模型，6.6 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.013/hongguo-skin-1.013-win64.zip`
-  - SHA256：`29CDE2A7CBFB5D6D75452CB8A0260469148995C831C00A64FC4070E330A3C148`
-- **语义版**（含本机模型，24 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.013/hongguo-skin-1.013-win64-ai.zip`
-  - SHA256：`1A975D8A65F2DD3A7049799B2C7BF30BB06E72581ACF8F8407B679C7D293E97D`
-  - 小果能听懂"开局很惨后来翻身的"这类没剧名的话；不装模型也能用，字面搜不到时会如实说没搜到
+- 最新版：`v1.014` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.014
+- **轻量版**（不含语义模型，6.9 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.014/hongguo-skin-1.014-win64.zip`
+  - SHA256：`27F829A853837298F71605B071CF1D352ACD8D8458F9708792FC9859529272B9`
+- **语义版**（含本机模型，25 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.014/hongguo-skin-1.014-win64-ai.zip`
+  - SHA256：`ED4C1AB79FE39BAC5A831834CE9F7760A9E3BEC4E04F8B51E7F2177B26C7C0FB`
+  - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
 - 上一版（v1.012）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.012
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
@@ -56,6 +56,10 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 | 没剧名也能问（语义版） | 「找部修仙的」 |
 |---|---|
 | ![](docs/preview-sem.jpg) | ![](docs/preview-sem2.jpg) |
+
+| 换个说法也认得（语义版） |
+|---|
+| ![](docs/preview-intent.jpg) |
 
 ## 这版有什么
 
@@ -133,6 +137,15 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.014（2026-11-23）
+
+- 小果多了**意图判定**：9 类意图 × 122 条不同说法做成向量表（`intents.bin` 122 KB），先判断你这句话在说哪件事，再决定要不要动手
+- 「我上次停在哪集了」这种原文正则接不住的说法，现在能认出来是问进度，直接答"第 98 集，还差 29 集"
+- 门槛实测扫出来：分数 ≥ 0.40 且领先第二名 ≥ 0.10 才派发。13 条陌生强意图说法说中 10 条，12 条陌生找剧话**零误判**
+- 用最近邻而不是均值原型 —— 均值会把不同说法之间的差异抹平，召回直接掉一半（7/13 → 10/13）
+- 只认 resume / fav / stats / help / short / recommend 这 6 类；search / play / detail 判出来也不派发，因为找剧本就是默认出口（实测"找都市题材的"会被误判成"来部短的"）
+- 新增 134 KB，其余不变
 
 ### v1.013（2026-11-23）
 

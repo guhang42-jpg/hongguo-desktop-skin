@@ -2462,8 +2462,9 @@
     var SEM = (function () {
       var PREFIX = "为这个句子生成表示以用于检索相关文章：";
       var BASE = "ai/";
-      var st = { on: false, loading: false, err: null, loadMs: 0, encMs: 0, n: 0 };
+      var st = { on: false, loading: false, err: null, loadMs: 0, encMs: 0, n: 0, it: false };
       var sess = null, tk = null, VEC = null, IDX = null, pending = null;
+      var IP = null, MU = null, ILAB = null;   /* 意图原型（已中心化）、中心化用的均值、标签 */
 
       function log(t) {
         try {
@@ -2509,11 +2510,22 @@
           IDX = idx;
           st.n = IDX.length;
           return Promise.all([
-            getText(BASE + "vocab.txt"), getBuf(BASE + "vectors.bin"), loadScript(BASE + "ort.min.js")
+            getText(BASE + "vocab.txt"), getBuf(BASE + "vectors.bin"), loadScript(BASE + "ort.min.js"),
+            getText(BASE + "intents.json").catch(function () { return null; }),
+            getBuf(BASE + "intents.bin").catch(function () { return null; })
           ]);
         }).then(function (r) {
           tk = window.BgeTok.create(r[0]);
           VEC = half(r[1]);
+          if (r[3] && r[4]) {
+            try {
+              var meta = JSON.parse(r[3]);
+              ILAB = meta.labels;
+              MU = meta.mu;                    /* 512 个 float，中心化用的均值 */
+              IP = half(r[4]);
+              if (MU && MU.length === 512 && IP.length === 512 * ILAB.length) st.it = true;
+            } catch (e) { st.it = false; }
+          }
           ort.env.wasm.wasmPaths = {
             mjs: new URL(BASE + "ort-wasm-simd-threaded.mjs", location.href).href,
             wasm: new URL(BASE + "ort-wasm-simd-threaded.wasm", location.href).href
@@ -2575,8 +2587,36 @@
         });
       }
 
+      /* 意图判定：最近邻。122 条例句向量都留着，不取均值 —— 均值会把不同说法平均掉，召回掉一半。
+         query 先中心化（减掉例句全体均值）再归一化，然后跟每条例句点积，按类取最高。
+         中心化是必须的：不中心化时各类余弦全在 0.75~0.88，谁都像谁；中心化后落到 -0.4~0.17，才分得开 */
+      function intent(text) {
+        return boot().then(function () {
+          if (!st.on || !st.it) return null;
+          return enc(PREFIX + text).then(function (v) {
+            var c = new Float32Array(512), nn = 0;
+            for (var i = 0; i < 512; i++) { c[i] = v[i] - MU[i]; nn += c[i] * c[i]; }
+            nn = Math.sqrt(nn);
+            if (!nn) return null;
+            var cls = {}, k, lb, off, s, j;
+            for (k = 0; k < ILAB.length; k++) {
+              off = k * 512; s = 0;
+              for (j = 0; j < 512; j++) s += IP[off + j] * c[j];
+              s /= nn;
+              lb = ILAB[k];
+              if (cls[lb] === undefined || s > cls[lb]) cls[lb] = s;
+            }
+            var arr = [];
+            for (lb in cls) arr.push([lb, cls[lb]]);
+            arr.sort(function (a, b) { return b[1] - a[1]; });
+            var r = { label: arr[0][0], score: arr[0][1], margin: arr[0][1] - (arr[1] ? arr[1][1] : -9) };
+            log("intent " + r.label + " " + r.score.toFixed(3) + "/" + r.margin.toFixed(3) + " 「" + text + "」");
+            return r;
+          });
+        });
+      }
       return {
-        boot: boot, top: top, stat: function () { return st; }
+        boot: boot, top: top, intent: intent, stat: function () { return st; }
       };
     })();
     window.HONGUO_SEM = SEM;
@@ -2630,8 +2670,26 @@
       if (/(短的|一晚上|一口气|刷完|集数少|没时间|不要太长|不长的|短一点|短些)/.test(t) && q.length < 2) return doShort(tp);
       if (/^(看|播|打开|放)/.test(t) && q.length >= 2) return doPlay(q, tp);
       if (/(推荐|看点啥|看点什么|有什么好看|无聊|没意思|随便|来一部|换一部|片荒)/.test(t)) return doRecommend(tp, q);
-      if (q.length >= 2) return doSearch(q, tp);
-      return reply("这句我没接住。我只会剧库那点事——<br>「我上次看到哪了」·「有没有修仙的」·「推荐 20 集以内的」<br>也可以直接说「看《XX》」。", tp);
+
+      /* 上面一条都没接住 —— 让模型看一眼"这句话到底像哪件事"，别再把「我一共追了几天」这种当成剧名去搜。
+         阈值 0.40 / 间隔 0.10 是实测扫出来的：这组档位下 12 条陌生找剧话零误判，13 条陌生强意图话说中 10 条。
+         只认这 6 类；search / play / detail 判出来也不派发 —— 找剧本来就是默认出口，不需要模型来判断"是不是找剧" */
+      return SEM.intent(text).then(function (it) {
+        var strong = it && it.score >= 0.40 && it.margin >= 0.10;
+        if (strong) {
+          if (it.label === "resume") return doResume(tp);
+          if (it.label === "fav") return doFav(tp);
+          if (it.label === "stats") return doStats(tp);
+          if (it.label === "help") return doHelp(tp);
+          if (it.label === "short") return doShort(tp);
+          if (it.label === "recommend") return doRecommend(tp, q);
+        }
+        if (q.length >= 2) return doSearch(q, tp);
+        return reply("这句我没接住。我只会剧库那点事——<br>「我上次看到哪了」·「有没有修仙的」·「推荐 20 集以内的」<br>也可以直接说「看《XX》」。", tp);
+      }).catch(function () {
+        if (q.length >= 2) return doSearch(q, tp);
+        return reply("这句我没接住。我只会剧库那点事——<br>「我上次看到哪了」·「有没有修仙的」·「推荐 20 集以内的」<br>也可以直接说「看《XX》」。", tp);
+      });
     }
 
     function doResume(tp) {
