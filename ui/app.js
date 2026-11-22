@@ -1155,6 +1155,7 @@
   var acct = $("#acct"), qrTimer = null, qrId = "", acctMode = "qr";
 
   function refreshAccount() {
+    var MASK = !!qs.get("mask");   /* 截图 / 演示用：账号昵称打码，别把个人信息发出去 */
     api("/api/v1/account").then(function (d) {
       S.account = d || {};
       var logged = !!d.logged_in;
@@ -1167,12 +1168,15 @@
       $("#acctPhone").style.display = "none";
       $("#acctSeg").style.display = logged ? "none" : "flex";
       if (logged && d.profile) {
-        $("#acctUid").textContent = "账号：" + (d.profile.nickname || d.profile.name || d.profile.uid) +
+        $("#acctUid").textContent = MASK
+          ? "账号：已隐藏（截图用）"
+          : "账号：" + (d.profile.nickname || d.profile.name || d.profile.uid) +
           (d.sync ? " · 同步状态：" + d.sync.state + (d.sync.pending ? "（待同步 " + d.sync.pending + "）" : "") : "");
       }
       var who = $("#sideWho");
       who.classList.toggle("off", !logged);
-      var nick = logged && d.profile ? (d.profile.nickname || d.profile.name || ("用户" + d.profile.uid)) : "未登录";
+      var nickRaw = logged && d.profile ? (d.profile.nickname || d.profile.name || ("用户" + d.profile.uid)) : "未登录";
+      var nick = MASK ? (logged ? "用户****" : "未登录") : nickRaw;
       $("#sideName").textContent = String(nick).slice(0, 12);
       $("#sideAv").textContent = logged ? String(nick).slice(0, 1) : "我";
       $("#sideSync").textContent = logged
@@ -1432,14 +1436,14 @@
   var MO_ROWS = [
     ["2026-11-02", "记-0182", "支付潞州区办公用品采购款", "办公费", "1,280.00", "", "综合部", "张伟"],
     ["2026-11-03", "记-0183", "预缴本月增值税", "应交税费", "", "8,640.00", "财务部", "李静"],
-    ["2026-11-05", "记-0185", "收到通城车检服务费", "主营收入", "", "26,500.00", "业务部", "王强"],
+    ["2026-11-05", "记-0185", "收到机动车检测服务费", "主营收入", "", "26,500.00", "业务部", "王强"],
     ["2026-11-06", "记-0187", "支付11月房屋租金", "管理费用", "6,200.00", "", "综合部", "张伟"],
     ["2026-11-08", "记-0189", "报销差旅费（太原往返）", "差旅费", "860.00", "", "业务部", "刘敏"],
     ["2026-11-09", "记-0191", "计提11月职工工资", "应付职工薪酬", "42,800.00", "", "人事部", "陈芳"],
     ["2026-11-10", "记-0192", "缴纳社保及公积金", "应付职工薪酬", "11,340.00", "", "人事部", "陈芳"],
     ["2026-11-11", "记-0194", "采购检测设备配件", "低值易耗品", "2,340.00", "", "技术部", "赵鹏"],
     ["2026-11-12", "记-0196", "支付11月电费", "水电费", "1,876.40", "", "后勤部", "孙丽"],
-    ["2026-11-13", "记-0198", "客户回款—市交运集团", "应收账款", "", "38,000.00", "业务部", "王强"],
+    ["2026-11-13", "记-0198", "客户回款—某交运集团", "应收账款", "", "38,000.00", "业务部", "王强"],
     ["2026-11-15", "记-0201", "支付物业费", "物业费", "2,150.00", "", "后勤部", "孙丽"],
     ["2026-11-16", "记-0203", "办公软件年度订阅", "软件服务费", "3,600.00", "", "综合部", "张伟"],
     ["2026-11-17", "记-0205", "报销业务招待费", "业务招待费", "1,240.00", "", "业务部", "刘敏"],

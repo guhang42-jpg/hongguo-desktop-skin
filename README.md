@@ -32,13 +32,17 @@ ui/index.html, ui/app.js, ui/icon.png
 
 ## 截图
 
-| 主界面（折叠后） | 成就 / 等级 |
+| 发现页 | 找剧 · 分类筛选 |
 |---|---|
-| ![](docs/preview-home.png) | ![](docs/preview-mine.png) |
+| ![](docs/preview-home.jpg) | ![](docs/preview-seasons.jpg) |
 
-| 剧场播放 | 详情：多季切换 + 选集分段 |
+| 榜单 · 分类排行 | 我的追剧 |
 |---|---|
-| ![](docs/preview-theater.png) | ![](docs/preview-seasons.png) |
+| ![](docs/preview-rank.jpg) | ![](docs/preview-mine.jpg) |
+
+| 剧场播放 · 真全屏 | 一键摸鱼（Ctrl+Shift+M） |
+|---|---|
+| ![](docs/preview-theater.jpg) | ![](docs/preview-moyu.jpg) |
 
 ## 这版有什么
 
