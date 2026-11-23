@@ -1552,6 +1552,15 @@
     return m;
   }
 
+  /* 官网页的公开片源：core 走的那套 App 取流接口这几天对所有剧、所有画质都回空包，
+     但官网页还给普通访问者留了一条兜底（接口由外壳 App.cs 代理，见 playWeb）。
+     那条 SEO 页的 /video/public/<vid>/360p.mp4 只有 10 秒预告，别拿它当正片。 */
+  var WPORT = qs.get("wport") || "";
+  var WEBURL = {};        /* vid -> {url, expire}，官方给的是带签名的临时 CDN 地址，会过期 */
+  var webSaid = 0;
+  /* core 返空是这段时间的常态，刚碰过一次就别再让每一集都干等它 4 秒：8 分钟内直接走官网兜底 */
+  var webUntil = 0;
+
   function loadStream(qual, seamless, force) {
     var d = S.active;
     var vid = S.vids[S.epIndex];
@@ -1567,6 +1576,8 @@
     if (!S.src) S.src = makeSrc(LS.get("hg_src_ok", 0) || 0);
     if (qual) S.src.q = qual;
     var q = S.src.q, mode = S.src.mode;
+    /* 刚确认过 core 在返空，8 分钟内不再等它，直接走官网兜底 */
+    if (Date.now() < webUntil) { playWeb(vid, "VIDEO_MODEL_EMPTY"); return; }
     var myIdx = srcIndex();   /* 这条请求属于哪条线路，回来时按它记账（中途换源也不串） */
     if (force) {
       /* 重试：把这一集这条线路的缓存标记清掉，重新问一次 core（core 那边若已缓存会秒回） */
@@ -1650,6 +1661,17 @@
       }
     }).catch(function (e) {
       var raw = (e && e.message ? e.message : "未知原因");
+      /* 上游返空（VIDEO_MODEL_EMPTY 那一族）不是线路问题，六条线路全打在同一台挂掉的上游，
+         换源只是多等几轮同样的空包 —— 直接退到官网公开片源 */
+      if (/VIDEO_MODEL_|VIDEO_TAB_|FALLBACK_API_|DEVICE_REGISTER/i.test(raw)) {
+        webUntil = Date.now() + 8 * 60 * 1000;
+        if (!webSaid) {
+          webSaid = 1;
+          toast("core 的取流接口返空，已改走官网页公开片源（360P）");
+        }
+        playWeb(vid, raw);
+        return;
+      }
       var waited = /等太久了|超时|timed out|aborted|abort/i.test(raw);   /* 秒错可以自动换源，等满 75 秒的自己点 */
       var idx = srcIndex(); if (idx < 0) idx = 0;
       var left = SRC_PLAN.length - (idx + 1);
@@ -1660,18 +1682,114 @@
         return;
       }
       var msg = playErrText(raw);
-      /* 上游返空这类，是官方那侧的问题，说清"别在这上面耗时间"，并给一条能点的路 */
-      var upstream = /VIDEO_MODEL_|VIDEO_TAB_|FALLBACK_API_|DEVICE_REGISTER/i.test(raw);
-      $("#vOfficial").classList.toggle("hide", !upstream);
+      $("#vOfficial").classList.add("hide");
       showLoadError("取不到播放源：<i>" + msg + "</i><br>" +
         "<i>现在是第 " + (idx + 1) + "/" + SRC_PLAN.length + " 路（" + SRC_PLAN[idx].tag + "）。" +
-        (upstream
-          ? "所有线路和清晰度都拿的是同一个空响应，基本可以判定是官方片源侧的问题（不是这台机器、也不是登录态），" +
-            "先用<span style=\"white-space:nowrap\">「打开官方网页」</span>顶上，过一阵再回来试。"
-          : "点<span style=\"white-space:nowrap\">「换个源」</span>走另一条取流路径，或" +
-            "<span style=\"white-space:nowrap\">「重试」</span>再要一次。") + "</i>");
+        "点<span style=\"white-space:nowrap\">「换个源」</span>走另一条取流路径，或" +
+        "<span style=\"white-space:nowrap\">「重试」</span>再要一次。</i>");
       $("#vPlay").textContent = "▶";
       toast("取流失败：" + msg);
+    });
+  }
+
+  /* core 返空时的兜底：走官网页那条公开兜底接口，拿一支完整的 360P 明文 MP4（H.264 + AAC）。
+     注意别拿 SEO 页里那支 /video/public/<vid>/360p.mp4 —— 那支只有 10 秒，是预告不是正片。
+     官网页不给跨域读，所以由外壳 App.cs 在 127.0.0.1 上开一个小代理（它补了 CORS 头），
+     本页只负责 fetch 一下拿地址，再把地址交给 video。 */
+  function webPlayFetch(vid) {
+    return new Promise(function (res, rej) {
+      var c = WEBURL[vid], now = Math.floor(Date.now() / 1000);
+      if (c && c.url && (!c.expire || c.expire - 30 > now)) { res(c.url); return; }
+      if (!WPORT) { rej(new Error("外壳的片源代理没开")); return; }
+      fetch("http://127.0.0.1:" + WPORT + "/webplay?vid=" + encodeURIComponent(vid))
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (!j || !j.ok || !j.url) throw new Error((j && j.error) || "no_source");
+          WEBURL[vid] = { url: j.url, expire: j.expire || 0 };
+          res(j.url);
+        })
+        .catch(function (e) { rej(e); });
+    });
+  }
+
+  function playWeb(vid, raw) {
+    var url = "";
+    var sameEp = (lastStreamVid === vid);
+    var keep = sameEp ? (video.currentTime || 0) : (S.resumeAt || 0);
+    var wasResume = !sameEp && keep > 4;
+    var settled = false, guard = null;
+
+    function cleanup() {
+      settled = true;
+      if (guard) { clearTimeout(guard); guard = null; }
+      video.removeEventListener("loadedmetadata", onMeta);
+      video.removeEventListener("error", onErr);
+    }
+    function giveUp(why) {
+      if (settled) return;
+      cleanup();
+      lastStreamVid = null;
+      webUntil = 0;      /* 官网这条也不通，就别再拦着 core 了，下次老老实实先问 core */
+      $("#vOfficial").classList.remove("hide");
+      showLoadError("取不到播放源：<i>" + playErrText(raw) + "</i><br>" +
+        "<i>core 的取流接口对所有剧都返空，官网页那条兜底接口也没给出这一集的片源（" + why + "）。" +
+        "这一集大概是还没公开；换集或点<span style=\"white-space:nowrap\">「打开官方网页」</span>看。</i>");
+      $("#vPlay").textContent = "▶";
+      toast("这一集拿不到片源");
+    }
+    function onErr() { giveUp("媒体加载失败"); }
+    function onMeta() {
+      if (settled) return;
+      cleanup();
+      if (!video.duration || video.duration < 2) { giveUp("拿到的不是完整视频"); return; }
+      try { video.currentTime = keep > 0.5 ? keep : 0; } catch (e) { }
+      S.resumeAt = 0;
+      lastStreamVid = vid;
+      S.playInfo = { path: url, quality: "360P·官网", qualities: ["360P·官网"], web: true };
+      S.quality = "360P·官网";
+      var box = $("#vQual"); box.innerHTML = "";
+      var b = document.createElement("button");
+      b.className = "vq on";
+      b.textContent = "360P·官网";
+      b.title = "core 取流返空，这是官网页兜底接口给的完整片源；点一下重新问一次 core";
+      b.onclick = function () { loadStream(null, false, true); };
+      box.appendChild(b);
+      $("#pSub").textContent = epLabel(S.epIndex) + " · 360P·官网";
+      showLoad(false);
+      $("#vPoster").classList.add("hide");
+      $("#vPlay").textContent = "❚❚";
+      $("#vPause").classList.add("hide");
+      if (wasResume) toast("已续播到 " + fmt(keep));
+      dbgLog("web fallback OK ep" + (S.epIndex + 1) + " dur=" + (video.duration || 0).toFixed(2) + "s");
+      loadDanmaku(vid);
+      saveProgress();
+      setTimeout(function () {
+        var dd = S.detail || S.active;
+        if (dd && viewer.classList.contains("on")) prefetchStream(dd, S.epIndex + 1);
+      }, 4000);
+    }
+
+    /* 换集/重取先把旧源卸干净，否则 WebView2 会沿用上一集的位置 */
+    try { video.pause(); } catch (e) { }
+    video.removeAttribute("src");
+    try { video.load(); } catch (e) { }
+    showLoad(true);
+    $("#vPoster").classList.remove("hide");
+
+    webPlayFetch(vid).then(function (u) {
+      /* 等这一下的工夫用户可能已经换集了，串台就丢掉 */
+      if (settled || String(S.vids[S.epIndex]) !== String(vid)) return;
+      /* 那台 CDN 只认官网的 Referer，浏览器直连会 403，所以媒体也走外壳的本地转发 */
+      url = "http://127.0.0.1:" + WPORT + "/media?u=" + encodeURIComponent(u);
+      video.addEventListener("loadedmetadata", onMeta);
+      video.addEventListener("error", onErr);
+      guard = setTimeout(function () { giveUp("等了两分钟没动静"); }, 120000);
+      video.src = url;
+      var p = video.play();
+      if (p && p.catch) p.catch(function () { });
+      dbgLog("web fallback ep" + (S.epIndex + 1) + " vid=" + vid + " src=" + String(u).slice(0, 48));
+    }, function (e) {
+      giveUp((e && e.message) || "代理没响应");
     });
   }
 
@@ -4342,9 +4460,30 @@
     function boot() {
       pop = $("#aiPop"); ball = $("#aiBall"); body = $("#aiBody"); chips = $("#aiChips"); input = $("#aiInput");
       if (!pop || !ball) return;
-      /* 联调：?jump=<series_id>~<集号>，验证"点剧名直接跳到那一集"这条链路 */
+      /* 联调：?jump=<series_id>~<集号>[~play]，验证"点剧名直接跳到那一集"这条链路。
+         库里没这部剧时（新剧、还没追过）就现查一次详情，不再只是静默什么都不发生。 */
       var jv = (function () { try { return new URLSearchParams(location.search).get("jump"); } catch (e) { return null; } })();
-      if (jv) setTimeout(function () { var a2 = jv.split("~"); jumpTo(a2[0], parseInt(a2[1], 10)); }, 1600);
+      if (jv) setTimeout(function () {
+        var a2 = String(jv).split("~");
+        var sid = a2[0], epi = parseInt(a2[1], 10), auto = a2[2] === "play";
+        if (!sid) return;
+        var go = function (it) {
+          if (!it) return;
+          touch("play");
+          openDetail(it, isNaN(epi) ? 0 : Math.max(0, epi - 1));
+          if (auto) setTimeout(function () { playEpisode(isNaN(epi) ? 0 : Math.max(0, epi - 1)); }, 1400);
+        };
+        lib(function (l) {
+          var es = (l && l.entries) || [], hit = null, i, dr;
+          for (i = 0; i < es.length; i++) {
+            dr = es[i].drama || es[i];
+            if (dr && String(dr.series_id) === String(sid)) { hit = dr; break; }
+          }
+          if (hit) { go(hit); return; }
+          api("/api/v1/series/detail?series_id=" + encodeURIComponent(sid))
+            .then(function (d) { go(d); }).catch(function () { });
+        });
+      }, 1600);
       /* 联调：把浏览器存储里的记忆清掉，逼它只靠文件兜底，验证"文件能当真备份" */
       if (/[?&]memfile=1/.test(location.search)) { try { localStorage.removeItem(MKEY); } catch (e) { } }
       MO = moLoad();

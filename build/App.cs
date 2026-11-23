@@ -252,6 +252,205 @@ namespace HongguoSkin
             catch { }
         }
 
+        /* ---------- 官网页片源代理 ----------
+         * core 那套 App 取流接口（novel/player/*_video_model）这几天对所有剧一律回 200/0 字节，
+         * 皮肤这边能用的只有官网页给普通访问者留的那条兜底：POST /api/video/protected/fallback-play-info
+         * 拿一支完整的 360P 明文 MP4（H.264/AAC，90 秒上下，不是 SEO 页那支 10 秒预告）。
+         * 官网页不给跨域读，所以在这儿开一个只监听本机回环的小代理，顺手把 CORS 头补上。
+         * 端口由系统分配，通过界面 URL 的 &wport= 告诉前端；监听失败就什么都不做，前端会退成报错。 */
+        private int webPlayPort;
+
+        private void StartWebPlayProxy()
+        {
+            try
+            {
+                /* .NET Framework 4.6.2 默认只开 TLS 1.0/1.1，官网那台只认 1.2；这里显式放开 */
+                try { ServicePointManager.SecurityProtocol |= (SecurityProtocolType)768 | (SecurityProtocolType)3072; } catch { }
+                var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+                listener.Start();
+                webPlayPort = ((IPEndPoint)listener.LocalEndpoint).Port;
+                Log("官网页片源代理已起 127.0.0.1:" + webPlayPort);
+                var th = new Thread(delegate ()
+                {
+                    while (true)
+                    {
+                        System.Net.Sockets.TcpClient c;
+                        try { c = listener.AcceptTcpClient(); }
+                        catch { break; }
+                        try { ThreadPool.QueueUserWorkItem(delegate (object o) { ServeWebPlay((System.Net.Sockets.TcpClient)o); }, c); }
+                        catch { try { c.Close(); } catch { } }
+                    }
+                });
+                th.IsBackground = true;
+                th.Start();
+            }
+            catch (Exception ex)
+            {
+                Log("片源代理没起来：" + ex.Message);
+                webPlayPort = 0;
+            }
+        }
+
+        private static string ReadHttpLine(Stream ns)
+        {
+            var one = new byte[1];
+            var sb = new StringBuilder();
+            while (true)
+            {
+                int n;
+                try { n = ns.Read(one, 0, 1); } catch { return null; }
+                if (n <= 0) return sb.Length > 0 ? sb.ToString() : null;
+                if (one[0] == (byte)'\n') break;
+                if (one[0] != (byte)'\r') sb.Append((char)one[0]);
+                if (sb.Length > 4096) break;
+            }
+            return sb.ToString();
+        }
+
+        private void ServeWebPlay(System.Net.Sockets.TcpClient c)
+        {
+            int code = 400;
+            string body = "{\"ok\":false,\"error\":\"bad_request\"}";
+            try
+            {
+                using (var ns = c.GetStream())
+                {
+                    ns.ReadTimeout = 8000;
+                    var line = ReadHttpLine(ns);
+                    string range = null;
+                    for (int i = 0; i < 40; i++)
+                    {
+                        var h = ReadHttpLine(ns);
+                        if (h == null || h.Length == 0) break;
+                        if (h.StartsWith("Range:", StringComparison.OrdinalIgnoreCase)) range = h.Substring(6).Trim();
+                    }
+                    string path = "";
+                    if (line != null)
+                    {
+                        int s1 = line.IndexOf(' ');
+                        int s2 = s1 >= 0 ? line.IndexOf(' ', s1 + 1) : -1;
+                        if (s2 > s1) path = line.Substring(s1 + 1, s2 - s1 - 1);
+                    }
+                    /* /media?u=<官网 CDN 直链>：那台 CDN 只认官网自己的 Referer，
+                       浏览器直接把地址丢给 video 会吃到 403（表现为 error code=4），所以由这儿代拉。 */
+                    if (path.StartsWith("/media?u=", StringComparison.Ordinal))
+                    {
+                        string target = null;
+                        try { target = Uri.UnescapeDataString(path.Substring(9)); } catch { target = null; }
+                        if (target != null && target.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                        {
+                            ServeMedia(ns, target, range);
+                            return;
+                        }
+                        body = "{\"ok\":false,\"error\":\"bad_media_url\"}";
+                    }
+                    else
+                    {
+                        string vid = "";
+                        int q = path.IndexOf("vid=", StringComparison.OrdinalIgnoreCase);
+                        if (q >= 0)
+                        {
+                            vid = path.Substring(q + 4).Trim();
+                            if (Regex.IsMatch(vid, "^\\d{1,30}$"))
+                            {
+                                string got = FetchWebPlayUrl(vid);
+                                if (got != null) { body = got; code = 200; }
+                                else { body = "{\"ok\":false,\"error\":\"no_public_source\"}"; code = 404; }
+                            }
+                        }
+                    }
+                    var bytes = Encoding.UTF8.GetBytes(body);
+                    var head = new StringBuilder();
+                    head.Append("HTTP/1.1 " + code + (code == 200 ? " OK" : " ERROR") + "\r\n");
+                    head.Append("Content-Type: application/json; charset=utf-8\r\n");
+                    head.Append("Access-Control-Allow-Origin: *\r\n");
+                    head.Append("Cache-Control: no-store\r\n");
+                    head.Append("Content-Length: " + bytes.Length + "\r\n");
+                    head.Append("Connection: close\r\n\r\n");
+                    var hb = Encoding.UTF8.GetBytes(head.ToString());
+                    ns.Write(hb, 0, hb.Length);
+                    ns.Write(bytes, 0, bytes.Length);
+                    ns.Flush();
+                }
+            }
+            catch (Exception ex) { Log("片源代理请求出错：" + ex.Message); }
+            finally { try { c.Close(); } catch { } }
+        }
+
+        /* 媒体转发：Range 原样透传（拖进度条要能跳），Referer 换成官网自己的 */
+        private void ServeMedia(Stream ns, string target, string range)
+        {
+            try
+            {
+                var req = (HttpWebRequest)WebRequest.Create(target);
+                req.Method = "GET";
+                req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+                req.Referer = "https://hongguoduanju.com/";
+                req.Timeout = 15000;
+                req.ReadWriteTimeout = 30000;
+                if (!string.IsNullOrEmpty(range)) { try { req.Headers["Range"] = range; } catch { } }
+                using (var resp = (HttpWebResponse)req.GetResponse())
+                {
+                    var sb = new StringBuilder();
+                    sb.Append("HTTP/1.1 " + (int)resp.StatusCode + " " + resp.StatusDescription + "\r\n");
+                    sb.Append("Content-Type: " + (resp.ContentType ?? "video/mp4") + "\r\n");
+                    var ar = resp.Headers["Accept-Ranges"];
+                    if (ar != null) sb.Append("Accept-Ranges: " + ar + "\r\n");
+                    var cr = resp.Headers["Content-Range"];
+                    if (cr != null) sb.Append("Content-Range: " + cr + "\r\n");
+                    if (resp.ContentLength > 0) sb.Append("Content-Length: " + resp.ContentLength + "\r\n");
+                    sb.Append("Access-Control-Allow-Origin: *\r\n");
+                    sb.Append("Cache-Control: no-store\r\n");
+                    sb.Append("Connection: close\r\n\r\n");
+                    var hb = Encoding.UTF8.GetBytes(sb.ToString());
+                    ns.Write(hb, 0, hb.Length);
+                    var src = resp.GetResponseStream();
+                    var buf = new byte[65536];
+                    int n;
+                    while ((n = src.Read(buf, 0, buf.Length)) > 0)
+                    {
+                        ns.Write(buf, 0, n);
+                        ns.Flush();
+                    }
+                }
+            }
+            catch (Exception ex) { Log("媒体转发出错：" + ex.Message); }
+        }
+
+        /* 官网那条兜底接口：body 只认顶层的 item_id（写成 vid 会被回 400 public_fallback_unavailable） */
+        private string FetchWebPlayUrl(string vid)
+        {
+            try
+            {
+                var req = (HttpWebRequest)WebRequest.Create("https://hongguoduanju.com/api/video/protected/fallback-play-info");
+                req.Method = "POST";
+                req.ContentType = "application/json; charset=utf-8";
+                req.Accept = "application/json";
+                req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+                req.Referer = "https://hongguoduanju.com/";
+                req.Timeout = 9000;
+                req.ReadWriteTimeout = 9000;
+                var post = Encoding.UTF8.GetBytes("{\"item_id\":\"" + vid + "\"}");
+                req.ContentLength = post.Length;
+                using (var s = req.GetRequestStream()) { s.Write(post, 0, post.Length); }
+                string json;
+                using (var resp = (HttpWebResponse)req.GetResponse())
+                using (var sr = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
+                    json = sr.ReadToEnd();
+                var mu = Regex.Match(json, "\"main_url\"\\s*:\\s*\"([^\"]+)\"");
+                if (!mu.Success) { Log("官网页片源返回里没有 main_url"); return null; }
+                var url = mu.Groups[1].Value.Replace("\\/", "/").Replace("\\u0026", "&").Replace("\\u003d", "=");
+                var me = Regex.Match(json, "\"url_expire\"\\s*:\\s*(\\d+)");
+                long exp = me.Success ? long.Parse(me.Groups[1].Value) : 0;
+                return "{\"ok\":true,\"url\":\"" + url.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\",\"expire\":" + exp + "}";
+            }
+            catch (Exception ex)
+            {
+                Log("官网页片源没拿到：" + ex.Message);
+                return null;
+            }
+        }
+
         private async Task StartAsync()
         {
             Log("窗口已创建  " + Program.OsName + " " + Program.WinVer.ToString("0.0") + " build=" + Program.WinBuild + (Program.Weak ? "（低于 Win10，用户选择强行尝试）" : ""));
@@ -319,6 +518,7 @@ namespace HongguoSkin
                 };
 
                 Log("打开界面");
+                StartWebPlayProxy();
                 string extra = "";
                 if (Program.Demo) extra += "?demo=1";
                 else extra += "?launch=1";
@@ -346,6 +546,7 @@ namespace HongguoSkin
                 if (Program.MemFile) extra += "&memfile=1";
                 if (Program.AskArg != null) extra += "&a=" + Uri.EscapeDataString(Program.AskArg);
                 if (Program.JumpArg != null) extra += "&jump=" + Uri.EscapeDataString(Program.JumpArg);
+                if (webPlayPort > 0) extra += "&wport=" + webPlayPort;
                 if (Program.Dbg) extra += "&dbg=1";
                 web.CoreWebView2.Navigate(coreUrl + "/skin/index.html" + extra);
                 /* 托盘与"到点看一眼"：界面起来了才有意义，放这儿建 */

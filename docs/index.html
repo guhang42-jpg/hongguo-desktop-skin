@@ -126,7 +126,7 @@
   <div class="wrap in">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#2a1105" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>
     <div class="brand">红果短剧<small>桌面皮肤版 · 非官方界面项目</small></div>
-    <span class="tag-v">v1.031</span>
+    <span class="tag-v">v1.032</span>
     <nav class="nav">
       <a href="#shots">截图</a>
       <a href="#feat">能干什么</a>
@@ -252,6 +252,7 @@
     <div class="h2">最近的版本</div>
     <div class="sub">每个版本的细节都写在仓库的 <a href="https://github.com/guhang42-jpg/hongguo-desktop-skin/tree/main/docs" style="color:#ffb057">docs/</a> 里。</div>
     <div class="timeline">
+      <div class="item"><b>v1.032</b><time>2026-11-23</time><p>这一版只修一件事：点开剧集、点具体集数，终于真的出画面了。病根查到底了 —— core 调的 <code>novel/player/multi_video_model/v1/</code> 已被官方停服，对任何剧、任何 vid 都是 HTTP 200 加 0 字节；把官方最新桌面内核 0.2.179 单独起在临时端口、指到同一份 data-dir 复测，play/info 照样 502 VIDEO_MODEL_EMPTY，所以不是版本旧、不是登录态、也不是网络，是签名与设备指纹在服务端被静默拒了，皮肤版算不出来。换了一条路：官网页播放器给普通访问者留着的 <code>POST /api/video/protected/fallback-play-info</code>（body 必须是 <code>{"item_id":"&lt;vid&gt;"}</code>，写 vid 会回 400），能拿到完整一集的 360P H.264/AAC 明文 MP4。那台 CDN 只认官网自己的 Referer，带本机地址直接 403，浏览器里又改不了 video 的 Referer，所以外壳在本机 127.0.0.1 上开了一个小转发口：<code>/webplay?vid=</code> 取地址，<code>/media?u=</code> 补 Referer 转发并原样透传 Range，回 206/200 带 Content-Range，端口交系统分配。实测第 1 集 360×640、116.52 秒，第 2 集 89.23 秒，都是完整正片（侧边还排掉了一个坑：SEO 页那支 360p.mp4 只有 10 秒，是预告不是正片）。core 现在每集要空转 3.5~4.8 秒才回空，所以第一次撞空后记 8 分钟窗口，窗口内换集直接走兜底、基本秒开，兜底失败就清窗口回 core，官方哪天修好不用改代码自己回高清。已知边界：兜底只有 360P；main_url 带 expire，用前比对、过期重取。</p></div>
       <div class="item"><b>v1.031</b><time>2026-11-23</time><p>「我的」页照官方那两行的形态补齐：追剧 / 收藏两个大字 tab（26px，未选 46% 灰、选中纯白加重），tab 行右端加一颗 32px 圆形搜索钮（官方放大镜的位置），点开是本页输入框，按剧名边打边筛，Esc 收起；筛选胶囊「全部 / 已看完 / 未看完」的选中态从原来那圈橙细边改成官方那种「橙字压半透明橙底、无边框」，右侧依次是计数、网格/列表切换、竖分隔、「管理」（默认纯文字，管理态才变白底药丸）。管理里批量动作按能力分级：收藏 tab 走「取消收藏」真回写 core，追剧 tab 只做「从本机隐藏」，底部写明云端记录还在，隐藏后多一个「恢复 N」。一千部不再一次全铺，默认 40 部、底部「再看 40 部（还剩 N 部）」；成就墙折叠态从 4 行压成一行横滑，追剧列表不再被挤到屏幕最底下。播放这块把 core 的内部 stage 码（VIDEO_MODEL_EMPTY 等十几个）翻成人话，上游返空时明说「所有线路都是同一个空响应、是官方片源侧的问题」，并多给一颗「打开官方网页」顶上；loadStream 里原来那句静默 return 也补成浮层与气泡，点集数不会再像没反应。</p></div>
       <div class="item"><b>v1.030</b><time>2026-11-23</time><p>有人在 Windows 7 上装，弹的是「内置服务没有启动起来，请查看 app.log」。日志一到就明白了一半 —— core 是 Go 1.25.14 编的，静态导入表干净得没什么可说（只 kernel32 的 47 个老 API），所以不是缺 DLL 那种加载期就死。它死在运行时里：Go 用 WaitOnAddress 做信号量，这接口 Win8 才加进系统，在 Win7 上取到空指针，rip 直接落在 0x0，退出码 2。三次尝试一字不差。这种缺失没法补 —— 用户态伪造同步原语不成立。所以这版改成：启动先用 RtlGetVersion 读真实版本（绕开未 manifest 程序在 Win8 以上一律谎报 6.2 的老毛病），低于 Win10 一个说明框直接退出，讲清为什么、以及换台机器就行；真想折腾带 --force。失败弹窗也不再只说「去看日志」，改成给系统版本、退出码人话、core 自己吐的最后 6 行，点确定直接拿记事本打开。顺带能认出 Go 崩溃的指纹：PC=0x0 加 runtime.asmstdcall，一句话说成「它调了一个这台机器上没有的函数」，不再扔一屏寄存器给人猜。</p></div>
       <div class="item"><b>v1.029</b><time>2026-11-23</time><p>把 v1.028 那版从头审了一遍，改掉八处真会碰上的问题。最要紧的是推理没有互斥 —— 搜索框连着敲会往同一个 wasm 会话连发好几条 run，轻则结果错乱重则报错，现在所有推理过一条串行锁，同一时刻只跑一条。其次是体检行被 230px 的省略号吃掉半截，改成允许折行，「模型 22.8MB · 指纹 一致 · 线程 1 · 加载 1.2s · 单句 38ms · 库内 1130 部」整行看得全。打开设置·本机不再永远显示「未加载」，进这一页就静默把模型点着、加载中自己刷新到「就绪」。加载失败后 30 秒内不再每次搜索都重读 22.8MB。另外补全状态的复位、「重载」按钮按结果说话、超时文案不再写出「0s」、语义分组挪到「数据」之后。</p></div>

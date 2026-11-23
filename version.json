@@ -1,7 +1,7 @@
 {
-  "version": "1.031",
-  "tag": "v1.031",
+  "version": "1.032",
+  "tag": "v1.032",
   "date": "2026-11-23",
-  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.031",
-  "notes": "「我的」页照官方形态补齐（大字 tab + 筛选胶囊 + 视图切换 + 管理 + 本页搜索 + 分页 + 成就墙折一行）；播放失败把 core 的 stage 码翻成人话，上游返空时明说并给「打开官方网页」兜底"
+  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.032",
+  "notes": "真能播了：官方 multi_video_model 取流接口被停服（一律 200 + 0 字节），改走官网页兜底 POST /api/video/protected/fallback-play-info（item_id）取完整 360P H.264 明文 MP4，外壳在本机 127.0.0.1 开小转发口补 Referer 并透传 Range；实测第 1 集 116.52s、第 2 集 89.23s 出画；撞空后 8 分钟内换集不再干等 core"
 }

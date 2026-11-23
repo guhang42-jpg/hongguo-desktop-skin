@@ -3,17 +3,17 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.031**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.031-ff7a45?style=flat-square)
+**当前版本：v1.032**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.032-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.031` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.031
-- **轻量版**（不含语义模型，6.99 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.031/hongguo-skin-1.031-win64.zip`
-  - SHA256：`9587F25F4D9765CC9B8A4D209871D8D218737A506086EB9594F78CC71E0A0BF5`（6,985,196 B）
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.031/hongguo-skin-1.031-win64-ai.zip`
-  - SHA256：`D8DEF4690A426FBB1A0B83BF6EA145BB361EFE8C5C1D856F6CA38C2045323E5B`（25,409,883 B）
+- 最新版：`v1.032` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.032
+- **轻量版**（不含语义模型，6.99 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.032/hongguo-skin-1.032-win64.zip`
+  - SHA256：`3D61FA39177C8917AE242241688B72D51D6A84DEB8E1E2C2190B552ABF0EBD85`（6,991,080 B）
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.032/hongguo-skin-1.032-win64-ai.zip`
+  - SHA256：`10E7CB2E3317A43A0BF3C29AFE2E764849EB8BAFD18637177F5FD03A3ECC3B3B`（25,416,075 B）
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
 - 上一版（v1.030）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.030
 
@@ -70,6 +70,9 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 
 工程：
 
+- **官方取流断供，改走官网页兜底，真能播了**（v1.032）：core 走的那条 `novel/player/multi_video_model/v1/` 已被官方停服 —— 对任何剧、任何 `vid` 都是 HTTP 200 + 0 字节。把官方最新桌面内核 0.2.179 单独起在临时端口复测，`play/info` 照样 502 `VIDEO_MODEL_EMPTY`，所以不是"我们版本旧"；签名与设备指纹在服务端校验，皮肤版自己也补不出来。换了条路：官网页播放器给普通访问者留的那个入口 `POST https://hongguoduanju.com/api/video/protected/fallback-play-info`（body `{"item_id":"<vid>"}`，`vid` 字段会回 400，必须是 `item_id`）能拿到完整一集的 360P H.264/AAC 明文 MP4。那台 CDN 只认官网自己的 Referer，带本机地址直接 403，所以外壳在本机 `127.0.0.1` 上开了一个小转发口（`/webplay` 取地址、`/media` 带 Referer 转发并透传 `Range`，端口由系统分配、日志里叫「官网页片源代理」）。实测第 1 集 `360×640 / 116.52s`、第 2 集 `89.23s`，都是完整正片
+- **断供期间不再每集干等 4 秒**（v1.032）：core 现在每集要 3.5~4.8 秒才回空，第一次撞空就记一个 8 分钟窗口，窗口内换集直接走兜底、基本秒开；兜底自己也失败就把窗口清掉，下一集老老实实先问 core —— 官方哪天修好了，不改代码自己回高清
+- **兜底也断就明说**（v1.032）：浮层写「这一集拿不到片源」并给「↗ 打开官方网页」，不再无限转圈；播放器右上多一颗「360P · 官网」小标，点一下重问 core 并换回常规线路（core 恢复后 720P/1080P 照原样能拿）。顺带把 SEO 页那支 `360p.mp4`（只有 10 秒的预告）排除掉了，没拿它冒充正片
 - **播放失败说人话，并给一条能顶上的路**（v1.031）：core 那十几个内部 stage 码（`VIDEO_MODEL_EMPTY` / `VIDEO_MODEL_HTTP` / `VIDEO_MODEL_READ` / `VIDEO_MODEL_JSON` / `VIDEO_MODEL_SIGN` / `VIDEO_TAB_EMPTY` / `DEVICE_REGISTER_FAILED` / `MEDIA_DECRYPT_FAILED` / `FALLBACK_API_*`）直接甩在页面上等于没说，现在统一翻成「一句中文 + 原码」；判定是上游返空时，明说「所有线路和清晰度拿到的都是同一个空响应，是官方片源侧的问题，不是这台机器、也不是登录态」，并多给一颗「↗ 打开官方网页」顶上（外壳白名单从只放 GitHub 扩到 GitHub + 红果官方站）
 - **「点集数没反应」补上反馈**（v1.031）：分集数据不全时 `loadStream` 原来是静默 `return`，点哪一集都像卡住；现在浮层和气泡都说清「这一集缺视频号，重开详情取全再试」
 - **启动先验系统，失败给诊断**（v1.030）：`ntdll!RtlGetVersion` 读真实版本（绕开未 manifest 程序在 Win8 以上一律谎报 6.2 的老毛病），低于 Win10 直接一个说明框退出，装之前就知道装不了；真要折腾可带 `--force`。core 起不来时弹窗不再只写「看 app.log」，而是给出系统版本、退出码人话（`0xC0000135` 缺 DLL / `0xC0000139` 缺入口点 / `0xC000001D` 不认识的指令 / `0x80070005` 被杀软拦）、core 自己吐的最后 6 行，以及「确定」直接拿记事本打开日志。另外能认出 Go 崩溃的指纹（`PC=0x0` + `runtime.asmstdcall`），一句话说成「它调了一个这台机器上没有的函数」
@@ -179,6 +182,35 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.032（2026-11-23）
+
+这一版只干一件事：**让"点开剧集、点具体集数，什么都没发生"变成真的能播出画面。** v1.031 只是把错误说清楚了，这一版是把它修通。
+
+**病根**：core 调的是 `novel/player/multi_video_model/v1/`，官方已停服 —— 直接 GET、`?video_id=` / `?vid=` / `?item_id=`、POST JSON，全部回 **HTTP 200 + 0 字节**；连带 `video_model/v1/` 也是 404 或空包。把官方最新桌面内核 `hongguo-desktop-0.2.179-windows-x64.zip` 解出来单独起在 18951 端口、指到同一份生产 data-dir 复测，`logged_in:true`、`series/detail` 正常，`play/info` 仍然 502 `VIDEO_MODEL_EMPTY` —— 所以**不是版本旧、不是登录态、不是网络**，是服务端按签名/设备指纹静默拒了，皮肤版手里没有那套凭据，补不出来。
+
+**修法**：走官网页播放器给普通访问者的那条兜底 `POST https://hongguoduanju.com/api/video/protected/fallback-play-info`，body `{"item_id":"<vid>"}` → `{"main_url":…,"url_expire":…}`，拿到的是一支完整一集的 360P H.264/AAC MP4。踩到两个坑都落盘修掉了：
+
+1. 字段名必须是 `item_id`，写 `vid` 回 400 `public_fallback_unavailable`；
+2. 返回的 `v11-hgweb.qznovelvod.com` / `v26-hgweb…` 地址会校验 Referer —— 带 `Referer: http://127.0.0.1:…` 直接 403，带 `https://hongguoduanju.com/` 才 200。浏览器里 `<video>` 没法自定义 Referer，所以由外壳在本机 `127.0.0.1` 上起一个只服务本机的转发口（`TcpListener` + `HttpWebRequest`，`/webplay?vid=` 取地址、`/media?u=` 带 Referer 转发并原样透传 `Range`，206/200 与 `Content-Range`/`Accept-Ranges` 都对齐，端口交给系统分配）。另外补了 `.NET 4.6.2` 默认只开 TLS1.0/1.1 的老毛病（不补就报「未能创建 SSL/TLS 安全通道」）。
+
+**实测（`--jump <series>~N~play`，读 app.log）**：
+
+```
+官网页片源代理已起 127.0.0.1:53727
+stream req FAIL ep2 3480ms VIDEO_MODEL_EMPTY
+web fallback ep2 vid=7694117538048789528 src=https://v26-hgweb.qznovelvod.com/…
+metadata ok 360x640 dur=89.233991 canHEVC=probably
+web fallback OK ep2 dur=89.23s
+```
+
+第 1 集 `dur=116.52s`、第 2 集 `dur=89.23s`，都是完整正片。顺带排掉一个假源：`hongguoduanju.com/video/public/<vid>/360p.mp4` 对任意 vid 都 HEAD 200、也能 Range，但**只有 10 秒**，那是 SEO 页的预告，没拿来当播放源。社区那份 `jackotom/hongguo-drama` 的 `docs/issue-178-179-2026-11-23.md` 记的是同一套契约，可以对照。
+
+**这一版的边界（说清楚，不装）**：
+
+- 兜底只有 **360P**。`video_model` 那一系要签名，皮肤版算不出来，等官方修或者等 core 出带通用凭据的版本，界面上的 720P/1080P 按钮仍在，点了会重问 core，core 恢复就自动回高清。
+- `main_url` 带 `url_expire`（实测约 1 小时）。地址按 vid 缓存，但每次用之前都会比一遍 expire（留 30 秒余量），过期就重新问一次再给 `<video>`，不会把死链丢进去；"一集连播一小时以上"这种极端情况没有专门实测覆盖。
+- core 每集仍要空转 3.5~4.8 秒，所以第一次撞空后记 8 分钟窗口内直接走兜底；这 8 分钟不是缓存片源，只是不再白等 core。
 
 ### v1.031（2026-11-23）
 
