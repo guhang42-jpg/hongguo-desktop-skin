@@ -1300,6 +1300,8 @@ body.mini .hevcbar{display:none !important}
   .row .act.danger:hover{background:rgba(255,86,70,.22);border-color:rgba(255,120,100,.5)}
   .row .mono{flex:none;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:rgba(238,242,250,.62);
     max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+  /* 体检那一行内容长，允许折成两行，别再省略号吃掉 */
+  .row .mono.wide{max-width:none;white-space:normal;line-height:1.55;flex:0 1 auto}
   /* 语义检索体检徽标：就绪绿、失败红、其余中性灰 */
   .row .spill{flex:none;font-size:11.5px;padding:4px 11px;border-radius:999px;white-space:nowrap;
     max-width:210px;overflow:hidden;text-overflow:ellipsis;

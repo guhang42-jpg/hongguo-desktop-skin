@@ -983,6 +983,7 @@
   var SETW = $("#setWrap");
   var SETGRP = { ui: "界面", play: "播放", local: "本机", adv: "高级" };
   var SETTAB = "ui";
+  var setTick = null;   /* 语义模型加载中，设置页自己轮询重绘一次 */
 
   function setFlag(k, def) { var v = LS.get("hg_" + k, def === undefined ? 1 : def); return v !== 0; }
   function putFlag(k, on) { LS.set("hg_" + k, on ? 1 : 0); }
@@ -1240,20 +1241,36 @@
         "库内 " + (semSt.n || 0) + " 部"
       ].join(" · ");
       l0.appendChild(infoRow("模型状态", semSt.gate || "bge-small-zh int8 · 句子只在这台机器上算", '<span class="spill ' + sCls + '">' + sTxt + '</span>'));
-      l0.appendChild(infoRow("体检", "指纹对不上就不加载；单句超时 " + ((semSt.toMs ? semSt.toMs : 8000) / 1000) + " 秒就退回关键词找",
-        '<span class="mono">' + sLine + '</span>'));
+      l0.appendChild(infoRow("体检", "指纹对不上就不加载；单句超过 " + ((semSt.toMs ? semSt.toMs : 8000) / 1000) + " 秒没算完就退回关键词找",
+        '<span class="mono wide">' + sLine + '</span>'));
+      /* 进这一页就把模型顺手点着：别等用户跟小果聊一句才发现它没加载 */
+      if (window.HONGUO_SEM && !semSt.on && !semSt.loading && !semSt.err && !semSt.missing) {
+        window.HONGUO_SEM.boot().then(function () {
+          if ($("#setWrap") && $("#setWrap").classList.contains("on") && SETTAB === "local") renderSet();
+        });
+      }
+      /* 还在读的时候，这一页自己刷新一遍，别让状态卡在「加载中 · 读模型」 */
+      clearTimeout(setTick);
+      if (semSt.loading) setTick = setTimeout(function () {
+        if ($("#setWrap") && $("#setWrap").classList.contains("on") && SETTAB === "local") renderSet();
+      }, 1200);
       if (semSt.toCnt) l0.appendChild(infoRow("超时次数", "本次运行里推理超时的累计次数", '<span class="mono">' + semSt.toCnt + ' 次</span>'));
       l0.appendChild(actRow("重新加载模型", "怀疑文件坏了或刚换过模型时，重读一遍并重新核对指纹", "重载", false, function () {
         toast("正在重新加载模型…");
-        window.HONGUO_SEM.reset().then(function () { renderSet(); toast("模型已重新加载"); });
+        window.HONGUO_SEM.reset().then(function (s) {
+          renderSet();
+          if (s && s.on) toast("模型已重新加载");
+          else if (s && s.missing) toast("这个版本没带模型");
+          else toast("没加载起来：" + String((s && s.err) || "").slice(0, 22));
+        });
       }));
-      body.appendChild(l0);
 
       var l1 = grpBox("数据");
       l1.appendChild(infoRow("数据目录", "剧库、收藏、观看进度、小果的记忆", '<span class="mono">%APPDATA%\\HonggoDesktop</span>'));
       l1.appendChild(infoRow("本地接口", "core 只在本机监听，不出这台机器", '<span class="mono">127.0.0.1:18797</span>'));
       l1.appendChild(infoRow("看过的集", "记在本地，用来给选集格画进度线", '<span class="mono" id="setResumeCnt">—</span>'));
       body.appendChild(l1);
+      body.appendChild(l0);   /* 语义检索排在「数据」后面：先看清数据在哪，再看模型状态 */
       var cnt = $("#setResumeCnt");
       if (cnt) {
         var total = Object.keys(RESUME).length, seen = 0, fin = 0;
@@ -3386,9 +3403,11 @@
       var BASE = "ai/";
       var st = {
         on: false, loading: false, err: null, loadMs: 0, encMs: 0, n: 0, it: false,
-        missing: false, gate: "", fp: "", toMs: 0, toCnt: 0, mb: 0, mem: 0, threads: 1, stage: ""
+        missing: false, gate: "", fp: "", toMs: 0, toCnt: 0, mb: 0, mem: 0, threads: 1, stage: "",
+        errAt: 0
       };
       var sess = null, tk = null, VEC = null, IDX = null, pending = null, MAN = null;
+      var lock = Promise.resolve();   /* 推理串行锁：同一时刻只允许一条 run */
       var IP = null, MU = null, ILAB = null;   /* 意图原型（已中心化）、中心化用的均值、标签 */
 
       function log(t) {
@@ -3425,7 +3444,7 @@
           var done = false;
           var t = setTimeout(function () {
             if (done) return; done = true;
-            var e = new Error(tag + "超时 " + (ms / 1000).toFixed(0) + "s");
+            var e = new Error(tag + "超时 " + (ms >= 1000 ? (ms / 1000).toFixed(ms % 1000 ? 1 : 0) + "s" : ms + "ms"));
             e.timeout = true; rej(e);
           }, ms);
           p.then(function (v) { if (done) return; done = true; clearTimeout(t); res(v); },
@@ -3449,7 +3468,10 @@
       function boot() {
         if (st.on) return Promise.resolve(st);
         if (pending) return pending;
-        st.loading = true; st.err = null; st.stage = "读清单";
+        /* 刚失败过就先别重试：连着搜几次会把 22MB 模型反复读一遍 */
+        if (st.errAt && Date.now() - st.errAt < 30000) return Promise.resolve(st);
+        st.loading = true; st.err = null; st.errAt = 0; st.stage = "读清单";
+        st.fp = ""; st.missing = false; st.it = false; st.encMs = 0;
         var t0 = Date.now();
         /* 门槛：内存不到 4GB 的机器降级跑 —— 单句超时收紧，不硬拦也不让它卡得难受 */
         var mem = navigator.deviceMemory || 0;
@@ -3517,6 +3539,7 @@
           return st;
         }).catch(function (e) {
           st.loading = false; pending = null; st.stage = "";
+          st.errAt = Date.now();
           if (e && e.silent) { st.missing = true; return st; }
           if (e && e.timeout) st.toCnt++;
           st.err = String((e && e.message) || e);
@@ -3526,6 +3549,7 @@
         /* 整条链再兜一层，22 秒还没好就当加载失败，别让界面一直转圈 */
         pending = within(chain, 22000, "加载").catch(function (e) {
           st.loading = false; pending = null; st.stage = "";
+          st.errAt = Date.now();
           if (e && e.timeout) { st.toCnt++; st.err = String(e.message); }
           log("fail " + (st.err || "超时"));
           return st;
@@ -3550,11 +3574,18 @@
         });
       }
 
+      /* 排队：搜索框连着敲、意图判定和检索撞在一起时，同一会话不许并发 run */
+      function encQ(text) {
+        var run = lock.then(function () { return enc(text); });
+        lock = run.catch(function () { });
+        return run;
+      }
+
       function top(text, k) {
         return boot().then(function () {
           if (!st.on) return [];
           var t0 = Date.now();
-          return within(enc(PREFIX + text), st.toMs, "推理").then(function (qv) {
+          return within(encQ(PREFIX + text), st.toMs, "推理").then(function (qv) {
             st.encMs = Date.now() - t0;
             var n = st.n, dim = 512, arr = [];
             for (var i = 0; i < n; i++) {
@@ -3579,7 +3610,7 @@
       function intent(text) {
         return boot().then(function () {
           if (!st.on || !st.it) return null;
-          return within(enc(PREFIX + text), st.toMs, "推理").then(function (v) {
+          return within(encQ(PREFIX + text), st.toMs, "推理").then(function (v) {
             var c = new Float32Array(512), nn = 0;
             for (var i = 0; i < 512; i++) { c[i] = v[i] - MU[i]; nn += c[i] * c[i]; }
             nn = Math.sqrt(nn);
@@ -3608,7 +3639,10 @@
       function reset() {
         try { if (sess && sess.release) sess.release(); } catch (e) { }
         sess = null; pending = null; MAN = null;
+        lock = Promise.resolve();   /* 旧队列丢掉，别让卡住的那条 run 把新推理挡在后面 */
         st.on = false; st.loading = false; st.err = null; st.fp = ""; st.stage = "";
+        st.errAt = 0; st.missing = false; st.it = false; st.encMs = 0;
+        st.mb = 0; st.loadMs = 0;
         return boot();
       }
       return {

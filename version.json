@@ -1,7 +1,7 @@
 {
-  "version": "1.028",
-  "tag": "v1.028",
+  "version": "1.029",
+  "tag": "v1.029",
   "date": "2026-11-23",
-  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.028",
-  "notes": "语义检索补上四道工程约束：内存门槛与降级、模型 SHA-256 指纹校验、分步超时、设置·本机的语义体检行"
+  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.029",
+  "notes": "v1.028 的自查修复：推理串行锁、体检行折行、进设置自动预载、失败 30 秒冷却、状态复位补全、重载与超时文案"
 }
