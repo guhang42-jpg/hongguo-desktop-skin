@@ -3,19 +3,19 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.026**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.026-ff7a45?style=flat-square)
+**当前版本：v1.027**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.027-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.026` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.026
-- **轻量版**（不含语义模型，6.97 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.026/hongguo-skin-1.026-win64.zip`
-  - SHA256：`5EF24ED5556AAA66F4D58C6A80306401C1C8D3152EBAEAE5C3CECA01C96742D4`（6,969,057 B）
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.026/hongguo-skin-1.026-win64-ai.zip`
-  - SHA256：`0720C892BEF4587F46F8E658BF86981E7385ACE37370D1A0D83C8DDCD265A768`（25,393,264 B）
+- 最新版：`v1.027` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.027
+- **轻量版**（不含语义模型，6.97 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.027/hongguo-skin-1.027-win64.zip`
+  - SHA256：`3440AA0EB5D9326EE51C9A756F34626A054F2D6485111E75A7BDDCE6F5EEB362`（6,969,868 B）
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.027/hongguo-skin-1.027-win64-ai.zip`
+  - SHA256：`20CCC572B841850775D406D3A1414B4281F16CA4403059CEC55BF5F4F9B55BFD`（25,394,075 B）
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
-- 上一版（v1.025）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.025
+- 上一版（v1.026）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.026
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -115,10 +115,22 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 |---|
 | ![](docs/preview-ver.jpg) |
 
+| 顶栏三颗图标收成同一套线性矢量（刷新 / 设置 / 账号） | 长剧的段按钮换行，横向滚动条压按钮的问题没了 |
+|---|---|
+| ![](docs/preview-vec.jpg) | ![](docs/preview-seg.jpg) |
+
+| 成就墙默认只露「已解锁 + 3 个最接近的」，右上圆钮展开 |
+|---|
+| ![](docs/preview-ach.jpg) |
+
 ## 这版有什么
 
 界面：
 
+- **长剧的段按钮不再横向滚**（v1.027）：「1-24 / 25-48 / …」原来排成一行到底、底下一条细滚动条正压在按钮边上；现在改成自动换行 —— 126 集 6 段还是一行，301 集 13 段折成两行，711 集同理，滚动条彻底没了
+- **顶栏三颗图标收口**（v1.027）：刷新 `⟳`、账号 `◍` 两个字符图标换成与齿轮同一套的线性矢量（线宽 1.7），粗细、留白、圆心终于对得上
+- **圆钮更好点**（v1.027）：可见还是 28px，透明热区外扩 6px（实际 40px），点偏一点也能中；气泡改成朝上弹，不再压住下一行卡片
+- **成就墙不再铺满三屏**（v1.027）：默认只露「已解锁（按拿到的时间倒序）+ 3 个最容易拿的」，计数改成 `28 / 45　还有 17 项未解锁`；右上圆钮展开后照样全铺 45 项
 - **小节标题右边不再是文字按钮**（v1.026）：「收起」「展开全部」「换一批」全换成 28px 圆钮 —— 一圈细边、13px 线性图标（刷新 / 更多 / 上下一集方向），hover 提亮、按下缩一点，气泡走上一版那张自绘提示。一个按钮只说一件事，眼睛不用先读字
 - **空态有了统一样子**（v1.026）：居中一枚 66px 圆形图标 + 一句话 + 一枚胶囊按钮（「去找剧」「去发现」「导入」那一套），红果的搜索无结果、「我的」页收藏/记录为空都换成它，不再是一行灰字
 - **新加一整页设置面板**（v1.026）：从顶栏齿轮进，左侧分组导航（界面 / 播放 / 本机 / 高级），右侧分组卡 + 行项 + 右箭头取值 + `kbd` 快捷键小方块；「详情页封面糊底」「热播榜默认收起」「进播放页直接全屏」「画面铺满」「默认线路」都能当场开关，`Esc` 直接收起
@@ -212,6 +224,16 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.027（2026-11-23）
+
+- **长剧段按钮换行**：`.epsegs` 从 `overflow-x:auto` 改 `flex-wrap:wrap`，间距 8×6、按钮高 30→28、左右内距 12→10、字号 12→11.5；126 集 6 段仍单行，301 集 13 段折两行（8+5），横向滚动条与「压住按钮底边」的问题一并消失
+- **顶栏图标矢量化**：刷新 `⟳` → rotate-cw、账号 `◍` → user，与齿轮同为一像素线性 SVG（线宽 1.7、16px）；新增 `.ic svg` 统一尺寸与 `pointer-events:none`
+- **圆钮热区外扩**：`.sec .tb` 加 `position:relative`，`::after{inset:-6px}` 撑成 40px 透明可点圆，视觉仍是 28px 一圈
+- **气泡改朝上**：提示的 `place()` 判断触发点是否为 `.tb`，是则优先排到钮上方 16px，上方真放不下才回落下方；标题行的气泡不再压下一行卡片
+- **成就墙收窄**：新增 `paintAch()` —— 折叠态只渲染「已解锁（按 `D.ach` 时间戳倒序）+ 未解锁按定义顺序前 3」，展开态全铺 45 项；计数改 `28 / 45　还有 17 项未解锁`；`#achFold` 由 `.foldbtn` 文字按钮换成 `.tb` 圆钮 + chevron，`data-dir` / `data-hint` 随状态切换
+- 顺带修：删掉 v1.026 遗留的 `.achgrid.fold .ach:nth-child(n+17)`（它会把 JS 渲染的 31 格又砍回 16 格），兜底放宽到 `n+64`；计数文案由「减 3」改成未解锁总数，与 `N / 45` 自洽
+- 这版只动 `ui\index.html` / `ui\app.js`，外壳 `红果短剧.exe` 与 v1.026 同一个，播放链路、AI、本地 core 都未触碰
 
 ### v1.026（2026-11-23）
 

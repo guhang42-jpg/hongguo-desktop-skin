@@ -126,7 +126,7 @@
   <div class="wrap in">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#2a1105" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>
     <div class="brand">红果短剧<small>桌面皮肤版 · 非官方界面项目</small></div>
-    <span class="tag-v">v1.026</span>
+    <span class="tag-v">v1.027</span>
     <nav class="nav">
       <a href="#shots">截图</a>
       <a href="#feat">能干什么</a>
@@ -196,6 +196,13 @@
     <div class="grid2">
       <div class="card" style="grid-column:1/-1"><img src="./preview-ver.jpg" alt="版本块"><div class="cap">版本块：本机版本 + 构建号，右边状态位与「重新检查」「打开下载页」并排</div></div>
     </div>
+    <div class="grid2">
+      <div class="card"><img src="./preview-vec.jpg" alt="顶栏矢量图标"><div class="cap">顶栏三颗图标收成同一套线性矢量：刷新 / 设置 / 账号</div></div>
+      <div class="card"><img src="./preview-seg.jpg" alt="段按钮换行"><div class="cap">长剧的段按钮换行：301 集 13 段折两行，横向滚动条不再压按钮</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card" style="grid-column:1/-1"><img src="./preview-ach.jpg" alt="成就墙折叠"><div class="cap">成就墙默认只露「已解锁 + 3 个最接近的」，右上圆钮展开全铺 45 项</div></div>
+    </div>
   </section>
 
   <section class="feat" id="feat">
@@ -245,6 +252,7 @@
     <div class="h2">最近的版本</div>
     <div class="sub">每个版本的细节都写在仓库的 <a href="https://github.com/guhang42-jpg/hongguo-desktop-skin/tree/main/docs" style="color:#ffb057">docs/</a> 里。</div>
     <div class="timeline">
+      <div class="item"><b>v1.027</b><time>2026-11-23</time><p>把上一版留下的五处小别扭收掉。长剧的段按钮行不再横向滚 —— 「1-24 / 25-48 / …」自动换行，126 集 6 段还是一行，301 集 13 段折两行，那条压在按钮底边的细滚动条彻底消失。顶栏刷新 ⟳ 与账号 ◍ 两个字符图标换成与齿轮同一套的线性矢量，粗细留白终于对得上。28px 圆钮可见尺寸不变、热区外扩 6px（实际 40px）更好点，气泡改成朝上弹，不再压下一行卡片。成就墙不再一铺三屏：默认只露「已解锁（按拿到时间倒序）+ 3 个最容易拿的」，计数改成「28 / 45　还有 17 项未解锁」，右上圆钮展开后照样全铺 45 项。</p></div>
       <div class="item"><b>v1.026</b><time>2026-11-23</time><p>小节标题右边的「收起」「展开全部」「换一批」全换成 28px 圆钮：一像素细边、13px 线性图标，hover 提亮放大、按下缩回，折叠方向靠图标转 180° 表达，气泡走自绘提示。空态统一成三件套：居中 66px 圆形图标 + 一句话 + 一枚胶囊按钮，搜索无结果与「我的」页空数据都换它。新加一整页设置面板，照 Folia 那页排：左侧分组导航（界面 / 播放 / 本机 / 高级），右侧分组卡 + 行项 + kbd 快捷键小方块，糊底、默认收起、直接全屏、画面铺满、默认线路都能当场开关。设置页底部那块版本区也做了：本机版本号 + 构建号 + 状态位，右边并排「重新检查」和「打开下载页」，不再只靠托盘气泡。</p></div>
       <div class="item"><b>v1.025</b><time>2026-11-23</time><p>详情页换成气氛底：当前这部剧的封面放大、模糊 44px、压低亮度铺满整个面板，再叠一道自上而下的深色遮罩，切剧跟着换色。播放页左上那颗剧名浮标签升级成迷你卡：40×53 小封面 + 剧名 + 第 N 集 / 共 N 集，跟返回钮齐平，顶栏显形它就在，静置一会儿一起淡出。播放页右缘加了一条竖窄集数队列：一集一格，贴到右缘 96px 内才浮出，当前集白底，看过的格底一条 2px 橙线按进度，点一下直接切集，全屏切集保持全屏。</p></div>
     <div class="item"><b>v1.024</b><time>2026-11-23</time><p>主界面左条不再整条铺开：固定 68px，鼠标压到哪一项就在那一项右边浮一个小标签，移开即收。详情页底部补上「看完这集，再看看」，按题材重合从本机剧库挑 6 部。选集分段按钮压上去会就地报数（第 97-120 集 · 看过 1/24 · 看完 1）；看过的集只在格底留一条 2px 细线，没记下时长的不画。播放页底栏图标化（▦ 选集、▭/▤/⤢ 三态铺满），Windows 那个灰白 tooltip 全部换成跟光标走的自绘气泡。再加首屏骨架屏、小窗里点详情自动还原窗口。</p></div>

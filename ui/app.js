@@ -2910,13 +2910,7 @@
         }).join("");
         var got = 0, ag = $("#achGrid");
         if (!ag) return;   /* 首页/其它视图里没有成就墙，别在这里抛错把后面的启动代码一起带走 */
-        ag.innerHTML = ACH.map(function (a) {
-          var on = !!D.ach[a.id]; if (on) got++;
-          return '<div class="ach' + (on ? " on" : "") + '" title="' + a.d + '"><i>' + a.ic +
-            '</i><div class="tx"><b>' + a.n + "</b><small>" + a.d + "</small></div></div>";
-        }).join("");
-        $("#achCnt").textContent = got + " / " + ACH.length;
-        syncAchFold();
+        paintAch();
       }
     }
 
@@ -2935,22 +2929,52 @@
         "</div>" +
         '<div class="sec" style="margin:18px 0 10px"><h2 style="font-size:18px">成就墙</h2>' +
         '<span class="cnt" id="achCnt">0 / ' + ACH.length + '</span><div class="rule"></div>' +
-        '<button class="foldbtn" id="achFold">展开全部</button></div>' +
+        '<button class="tb" id="achFold" data-dir="down" data-hint="展开全部 ' + ACH.length + ' 项">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 14.6 12 9.1l5.5 5.5"/></svg>' +
+        "</button></div>" +
         '<div class="achgrid fold" id="achGrid"></div>';
       var af = el.querySelector("#achFold");
       if (af) af.onclick = function () {
-        $("#achGrid").classList.toggle("fold");
-        syncAchFold();
+        var g = $("#achGrid");
+        if (!g) return;
+        g.classList.toggle("fold");
+        paintAch();
       };
       return el;
     }
 
-    /* 折叠态只露前两排；按钮文字跟着变，省得为了找一个成就滚一整屏 */
-    function syncAchFold() {
-      var g = $("#achGrid"), b = $("#achFold");
-      if (!g || !b) return;
+    /* v1.027：折叠态只摆「已解锁 + 3 个最接近的」，展开才铺全部
+       没有"还差几次"的进度数据，未解锁就按定义顺序（从易到难）取前 3 个 */
+    function paintAch() {
+      var g = $("#achGrid"), cnt = $("#achCnt");
+      if (!g) return;
+      var gotList = ACH.filter(function (a) { return !!D.ach[a.id]; })
+        .sort(function (x, y) { return (D.ach[y.id] || 0) - (D.ach[x.id] || 0); });
+      var restList = ACH.filter(function (a) { return !D.ach[a.id]; });
       var folded = g.classList.contains("fold");
-      b.textContent = folded ? "展开全部（" + ACH.length + "）" : "收起";
+      var list = folded ? gotList.concat(restList.slice(0, 3)) : gotList.concat(restList);
+      g.innerHTML = list.map(function (a) {
+        var on = !!D.ach[a.id];
+        return '<div class="ach' + (on ? " on" : "") + '" data-hint="' + a.d + '"><i>' + a.ic +
+          '</i><div class="tx"><b>' + a.n + "</b><small>" + a.d + "</small></div></div>";
+      }).join("");
+      if (cnt) {
+        cnt.textContent = gotList.length + " / " + ACH.length +
+          (folded && restList.length > 0 ? "　还有 " + restList.length + " 项未解锁" : "");
+      }
+      syncAchFold(folded);
+    }
+
+    /* 折叠状态跟着图标方向走（上=收起，下=展开），文字只留气泡里 */
+    function syncAchFold(folded) {
+      var b = $("#achFold");
+      if (!b) return;
+      if (typeof folded !== "boolean") {
+        var g = $("#achGrid");
+        folded = !!(g && g.classList.contains("fold"));
+      }
+      b.setAttribute("data-dir", folded ? "down" : "up");
+      b.setAttribute("data-hint", folded ? "展开全部 " + ACH.length + " 项" : "收起，只留已解锁");
     }
 
     return {
@@ -3916,7 +3940,10 @@
     var cur = null;
     function place(x, y) {
       var w = tip.offsetWidth, h = tip.offsetHeight;
-      var l = x + 14, t = y + 18;
+      /* 小节标题行上那颗圆钮，气泡优先往上弹：下面紧接着就是内容卡，往下会压住它 */
+      var above = !!(cur && cur.classList && cur.classList.contains("tb"));
+      var l = x + 14, t = above ? y - h - 16 : y + 18;
+      if (t < 10) t = y + 18;
       if (l + w > window.innerWidth - 10) l = x - w - 14;
       if (t + h > window.innerHeight - 10) t = y - h - 18;
       if (l < 10) l = 10;
