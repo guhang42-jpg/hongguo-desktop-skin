@@ -11,9 +11,9 @@
 
 - 最新版：`v1.026` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.026
 - **轻量版**（不含语义模型，6.97 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.026/hongguo-skin-1.026-win64.zip`
-  - SHA256：`D66702B316B1B06CC34F4BCAE5E0201FA3B8D9290BFFEF573019B3F734AD669B`（6,968,906 B）
+  - SHA256：`5EF24ED5556AAA66F4D58C6A80306401C1C8D3152EBAEAE5C3CECA01C96742D4`（6,969,057 B）
 - **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.026/hongguo-skin-1.026-win64-ai.zip`
-  - SHA256：`F7607A03D9073EB2BF6170183619DA6480635DE1943621A22DA6C9721BB6ACE0`（25,393,113 B）
+  - SHA256：`0720C892BEF4587F46F8E658BF86981E7385ACE37370D1A0D83C8DDCD265A768`（25,393,264 B）
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
 - 上一版（v1.025）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.025
 
