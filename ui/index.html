@@ -296,10 +296,11 @@
   .sseason.on b{color:#ffd7a3}
   .sseason.off{opacity:.45;cursor:default}
   .ephead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}  .ephead span{font-size:12px;color:var(--muted-2)}
+  .ephead span.hot{color:#ffbe7d;font-weight:600}  .ephead span.hot em{font-style:normal;color:#fff}  
   .eps{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:10px}
   .ep{height:36px;border-radius:11px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:rgba(255,255,255,.86);
     font-size:12.5px;font-family:inherit;cursor:pointer;transition:all .15s var(--ease)}
-  .ep:hover{background:rgba(255,255,255,.2);color:#fff}
+  .ep:hover{background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.36);transform:translateY(-1px)}
   .ep.on{background:#fff;color:#15171e;font-weight:700}
   .ep.seen{color:#ffc98a;border-color:rgba(255,178,90,.42)}
   .ep:disabled{opacity:.35;cursor:not-allowed}
@@ -697,31 +698,29 @@
   }
 
   /* ---------- v1.010 播放器 / 详情页竖排；v1.021 统一成图标抽屉 ---------- */
-  /* 播放器左侧：折叠态只剩一枚返回按钮，鼠标移上去铺开露出剧名与集数 */
-  .vtop{left:0;right:auto;top:0;width:58px;height:100%;flex-direction:column;align-items:flex-start;
-    justify-content:flex-start;gap:10px;padding:14px 6px 18px;overflow:hidden;border-radius:0 18px 18px 0;
-    background:linear-gradient(90deg,rgba(6,8,12,.52),rgba(6,8,12,.16) 68%,transparent);
-    transition:width .34s cubic-bezier(.22,.82,.24,1),background .3s ease,box-shadow .34s ease}
-  .vtop:hover{width:214px;background:linear-gradient(90deg,rgba(9,11,17,.945),rgba(9,11,17,.9));
-    backdrop-filter:blur(18px) saturate(1.1);box-shadow:18px 0 44px -22px rgba(0,0,0,.86)}
-  .vtop .vb{flex:none;margin-left:5px}
-  .vtitle{width:190px;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-    font-size:13px;line-height:1.5;text-align:left;padding-left:4px;color:#e9eef7;text-shadow:none;
-    opacity:0;transform:translateX(-6px);
-    transition:opacity .2s ease .05s,transform .3s cubic-bezier(.22,.82,.24,1)}
-  .vtop:hover .vtitle{opacity:1;transform:none}
+  /* 播放器左侧：只有一枚返回钮，鼠标压在钮上才浮出剧名与集数（与详情页同一套浮标签） */
+  .vtop{left:0;right:auto;top:0;width:64px;height:100%;display:flex;flex-direction:column;align-items:flex-start;
+    justify-content:flex-start;gap:10px;padding:14px 6px 18px;overflow:visible;border-radius:0;box-shadow:inset -1px 0 0 rgba(255,255,255,.06);
+    background:linear-gradient(90deg,rgba(6,8,12,.46),rgba(6,8,12,.14) 74%,transparent)}
+  .vtop .vb{position:relative;flex:none;margin-left:5px}
+  .vtitle{position:absolute;left:70px;top:40px;z-index:5;display:block;width:max-content;max-width:340px;
+    padding:8px 12px;border-radius:11px;background:rgba(11,13,19,.97);color:#e9eef7;text-shadow:none;
+    box-shadow:0 8px 22px -12px rgba(0,0,0,.92),inset 0 0 0 1px rgba(255,255,255,.1);
+    font-size:13px;line-height:1.4;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    opacity:0;pointer-events:none;transform:translate(-6px,-50%);
+    transition:opacity .18s ease,transform .22s cubic-bezier(.22,.82,.24,1)}
+  .vtop .vb:hover + .vtitle{opacity:1;transform:translate(0,-50%)}
   .vtitle span{display:block;width:auto;margin:3px 0 0;font-size:11px;line-height:1.4;
     color:#ffb98f;letter-spacing:.2px;text-align:left}
-  body.theater .vtop{width:58px;height:100%;padding:14px 6px 18px;
-    background:linear-gradient(90deg,rgba(0,0,0,.44),transparent)}
-  body.theater .vtop:hover{width:214px;background:linear-gradient(90deg,rgba(9,11,17,.94),rgba(9,11,17,.88))}
+  body.theater .vtop{width:64px;height:100%;padding:14px 6px 18px;
+    background:linear-gradient(90deg,rgba(0,0,0,.4),transparent)}
   body.vtopshow .vtop{opacity:1!important;pointer-events:auto}
 
   /* 详情页：左侧图标栏，悬停铺开成抽屉，绝对定位不挤压右侧内容 */
   .sheet{display:flex;padding:0;overflow:hidden;width:min(700px,94vw)}
   .srail{position:absolute;left:0;top:0;bottom:0;z-index:2;width:64px;
     display:flex;flex-direction:column;gap:8px;padding:46px 6px 14px;overflow:visible;
-    border-radius:0 16px 16px 0;
+    border-radius:0;
     background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.012));
     box-shadow:inset -1px 0 0 rgba(255,255,255,.06)}
   .srail .sr{position:relative;width:52px;height:52px;min-height:52px;display:flex;flex-direction:row;align-items:center;justify-content:center;
@@ -730,7 +729,7 @@
     transition:width .32s cubic-bezier(.22,.82,.24,1),background .2s ease,color .2s ease,
       padding .32s cubic-bezier(.22,.82,.24,1),gap .32s ease,transform .2s var(--ease)}
   .srail .sr i{font-style:normal;font-size:18px;line-height:1}
-  .srail .sr b{position:absolute;left:58px;top:50%;z-index:4;width:auto;line-height:1;text-align:left;
+  .srail .sr b{position:absolute;left:58px;top:50%;z-index:4;width:max-content;line-height:1;text-align:left;
     font-size:12.5px;font-weight:600;white-space:nowrap;padding:7px 11px;border-radius:9px;color:#fff;
     background:rgba(11,13,19,.97);box-shadow:0 8px 22px -12px rgba(0,0,0,.92),inset 0 0 0 1px rgba(255,255,255,.1);
     opacity:0;pointer-events:none;transform:translate(-6px,-50%);

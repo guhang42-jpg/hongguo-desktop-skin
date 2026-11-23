@@ -126,7 +126,7 @@
   <div class="wrap in">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#2a1105" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>
     <div class="brand">红果短剧<small>桌面皮肤版 · 非官方界面项目</small></div>
-    <span class="tag-v">v1.022</span>
+    <span class="tag-v">v1.023</span>
     <nav class="nav">
       <a href="#shots">截图</a>
       <a href="#feat">能干什么</a>
@@ -165,8 +165,12 @@
       <div class="card"><img src="./preview-side2.jpg" alt="展开侧栏"><div class="cap">鼠标移进去自己铺开成抽屉</div></div>
     </div>
     <div class="grid2">
-      <div class="card"><img src="./preview-vrail.jpg" alt="播放页"><div class="cap">播放时左上只剩一枚返回钮，移过去才出剧名与集数</div></div>
-      <div class="card"><img src="./preview-detail.jpg" alt="详情页"><div class="cap">详情页左侧同样的图标条：播放 / 收藏 / 追更 / 关闭</div></div>
+      <div class="card"><img src="./preview-vrail.jpg" alt="播放页"><div class="cap">播放页左上只剩一枚返回钮，移过去才浮出完整剧名与集数</div></div>
+      <div class="card"><img src="./preview-detail.jpg" alt="详情页"><div class="cap">详情页左侧同一套图标条：播放 / 收藏 / 追更 / 关闭</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><img src="./preview-detail2.jpg" alt="选集悬停"><div class="cap">悬停某一集，选集右端就地变成「第 105 集」，不弹浮层挡按钮</div></div>
+      <div class="card"><img src="./preview-toast.jpg" alt="顶部提示"><div class="cap">顶部提示条（已收藏这类）恢复正常</div></div>
     </div>
   </section>
 
@@ -217,6 +221,7 @@
     <div class="h2">最近的版本</div>
     <div class="sub">每个版本的细节都写在仓库的 <a href="https://github.com/guhang42-jpg/hongguo-desktop-skin/tree/main/docs" style="color:#ffb057">docs/</a> 里。</div>
     <div class="timeline">
+      <div class="item"><b>v1.023</b><time>2026-11-23</time><p>两条竖栏彻底统一。播放页左条 58→64，和详情页同一套 52 按钮、18px 图标、右缘细线，右侧 18px 圆角改直角；剧名与集数改成悬停才浮出的小标签，不再整条铺开。选集提示从浮层改成就地信息行：压住某一集，标题行右端直接变「第 105 集」。顺手修掉三个 bug——提示条样式曾被嵌进别的规则里导致顶部灵动岛失效、提示节点排在脚本之后拿不到、浮标签被容器宽度压成一百来像素导致长剧名被省略号吃掉。</p></div>
       <div class="item"><b>v1.022</b><time>2026-11-23</time><p>详情页把空间用起来。面板 580→700，选集一段 10→24 集、每行 8 个铺满右边缘，段按钮一行放得下、横向滚动条消失；左侧图标条 58→64 并取消整条铺开，改成单个按钮悬停浮出小标签，封面与正文不再被压。</p></div>
       <div class="item"><b>v1.021</b><time>2026-11-23</time><p>播放页和详情页那两条竖栏也收成图标。播放页 96→58，折叠态只剩一枚返回钮，鼠标移上去才铺开 214 露出剧名与集数；详情页 80→58，四个 46×46 图标格，悬停铺到 156 才出文字，并且改成绝对定位浮在面板上，展开时不挤压右侧内容。</p></div>
       <div class="item"><b>v1.020</b><time>2026-11-23</time><p>把那条抽屉磨细。收起方向加了 100ms 延迟，鼠标顺着边缘划过去不再弹一下；展开态底色变实，背后内容不再透过字；小窗形态禁展开；<code>backdrop-filter</code> 退出过渡，展开那 340ms 少掉一轮逐帧重绘；图标 hover 从上浮的位移代替放大。</p></div>

@@ -607,11 +607,11 @@
       var b = document.createElement("button");
       b.className = "ep" + (i === S.epIndex ? " on" : "");
       b.textContent = String(i + 1);
-      b.title = "第 " + (i + 1) + " 集" + (resumeOf(S.active && S.active.series_id, i) > 4 ? "（上次看到 " + fmt(resumeOf(S.active.series_id, i)) + "）" : "");
       b.dataset.i = i;
       var rv = resumeOf(S.active && S.active.series_id, i);
+      /* 屏幕阅读器与鼠标悬停提示共用这一行，不再依赖系统 title */
+      b.setAttribute("aria-label", "第 " + (i + 1) + " 集");
       if (rv > 4) b.classList.add("seen");
-      b.onclick = (function (n) { return function () { playEpisode(n); }; })(i);
       /* 鼠标扫过哪一集就先给那一集排队预取，点下去基本已经在拉了 */
       b.onmouseenter = (function (n) {
         return function () { prefetchStream(S.detail, n); };
@@ -621,6 +621,33 @@
     if (!total) eps.innerHTML = '<div class="foot" style="padding:16px 0">暂时取不到分集</div>';
   }
 
+  /* 选集：鼠标压上去时，标题行右侧直接从“共 N 集”变成这一集的说明，不再弹浮层挡按钮 */
+  (function () {
+    var cnt = $("#sEpCount"), cur = null;
+    if (!cnt) return;
+    function base() { return "共 " + (S.epTotal || 0) + " 集"; }
+    function reset() {
+      cur = null;
+      cnt.textContent = base();
+      cnt.classList.remove("hot");
+    }
+    document.addEventListener("mousemove", function (e) {
+      var t = e.target;
+      var b = (t && t.closest) ? t.closest("#sEps .ep") : null;
+      if (b === cur) return;
+      cur = b;
+      if (!b) { reset(); return; }
+      var n = parseInt(b.dataset.i, 10) || 0;
+      var rv = resumeOf(S.active && S.active.series_id, n);
+      if (rv > 4) cnt.innerHTML = "第 " + (n + 1) + " 集 · 上次 <em>" + fmt(rv) + "</em>";
+      else cnt.textContent = "第 " + (n + 1) + " 集";
+      cnt.classList.add("hot");
+    });
+    document.addEventListener("mousedown", reset, true);
+    document.addEventListener("mouseout", function (e) {
+      if (e.relatedTarget === null || !e.relatedTarget) reset();
+    });
+  })();
   /* 多季：core 的 /series/seasons 会返回这部剧的第 1..N 季，直接拿来做成换季横排 */
   var seasonToken = 0;
   function renderSeasonBar(list, curSid) {
@@ -657,6 +684,9 @@
   }
 
   function openDetail(item, idx) {
+    /* 换一部剧才把详情滚回顶部；同一个 series 再次打开保持原来的阅读位置 */
+    var sameSeries = S.active && String(S.active.series_id) === String(item.series_id);
+    if (!sameSeries) { var sm = $(".smain"); if (sm) sm.scrollTop = 0; }
     S.active = item; S.epIndex = idx || 0;
     if (typeof AMB !== "undefined" && AMB) AMB.theme(item);
     $("#sCover").src = coverOf(item);
@@ -727,11 +757,9 @@
     });
   }
   function epLabel(i) { return "第 " + (i + 1) + " 集"; }
-  /* 竖排剧名一列往下走，长剧名会变成一根"字柱子"。超过 13 个字就截断，剩下的进 title 提示 */
+  /* 剧名现在是横向浮标签，整条给全名就行，不再按竖排时代的 9 字截断 */
   function vTitleOf(d) {
-    var t = String((d && d.title) || "");
-    if (t.length <= 10) return t;
-    return '<span style="display:none">' + t + '</span>' + t.slice(0, 9) + "…";
+    return String((d && d.title) || "");
   }
 
   function playEpisode(i) {

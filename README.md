@@ -3,17 +3,17 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.022**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.022-ff7a45?style=flat-square)
+**当前版本：v1.023**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.023-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.022` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.022
-- **轻量版**（不含语义模型，6.95 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.022/hongguo-skin-1.022-win64.zip`
-  - SHA256：`BA6C1488957E9E7C27756050E7621329BDF56512EDA2696B0E7AD16077243663`
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.022/hongguo-skin-1.022-win64-ai.zip`
-  - SHA256：`B0D81B10A858D7ADB1EE8867EEDDF3EF97C7859203146B8BF94753F93FED96DB`
+- 最新版：`v1.023` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.023
+- **轻量版**（不含语义模型，6.95 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.023/hongguo-skin-1.023-win64.zip`
+  - SHA256：`6426739C5BCB54342C52F008988D708AD4366C808EFCE2CA9CE681E1696E2A6F`（6,955,388 B）
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.023/hongguo-skin-1.023-win64-ai.zip`
+  - SHA256：`FCB0DD1B56ACC06DE59D20C5EF537C225CDAAEA2B1BC20DAAC322103AACB522F`（25,379,595 B）
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
 - 上一版（v1.021）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.021
 
@@ -80,8 +80,12 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 |---|---|
 | ![](docs/preview-side.jpg) | ![](docs/preview-side2.jpg) |
 
-| 播放页左上只剩返回钮，移过去才出剧名 | 详情页左侧同样的图标条 |
+| 播放页左上只剩返回钮，移过去才浮出剧名 + 集数 | 详情页左侧同样的图标条 |
 | ![](docs/preview-vrail.jpg) | ![](docs/preview-detail.jpg) |
+
+| 选集悬停：标题行就地显示「第 N 集」 | 顶部提示条（灵动岛）恢复正常 |
+|---|---|
+| ![](docs/preview-detail2.jpg) | ![](docs/preview-toast.jpg) |
 
 ## 这版有什么
 
@@ -89,7 +93,7 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 
 - 左侧固定导航 + 品牌标 + 底部账号卡；顶部胶囊标签 + 搜索 + 账号
 - **左侧栏收成 68px 图标窄条**：只留 logo、四个线性图标（罗盘 / 放大镜 / 柱状 / 人像）、小果那颗球、底部头像，全在 x=34 这条竖线上。鼠标移进来自动铺开成 196px 玻璃抽屉（右侧 20px 圆角 + 投影），文字和账号卡在铺开的同时淡入；移开自己收回。抽屉浮在内容之上，不推挤主内容，看片时瞄一眼侧栏不会整页横跳。小窗模式下不铺开，始终是一条纯图标栏
-- **播放页与详情页的竖栏同样收成图标抽屉**：播放页折叠态只剩一枚返回钮，详情页四个图标格，都是悬停才铺开出文字；详情那条例栏改绝对定位，铺开时不挤压右侧正文
+- **播放页与详情页的竖栏统一成 64px 图标条**：宽度、按钮尺寸、分隔线、直角完全一致；剧名与按钮文字都改成悬停浮出的小标签，不再整条铺开盖住内容
 - 大 Hero、继续观看横滑、热播榜带名次横条、推荐瀑布流、底部悬浮播放条
 - **首页折叠**：热播榜默认收起、推荐区只露两行，点了才展开；找剧 / 榜单 / 我的页不再摆 Hero 和两条横滑
 - **找剧细化**：排序（推荐 / 热度 / 口碑 / 集数少 / 集数多）+ 集数段（≤40 / 41–80 / 80+）+ 题材标签（从已加载剧集里统计出的热门前 10）
@@ -174,6 +178,15 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 
 ## 更新日志
 
+### v1.023（2026-11-23）
+
+- **播放页左条 58 → 64**，与详情页同一套：52×52 按钮、18px 图标、右缘极淡分隔线；右侧 18px 圆角改直角
+- **播放页不再整条铺开**：剧名 + 集数改成浮标签，只在压住返回钮时浮出，起点 70px 不压按钮
+- **选集提示改成就地信息行**：悬停某集时 `选集` 右端从「共 126 集」变成橙色「第 105 集」，有进度时显示「第 110 集 · 上次 0:16」；浮层方案整个撤掉，零遮挡
+- 集数格 hover 加强：底色提亮 + 边框加亮 + 上浮 1px
+- **修 bug**：`.eptip` 样式曾误嵌进 `.toast` 声明块，导致顶部提示条（已收藏等）整条失效；`#epTip` 节点排在脚本之后拿不到元素；浮标签被容器"可用宽度"压成一百来像素导致长剧名被省略号吃掉 → `width:max-content`
+- `vTitleOf` 去掉竖排时代的 9 字截断，剧名一次给全
+- 换剧时详情滚回顶部，同剧再开保持阅读位置
 ### v1.022（2026-11-23）
 
 - **详情面板 580 → 700**：内容区实际多出 120px，选集不再挤在左边一小块
