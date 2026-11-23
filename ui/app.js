@@ -8,7 +8,7 @@
   var S = {
     view: "home", tab: "recommend", items: [], offset: 0, next: 0, hasMore: false, loading: false,
     hero: null, active: null, detail: null, vids: [], epIndex: 0, playInfo: null, quality: "",
-    danmaku: [], dmIdx: 0, dmOn: true, account: null, library: null, q: "", fs: false, mini: false, fit: "contain",
+    danmaku: [], dmIdx: 0, dmOn: true, account: null, library: null, q: "", fs: false, mini: false, fit: "cover",
     fitManual: false, prevFitFs: null, fsFromMini: false,
     filterTag: "", filterEps: "all", sort: "default", collapsed: { cont: false, rank: true }, gridOpen: false,
     resumeAt: 0, epTotal: 0, epSeg: 0, rate: 1, vol: 1,
@@ -910,7 +910,9 @@
     if (typeof AMB !== "undefined" && AMB) AMB.play(false);
   }
 
-  var AUTO_FS = LS.get("hg_auto_fs", 1) !== 0;   /* 设置页可切；默认进真全屏 */
+  /* 键换成 v2：老版本默认是"进播放页自动全屏"，这里改成默认不接管，
+     全屏由用户自己按 ⛶ / 双击画面 / F 切 */
+  var AUTO_FS = LS.get("hg_auto_fs_v2", 0) !== 0;
   var FFTEST = /[?&]ff=1/.test(location.search);   /* 联调用：每集自动跳到末尾 1.2 秒，快速验证自动接集 */
   /* ---------- v1.025：播放页剧名卡 + 右侧集数队列 ---------- */
   function paintVTitle(d) {
@@ -1203,7 +1205,7 @@
       p1.appendChild(selRow("进播放页直接全屏", "关掉就停在剧场面板，自己点全屏", "全屏", "剧场",
         AUTO_FS, function (on) {
           AUTO_FS = on;
-          LS.set("hg_auto_fs", on ? 1 : 0);
+          LS.set("hg_auto_fs_v2", on ? 1 : 0);
           toast(on ? "下次播放直接全屏" : "下次播放停在剧场面板");
         }));
       p1.appendChild(segRow("画面铺满", "全屏时按哪种方式铺", [
@@ -1219,10 +1221,11 @@
 
       var p2 = grpBox("取流线路");
       p2.appendChild(segRow("默认线路", "换源时优先走哪条", [
-        { k: "0", n: "高清完整" }, { k: "1", n: "高清分段" }, { k: "2", n: "标清完整" }
-      ], String(LS.get("hg_src_ok", 0) || 0), function (k) {
-        var i = Math.max(0, Math.min(2, Number(k) || 0));
-        LS.set("hg_src_ok", i);
+        { k: "0", n: "最优·1080P" }, { k: "2", n: "高清·720P" },
+        { k: "3", n: "标清·540P" }, { k: "5", n: "省流·360P" }
+      ], String(LS.get(SRCKEY, 0) || 0), function (k) {
+        var i = Number(k) || 0;
+        LS.set(SRCKEY, i);
         S.src = makeSrc(i);
         renderSet();
         toast("默认线路已记下，下一集起生效");
@@ -1393,6 +1396,7 @@
     $("#vbg").style.backgroundImage = cov ? 'url("' + cov + '")' : "none";
     $("#pCover").src = cov;
     $("#pTitle").textContent = d.title || "";
+    try { if (window.DBG) window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "play fit=" + S.fit + " autoFs=" + (AUTO_FS ? 1 : 0) })); } catch (e) { }
     loadStream();
     wake();
     /* 默认直接进真·全屏自动播放（退出全屏就是剧场面板） */
@@ -1413,13 +1417,18 @@
      core 没公开"多线"参数，但 quality / mode / fallback 的不同组合在它内部是
      几条独立的取流路径（实测每种组合生成不同的 proxy 文件、走不同的上游请求）。
      因此"换源"就按线路表依次换，哪条出画就记住哪条。 */
+  /* 线路记忆键换成 v2：v1 存的索引是按"720P 打头"那张表算的，
+     表顺序改成 1080P 优先后旧索引会指错档，干脆另起一个键 */
+  var SRCKEY = "hg_src_v2";
+  /* 线路表：第一条就是最清楚的（1080P 优先），往下才是降级。
+     用户没手动挑过线路时，从头开始试，拿到的最好画质就是默认画质。 */
   var SRC_PLAN = [
+    { q: "1080P", mode: "full", tag: "超清·完整" },
+    { q: "1080P", mode: "range", tag: "超清·分段" },
     { q: "720P", mode: "full", tag: "高清·完整" },
-    { q: "720P", mode: "range", tag: "高清·分段" },
     { q: "540P", mode: "full", tag: "标清·完整" },
     { q: "480P", mode: "full", tag: "流畅·完整" },
-    { q: "360P", mode: "full", tag: "省流·完整" },
-    { q: "1080P", mode: "full", tag: "超清·完整" }
+    { q: "360P", mode: "full", tag: "省流·完整" }
   ];
   function makeSrc(i) {
     var s = SRC_PLAN[i] || SRC_PLAN[0];
@@ -1441,7 +1450,7 @@
     b.title = "当前线路：" + (s ? s.tag : ((S.src && S.src.q) || "自动")) + " · 点一下换下一条";
   }
   function rememberSrc(i) {
-    if (i >= 0) LS.set("hg_src_ok", i);
+    if (i >= 0) LS.set(SRCKEY, i);
   }
   function streamKey(d, vid, epIndex, qual, mode) {
     return (d && d.series_id ? d.series_id : "?") + "|" + vid + "|" + epIndex + "|" + (qual || "") + "|" + (mode || "full");
@@ -1591,7 +1600,7 @@
       return;
     }
     /* 线路状态：第一次播放就用上次成功过的线路，没有就用第一条 */
-    if (!S.src) S.src = makeSrc(LS.get("hg_src_ok", 0) || 0);
+    if (!S.src) S.src = makeSrc(LS.get(SRCKEY, 0) || 0);
     if (qual) S.src.q = qual;
     var q = S.src.q, mode = S.src.mode;
     /* 刚确认过 core 在返空，8 分钟内不再等它，直接走官网兜底 */
@@ -2758,7 +2767,7 @@
       }, 900);
     } else {
       document.body.classList.remove("idle");
-      S.fit = prevFit || "contain"; applyFit();
+      S.fit = prevFit || "cover"; applyFit();
     }
   }
   function miniResume() {
@@ -2924,6 +2933,9 @@
     }
     if (S.mini) sendMiniSize();
   }
+  /* 默认画面模式就是铺满裁剪：脚本在 body 末尾跑，这里先把 body 的模式类放上，
+     否则第一集出画前 video 没有 object-fit，会露出一圈黑边 */
+  applyFit();
   function sendMiniSize() {
     if (!S.mini || !video.videoWidth || !window.chrome || !window.chrome.webview) return;
     /* 小窗的窗口比例跟着片源走，横屏就矮、竖屏就高，这样 cover 铺满也裁不到人 */
@@ -4655,7 +4667,7 @@
   if (vParam) setTimeout(function () { switchView(vParam === "cat" ? "category" : "rank"); }, 2000);
   /* 线路：默认用上次成功的，开机自检可用 ?src=2 指定第 2 路 */
   var srcParam = parseInt(qs.get("src"), 10);
-  S.src = makeSrc(isNaN(srcParam) ? (LS.get("hg_src_ok", 0) || 0) : Math.max(0, srcParam - 1));
+  S.src = makeSrc(isNaN(srcParam) ? (LS.get(SRCKEY, 0) || 0) : Math.max(0, srcParam - 1));
   paintSrc();
   /* 自检用：?sheet=1 直接打开第一部的详情，并停在长剧的中段，验证"选集按 10 集分段" */
   if (qs.get("sheet")) {

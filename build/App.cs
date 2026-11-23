@@ -414,6 +414,9 @@ namespace HongguoSkin
                     }
                 }
             }
+            /* 浏览器 seek / 换集 / 关页面时会把连接直接掐掉，写不进去是常态，不当错误记 */
+            catch (IOException) { }
+            catch (ObjectDisposedException) { }
             catch (Exception ex) { Log("媒体转发出错：" + ex.Message); }
         }
 

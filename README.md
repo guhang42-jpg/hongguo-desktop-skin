@@ -3,17 +3,17 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.033**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.033-ff7a45?style=flat-square)
+**当前版本：v1.034**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.034-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.033` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.033
-- **轻量版**（不含语义模型，6.99 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.033/hongguo-skin-1.033-win64.zip`
-  - SHA256：`92B72834F7409054F97DB79B3FE86B73FFDFBE3999BD07210BD20342AC90EFE9`（6,991,639 B）
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.033/hongguo-skin-1.033-win64-ai.zip`
-  - SHA256：`B59E5EA54BDF2595819260158C8F9BBFED56C7628C3B5129FD24865EC8069C20`（25,416,634 B）
+- 最新版：`v1.034` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.034
+- **轻量版**（不含语义模型，6.99 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.034/hongguo-skin-1.034-win64.zip`
+  - SHA256：`23594F44E4A54331B172143CE51D5F3BFCD879F7B8B1FE608529C1B6242FD00D`（6,992,166 B）
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.034/hongguo-skin-1.034-win64-ai.zip`
+  - SHA256：`E4366BDCA78B4991956B65E28B9393EBCF186E3224971C95F20FAB0297805C69`（25,417,161 B）
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
 - 上一版（v1.030）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.030
 
@@ -70,6 +70,7 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 
 工程：
 
+- **默认就按最好那档画质放，画面铺满不留黑边，全屏由你自己按**（v1.034）：线路表顺序翻过来 —— `1080P·完整` 打头，依次 `1080P·分段` / `720P` / `540P` / `480P` / `360P`，没人手动挑过线路时从头试，能拿到的最好画质就是默认画质（线路记忆键换成 `hg_src_v2`，老键是按"720P 打头"那张表算的索引，直接沿用会指错档）。画面默认从「适应（整幅都看得见、上下留黑边）」改成「铺满裁剪（不留黑边）」，脚本一起就先把 `body.mode-cover` 放上，第一集出画前就不会先闪一圈黑边；想看完整的整幅画面随时点播放条那颗 `▤/▭` 循环回去。**进播放页不再自动全屏** —— 以前 220ms 后自己抢全屏，现在停在剧场面板，全屏只由你按 `⛶` / 双击画面 / `F` 决定（设置页那个「进播放页直接全屏」开关还在，默认关，键换成 `hg_auto_fs_v2`，老版本存下的"开"不会继续生效）
 - **「点具体集数没反应」的真因：格子从来没接过点击**（v1.033）：详情页那排分集格子（1、2、3…）只挂了 `onmouseenter`（用来提前预取），**压根没有 click 监听** —— 所以无论 core 通不通，点下去都不会有任何事发生；「播放」按钮能播是因为它有 `onclick = playEpisode(0)`。现在在 `#sEps` 上挂一个容器级 click 委托，打到哪一格就播哪一集，`renderEpisodeGrid` 反复重建 innerHTML 也不会掉；`playEpisode` 里"没有视频号"那条也从静默退回详情页改成一句 toast（点下去再不会看着像没反应）。实测：`--jump <sid>~3~pick` 让程序真的去 `.click()` 第 3 个格子，日志依次出现 `stream req FAIL ep3` → `web fallback ep3` → `metadata ok 360x640 dur=62.368798` → `web fallback OK ep3 dur=62.37s`
 - **官方取流断供，改走官网页兜底，真能播了**（v1.032）：core 走的那条 `novel/player/multi_video_model/v1/` 已被官方停服 —— 对任何剧、任何 `vid` 都是 HTTP 200 + 0 字节。把官方最新桌面内核 0.2.179 单独起在临时端口复测，`play/info` 照样 502 `VIDEO_MODEL_EMPTY`，所以不是"我们版本旧"；签名与设备指纹在服务端校验，皮肤版自己也补不出来。换了条路：官网页播放器给普通访问者留的那个入口 `POST https://hongguoduanju.com/api/video/protected/fallback-play-info`（body `{"item_id":"<vid>"}`，`vid` 字段会回 400，必须是 `item_id`）能拿到完整一集的 360P H.264/AAC 明文 MP4。那台 CDN 只认官网自己的 Referer，带本机地址直接 403，所以外壳在本机 `127.0.0.1` 上开了一个小转发口（`/webplay` 取地址、`/media` 带 Referer 转发并透传 `Range`，端口由系统分配、日志里叫「官网页片源代理」）。实测第 1 集 `360×640 / 116.52s`、第 2 集 `89.23s`，都是完整正片
 - **断供期间不再每集干等 4 秒**（v1.032）：core 现在每集要 3.5~4.8 秒才回空，第一次撞空就记一个 8 分钟窗口，窗口内换集直接走兜底、基本秒开；兜底自己也失败就把窗口清掉，下一集老老实实先问 core —— 官方哪天修好了，不改代码自己回高清
@@ -183,6 +184,45 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.034（2026-11-23）
+
+一句话：**默认按最好那档画质放，画面铺满不留黑边，全屏只由你自己按。** 三件都是"默认值"层面的改动，没有新按钮。
+
+**① 画质默认取最好那档**：`SRC_PLAN` 顺序翻过来（原来是 `720P → 720P分段 → 540P → 480P → 360P → 1080P`，1080P 压在最末，等于永远轮不到）：
+
+```js
+{ q:"1080P", mode:"full"  },  // 超清·完整
+{ q:"1080P", mode:"range" },  // 超清·分段
+{ q:"720P",  mode:"full"  },
+{ q:"540P",  mode:"full"  },
+{ q:"480P",  mode:"full"  },
+{ q:"360P",  mode:"full"  },
+```
+
+没人手动挑过线路时从第 1 条开始试，能出画的最好那档就是默认。线路记忆键换成 `hg_src_v2` —— 旧键 `hg_src_ok` 里存的是按"720P 打头"那张表算出来的索引（比如 5 = 旧 1080P），表一翻就会指到 360P，所以另起一个键、默认 0，不误读老值。设置页「默认线路」也按新档位重列：`最优·1080P / 高清·720P / 标清·540P / 省流·360P`。
+
+**② 画面默认铺满、不留黑边**：`S.fit` 默认 `"contain"` → `"cover"`，并在 `applyFit()` 定义之后立刻调一次，先把 `body.mode-cover` 放上 —— 否则第一集出画那一刻 video 还没有 `object-fit`，会先闪一圈黑边再跳。想回到"整幅都看得见"随时点播放条那颗 `▤/▭`，三种模式循环不变（`铺满裁剪 → 拉伸铺满 → 原比例`）。
+
+**③ 进播放页不再自己抢全屏**：`AUTO_FS` 默认从 `1` 改 `0`，键换成 `hg_auto_fs_v2`（老版本存下过"开"的不会继续生效）。现在点播放停剧场面板，全屏只由你按 `⛶` / 双击画面 / `F`。设置页「进播放页直接全屏」开关仍在，默认关。
+
+**实测**（`--jump <sid>~1~play --dbg`）：
+
+```
+官网页片源代理已起 127.0.0.1:52666
+[ui] play fit=cover autoFs=0
+[ui] stream req FAIL ep1 3068ms VIDEO_MODEL_EMPTY
+[ui] web fallback ep1 vid=7694117511490440216 …
+[ui] metadata ok 360x640 dur=116.517732
+[ui] web fallback OK ep1 dur=116.52s
+[ui] web fallback OK ep2 dur=89.23s      ← 自动接集，8 分钟窗口内直连兜底，没再干等 core
+```
+
+日志里**没有**「进入全屏 1920x1080」这一行 —— 就是这一版要的效果。
+
+**顺带降噪**：片源代理在浏览器 seek / 换集时被掐连接会产生 `IOException`（"你的主机中的软件中止了一个已建立的连接"），以前记成「媒体转发出错」，现在 `IOException` / `ObjectDisposedException` 直接静默，真异常才记。
+
+**一个前提要说清**：画质"最好那档"是往 core 要 1080P，core 这段时间一律返空，实际出画的仍是官网兜底的 360P（`360x640`）。铺满裁剪会把 360P 放大到屏幕，画面会比"适应"糊一点、也更满；这是"无黑边"的代价，不是这版偷了画质。core 那边一恢复，`1080P` 这条就是默认，不用再改。
 
 ### v1.033（2026-11-23）
 

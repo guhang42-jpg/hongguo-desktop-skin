@@ -1,7 +1,7 @@
 {
-  "version": "1.033",
-  "tag": "v1.033",
+  "version": "1.034",
+  "tag": "v1.034",
   "date": "2026-11-23",
-  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.033",
-  "notes": "修「点具体集数没反应」的真因：分集格子只挂了 onmouseenter 预取、从来没有 click，也没有容器委托，所以点哪一集都不会发生任何事；现在 #sEps 挂 click 委托 → playEpisode(n)，实测 .click() 第 3 集一路出画（web fallback OK ep3 dur=62.37s）；无视频号时也不再静默退回详情页，改成一句 toast"
+  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.034",
+  "notes": "默认画质改成最好那档（线路表 1080P 打头，记忆键换 hg_src_v2 免得老索引指错档）；画面默认铺满裁剪不留黑边（S.fit 默认 cover，启动即挂 body.mode-cover）；进播放页不再自动全屏（AUTO_FS 默认 0，键换 hg_auto_fs_v2），全屏只由用户按 ⛶ / 双击 / F；代理对 seek 断连造成的 IOException 静默"
 }
