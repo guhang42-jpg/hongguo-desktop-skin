@@ -587,7 +587,7 @@
 
   /* ---------- 详情 ---------- */
   var sheet = $("#sheet"), mask = $("#mask");
-  function closeDetail() { mask.classList.remove("on"); sheet.classList.remove("on"); }
+  function closeDetail() { mask.classList.remove("on"); sheet.classList.remove("on"); if ($("#sGlow")) $("#sGlow").classList.remove("on"); }
 
   /* 选集按每 24 集一段折叠：面板加宽后一屏放得下三行，不再只给两行留一大片空 */
   var EP_SEG = 24;
@@ -779,6 +779,8 @@
     S.active = item; S.epIndex = idx || 0;
     if (typeof AMB !== "undefined" && AMB) AMB.theme(item);
     $("#sCover").src = coverOf(item);
+    var gc = coverOf(item);
+    if ($("#sGlowImg")) { $("#sGlowImg").style.backgroundImage = gc ? 'url("' + gc + '")' : "none"; $("#sGlow").classList.toggle("on", !!gc); }
     $("#sTitle").textContent = item.title || "";
     $("#sSub").textContent = [
       item.episode_count ? "全 " + item.episode_count + " 集" : "",
@@ -876,16 +878,63 @@
 
   var AUTO_FS = true;   /* 打开播放默认进真全屏；想回剧场面板方式，把它改成 false */
   var FFTEST = /[?&]ff=1/.test(location.search);   /* 联调用：每集自动跳到末尾 1.2 秒，快速验证自动接集 */
+  /* ---------- v1.025：播放页剧名卡 + 右侧集数队列 ---------- */
+  function paintVTitle(d) {
+    var cv = $("#vTitleCv"), nm = $("#vTitleName"), ep = $("#vTitleEp");
+    if (!nm) return;
+    var c = coverOf(d);
+    if (cv) { if (c) { cv.src = c; cv.style.visibility = "visible"; } else { cv.style.visibility = "hidden"; } }
+    nm.textContent = vTitleOf(d);
+    if (ep) ep.textContent = epLabel(S.epIndex) +
+      (S.epTotal ? " · 共 " + S.epTotal + " 集" : "");
+  }
+
+  /* 右侧竖窄队列：一集一格，当前那格白底，看过的格底一条细线；点一下直接跳集 */
+  function renderVQueue() {
+    var q = $("#vQueue");
+    if (!q) return;
+    var n = S.vids.length || S.epTotal || 0;
+    if (!n) { q.innerHTML = ""; q.classList.remove("hot"); return; }
+    var sid = S.active && S.active.series_id;
+    var h = "";
+    for (var i = 0; i < n; i++) {
+      var p = resumePct(sid, i);
+      h += '<button class="vq" data-i="' + i + '"' + (i === S.epIndex ? ' data-cur="1"' : "") +
+        (p > 0 ? ' data-seen="1" style="--p:' + Math.max(6, p) + '%"' : "") +
+        ' data-hint="第 ' + (i + 1) + ' 集' + (p >= 96 ? " · 已看完" : (p > 0 ? " · 看过 " + p + "%" : "")) + '">' +
+        (i + 1) + '</button>';
+    }
+    q.innerHTML = h;
+    var cur = q.querySelector('[data-cur="1"]');
+    if (cur) q.scrollTop = Math.max(0, cur.offsetTop - q.clientHeight / 2 + cur.offsetHeight / 2);
+  }
+  (function () {
+    var q = $("#vQueue");
+    if (q) q.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest(".vq") : null;
+      if (!b) return;
+      playEpisode(Number(b.dataset.i));
+    });
+    var t = null;
+    document.addEventListener("mousemove", function (e) {
+      var qq = $("#vQueue");
+      if (!qq || !viewer.classList.contains("on") || !qq.children.length) return;
+      var near = e.clientX > window.innerWidth - 96;
+      clearTimeout(t);
+      if (near) qq.classList.add("hot");
+      else t = setTimeout(function () { qq.classList.remove("hot"); }, 260);
+    });
+  })();
   function openViewer() {
     var d = S.detail || S.active;
     viewer.classList.add("on");
-    if (!S.mini) {
+    if (!S.mini && !S.fs) {
       document.body.classList.add("theater");
       if (window.GRO) GRO.mode("theater");
     }
     closeDetail();
     if (typeof AMB !== "undefined" && AMB) AMB.play(true);
-    $("#vTitle").innerHTML = vTitleOf(d) + "<span>" + epLabel(S.epIndex) + "</span>";
+    paintVTitle(d); renderVQueue();
     var cov = coverOf(d);
     $("#vPoster").style.backgroundImage = cov ? 'url("' + cov + '")' : "none";
     $("#vbg").style.backgroundImage = cov ? 'url("' + cov + '")' : "none";
@@ -1264,7 +1313,7 @@
     S.resumeAt = 0;
     S.epIndex += 1;
     var d = S.detail || S.active || {};
-    $("#vTitle").innerHTML = vTitleOf(d) + "<span>" + epLabel(S.epIndex) + "</span>";
+    paintVTitle(d); renderVQueue();
     if (S.epTotal) renderEpisodeGrid(S.epTotal, Math.floor(S.epIndex / EP_SEG));
     else [...$("#sEps").children].forEach(function (b) { b.classList.toggle("on", Number(b.dataset.i) === S.epIndex); });
     if (window.GRO && S.active) GRO.episode(S.active.series_id, S.epIndex, S.quality, S.active.tags);
