@@ -64,65 +64,6 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 |---|---|
 | ![](docs/preview-intent.jpg) | ![](docs/preview-mem.jpg) |
 
-| 「你记得什么」 · 记忆可核对、一句「忘了吧」清空 | 「推荐一部」时按你记的偏好去挑 |
-|---|---|
-| ![](docs/preview-mem2.jpg) | ![](docs/preview-pref.jpg) |
-
-| 有新版本时顶上一句，点了直接去 Release 页 | 仓库主页（GitHub Pages） |
-|---|---|
-| ![](docs/preview-update.jpg) | [![主页](docs/preview-home.jpg)](https://guhang42-jpg.github.io/hongguo-desktop-skin/) |
-
-| 气泡里的剧名可点（暖橙那行） | 点完直接进详情，选集落在那一集 |
-|---|---|
-| ![](docs/preview-jump.jpg) | ![](docs/preview-jump2.jpg) |
-
-| 左侧栏平时只有图标（68px） | 鼠标移进去铺开成抽屉 |
-|---|---|
-| ![](docs/preview-side.jpg) | ![](docs/preview-side2.jpg) |
-
-| 播放页左上只剩返回钮，移过去才浮出剧名 + 集数 | 详情页左侧同样的图标条 |
-| ![](docs/preview-vrail.jpg) | ![](docs/preview-detail.jpg) |
-
-| 选集悬停：标题行就地显示「第 N 集」 | 顶部提示条（灵动岛）恢复正常 |
-|---|---|
-| ![](docs/preview-detail2.jpg) | ![](docs/preview-toast.jpg) |
-
-| 详情页底部「看完这集，再看看」 | 集数格底一条进度线，段按钮悬停就地报数 |
-|---|---|
-| ![](docs/preview-more.jpg) | ![](docs/preview-eps.jpg) |
-
-| 播放页底栏图标化，说明走自绘提示（不再是系统那个灰白气泡） |
-|---|
-| ![](docs/preview-hint.jpg) |
-
-| 详情页：当前剧封面放大模糊铺底，跟着剧换气氛 | 播放页左上：小封面 + 剧名 + 第 N 集 |
-|---|---|
-| ![](docs/preview-glow.jpg) | ![](docs/preview-vcard.jpg) |
-
-| 播放页右缘：竖窄集数队列，鼠标贴边才浮出，点一下就切集 |
-|---|
-| ![](docs/preview-vqueue.jpg) |
-
-| 小节标题右边的文字按钮换成 28px 圆钮（刷新 / 更多 / 收起 / 展开），配自绘气泡 | 圆钮就 28px，不抢标题，点一下才动 |
-|---|---|
-| ![](docs/preview-btns.jpg) | ![](docs/preview-tip.jpg) |
-
-| 设置面板：左边分组导航，右边分组卡 + 行项 + kbd 快捷键 |
-|---|
-| ![](docs/preview-set.jpg) |
-
-| 版本块：本机版本、构建号、"检查一次"与并排的「打开下载页」 |
-|---|
-| ![](docs/preview-ver.jpg) |
-
-| 顶栏三颗图标收成同一套线性矢量（刷新 / 设置 / 账号） | 长剧的段按钮换行，横向滚动条压按钮的问题没了 |
-|---|---|
-| ![](docs/preview-vec.jpg) | ![](docs/preview-seg.jpg) |
-
-| 成就墙默认只露「已解锁 + 3 个最接近的」，右上圆钮展开 |
-|---|
-| ![](docs/preview-ach.jpg) |
-
 ## 这版有什么
 
 界面：
