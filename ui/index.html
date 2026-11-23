@@ -624,16 +624,22 @@
   .side::before{display:none}
   .sideIn{position:absolute;top:0;bottom:0;left:0;width:68px;display:flex;flex-direction:column;
     padding:4px 6px 10px;overflow:hidden;border-radius:0 20px 20px 0;background:transparent;
-    transition:width .34s cubic-bezier(.22,.82,.24,1),background .28s ease,
-      box-shadow .34s ease,backdrop-filter .28s ease}
-  .side:hover .sideIn{width:196px;background:linear-gradient(180deg,rgba(15,17,24,.74),rgba(9,11,17,.84));
-    backdrop-filter:blur(22px) saturate(1.15);
-    box-shadow:26px 0 54px -24px rgba(0,0,0,.9),inset -1px 0 0 rgba(255,255,255,.07)}
+    transition:width .34s cubic-bezier(.22,.82,.24,1),background .28s ease,box-shadow .34s ease;
+    transition-delay:.1s}
+  .side:hover .sideIn{width:196px;background:linear-gradient(180deg,rgba(16,18,26,.945),rgba(9,11,17,.965));
+    backdrop-filter:blur(20px) saturate(1.12);transition-delay:0s;
+    box-shadow:18px 0 44px -22px rgba(0,0,0,.82),inset -1px 0 0 rgba(255,255,255,.07)}
+  /* 小窗只有 430 宽，再铺开就把内容盖掉一半，这种形态干脆不允许展开 */
+  body.mini .side:hover .sideIn{width:68px;background:transparent;backdrop-filter:none;box-shadow:none}
+  body.mini .side:hover .brand .txt,
+  body.mini .side:hover .nav button span,
+  body.mini .side:hover .who .tt,
+  body.mini .side:hover .who .lvt{opacity:0;transform:translateX(-7px)}
 
   .side .brand{flex-direction:column;align-items:flex-start;gap:9px;width:184px;flex:none;
-    padding:10px 0 14px 9px}
+    padding:10px 0 10px 9px}
   .side .brand .mark{flex:none}
-  .side .brand .txt{flex-direction:column;align-items:flex-start;opacity:0;transform:translateX(-7px);white-space:nowrap;
+  .side .brand .txt{flex-direction:column;align-items:flex-start;gap:3px;opacity:0;transform:translateX(-7px);white-space:nowrap;
     transition:opacity .2s ease .04s,transform .3s cubic-bezier(.22,.82,.24,1)}
   .side:hover .brand .txt{opacity:1;transform:none}
   .side .brand .txt b{width:auto;word-break:normal;font-size:15px;line-height:1.2;
@@ -652,7 +658,7 @@
     text-shadow:none!important;text-align:left!important;opacity:0;transform:translateX(-6px);
     transition:opacity .2s ease .05s,transform .3s cubic-bezier(.22,.82,.24,1),color .2s ease}
   .side:hover .nav button span{opacity:1;transform:none}
-  .side .nav button:hover svg{opacity:1;transform:scale(1.08)}
+  .side .nav button:hover svg{opacity:1;transform:translateY(-1px) scale(1.06)}
   .side .nav button.on svg{opacity:1;color:var(--accent)}
   .side .nav button.on span{color:#fff;font-weight:700!important;text-shadow:none}
   .side .nav button::before{left:0;right:auto;width:56px;top:2px;bottom:2px;border-radius:13px;transform:none}
