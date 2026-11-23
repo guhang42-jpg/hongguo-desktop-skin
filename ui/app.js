@@ -1515,6 +1515,7 @@
     if (on) {
       $("#vLoadMsg").innerHTML = "";
       $("#vLoad").classList.remove("hide");
+      $("#vOfficial").classList.add("hide");
       $("#vPause").classList.add("hide");   /* 那颗大暂停键会正好压在转圈和文案上，等的时候收起来 */
       startLoadStage();
     } else {
@@ -1529,10 +1530,39 @@
     $("#vLoadMsg").innerHTML = text;
   }
 
+  /* core 的取流错误码翻成人话：这些码是 core 内部 stage 名，直接甩给用户等于没说 */
+  var PLAY_ERR = {
+    VIDEO_MODEL_EMPTY: "官方片源这次返回了空内容",
+    VIDEO_MODEL_LIST_EMPTY: "官方片源列表是空的",
+    VIDEO_MODEL_HTTP: "取片源的请求没通",
+    VIDEO_MODEL_READ: "取片源的响应读到一半断了",
+    VIDEO_MODEL_JSON: "取片源的响应看不懂（格式变了）",
+    VIDEO_MODEL_SIGN: "片源签名校验没过",
+    VIDEO_TAB_EMPTY: "这一集的播放信息是空的",
+    DEVICE_REGISTER_FAILED: "设备注册没过，官方认不出这台机器",
+    MEDIA_DECRYPT_FAILED: "片源解密失败",
+    MEDIA_CACHE_WRITE_FAILED: "片源缓存写不进磁盘",
+    FALLBACK_API_HTTP: "备用取流接口没通",
+    FALLBACK_API_READ: "备用取流接口读取失败"
+  };
+  function playErrText(raw) {
+    var m = String(raw || "");
+    for (var k in PLAY_ERR) if (m.indexOf(k) >= 0) return PLAY_ERR[k] + "（" + k + "）";
+    if (/Failed to fetch|NetworkError|load failed/i.test(m)) return "内置服务没响应（core 可能已经掉了）";
+    return m;
+  }
+
   function loadStream(qual, seamless, force) {
     var d = S.active;
     var vid = S.vids[S.epIndex];
-    if (!vid) return;
+    if (!vid) {
+      /* 以前这里静默 return，点集数就是"没反应"；现在把原因说出来 */
+      showLoadError("这一集还没拿到视频号（分集数据不全）<br>" +
+        "<i>退回列表重新点开这部剧，让它把分集取全再来；如果只有前几集能播，那是官方按集数锁的。</i>");
+      $("#vPlay").textContent = "▶";
+      toast("这一集缺分集数据，关掉重开详情再试");
+      return;
+    }
     /* 线路状态：第一次播放就用上次成功过的线路，没有就用第一条 */
     if (!S.src) S.src = makeSrc(LS.get("hg_src_ok", 0) || 0);
     if (qual) S.src.q = qual;
@@ -1619,8 +1649,8 @@
         window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "ep" + (S.epIndex + 1) + " vid=" + vid + " t0=" + (video.currentTime || 0).toFixed(2) + " seamless=" + !!seamless }));
       }
     }).catch(function (e) {
-      var msg = (e && e.message ? e.message : "未知原因");
-      var waited = /等太久了|超时|timed out|aborted|abort/i.test(msg);   /* 秒错可以自动换源，等满 75 秒的自己点 */
+      var raw = (e && e.message ? e.message : "未知原因");
+      var waited = /等太久了|超时|timed out|aborted|abort/i.test(raw);   /* 秒错可以自动换源，等满 75 秒的自己点 */
       var idx = srcIndex(); if (idx < 0) idx = 0;
       var left = SRC_PLAN.length - (idx + 1);
       if (!waited && left > 0) {
@@ -1629,10 +1659,17 @@
         loadStream(null, false, true);
         return;
       }
+      var msg = playErrText(raw);
+      /* 上游返空这类，是官方那侧的问题，说清"别在这上面耗时间"，并给一条能点的路 */
+      var upstream = /VIDEO_MODEL_|VIDEO_TAB_|FALLBACK_API_|DEVICE_REGISTER/i.test(raw);
+      $("#vOfficial").classList.toggle("hide", !upstream);
       showLoadError("取不到播放源：<i>" + msg + "</i><br>" +
-        "<i>现在是第 " + (idx + 1) + "/" + SRC_PLAN.length + " 路（" + SRC_PLAN[idx].tag + "）。点" +
-        "<span style=\"white-space:nowrap\">「换个源」</span>走另一条取流路径，或" +
-        "<span style=\"white-space:nowrap\">「重试」</span>再要一次。</i>");
+        "<i>现在是第 " + (idx + 1) + "/" + SRC_PLAN.length + " 路（" + SRC_PLAN[idx].tag + "）。" +
+        (upstream
+          ? "所有线路和清晰度都拿的是同一个空响应，基本可以判定是官方片源侧的问题（不是这台机器、也不是登录态），" +
+            "先用<span style=\"white-space:nowrap\">「打开官方网页」</span>顶上，过一阵再回来试。"
+          : "点<span style=\"white-space:nowrap\">「换个源」</span>走另一条取流路径，或" +
+            "<span style=\"white-space:nowrap\">「重试」</span>再要一次。") + "</i>");
       $("#vPlay").textContent = "▶";
       toast("取流失败：" + msg);
     });
@@ -1816,6 +1853,16 @@
   $("#vSrc").onclick = function () { nextSource(false); };
   $("#vSrcGo").onclick = function () { nextSource(false); };
   $("#vRetry2").onclick = function () { loadStream(null, false, true); };
+  /* 官方片源抽空时的兜底：用系统浏览器打开红果官方站，至少能看 */
+  $("#vOfficial").onclick = function () {
+    var u = "https://hongguoduanju.com/";
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.postMessage(JSON.stringify({ action: "openUrl", url: u }));
+      toast("已在浏览器打开官方站");
+    } else {
+      window.open(u, "_blank");
+    }
+  };
   $("#vEps").onclick = function () { exitFs(); closeViewer(); if (S.active) openDetail(S.active, S.epIndex); };
   $("#vBar").onclick = function (e) {
     var r = e.currentTarget.getBoundingClientRect();
@@ -1980,64 +2027,341 @@
   }
   setInterval(function () { if (viewer.classList.contains("on") && !video.paused) saveProgress(); }, 10000);
 
-  /* ---------- 我的 / 收藏 / 历史 ---------- */
-  function renderMine() {
+  /* ---------- 我的：追剧 / 收藏 ---------- */
+  var MINEKEY = "hg_mine_v1";
+  var MINE = LS.get(MINEKEY, {}) || {};
+  if (!MINE.hidden) MINE.hidden = [];
+  if (MINE.view !== "list") MINE.view = "grid";
+  function mineSave() { LS.set(MINEKEY, MINE); }
+  var mineQT = null;   /* 搜索输入的防抖定时器 */
+  function sidOf(e) {
+    return String((e && e.drama && e.drama.series_id) || (e && e.series_id) || "");
+  }
+  function mineHidden(id) { return MINE.hidden.indexOf(String(id)) >= 0; }
+  /* 「已看完」只用真数据判：条目自己说 completed 就听它；有 position/duration 就按 96%；
+     都没有就退到"看到最后一集"。三种都是实际记录，不猜。 */
+  function entryDone(e) {
+    if (!e) return false;
+    if (e.completed) return true;
+    var d = Number(e.duration || 0), p = Number(e.position || 0);
+    if (d > 0 && p / d >= 0.96) return true;
+    var ec = Number((e.drama && e.drama.episode_count) || e.episode_count || 0);
+    if (ec > 0 && Number(e.episode || 0) >= ec) return true;
+    return false;
+  }
+
+  var MG_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="3.6" width="7" height="7" rx="2"/><rect x="13.4" y="3.6" width="7" height="7" rx="2"/><rect x="3.6" y="13.4" width="7" height="7" rx="2"/><rect x="13.4" y="13.4" width="7" height="7" rx="2"/></svg>';
+  var ML_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7.2h16M4 12h16M4 17h10"/></svg>';
+  var FIND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.6" cy="10.6" r="6.4"/><path d="M15.4 15.4 20 20"/></svg>';
+
+  function mineToggleSel(id) {
+    if (!S.mineSel) S.mineSel = [];
+    var i = S.mineSel.indexOf(String(id));
+    if (i >= 0) S.mineSel.splice(i, 1); else S.mineSel.push(String(id));
+    renderMine(true);
+  }
+
+  /* 管理里点「取消收藏 / 从本机隐藏」：前者回写 core，后者只动这台机器的列表 */
+  function mineAct(tab) {
+    var sel = (S.mineSel || []).slice();
+    if (!sel.length) return;
+    if (tab === "fav") {
+      var entries = ((S.library && S.library.entries) || []);
+      var hits = entries.filter(function (e) { return sel.indexOf(sidOf(e)) >= 0; });
+      if (!hits.length) return;
+      hits.forEach(function (e) {
+        changeLibrary({ action: "favorite", drama: dramaOf(e.drama || e), value: false }).catch(function () { });
+      });
+      S.mineSel = [];
+      toast("已取消收藏 " + hits.length + " 部");
+      loadLibrary();
+      setTimeout(function () { renderMine(); }, 260);
+      return;
+    }
+    sel.forEach(function (id) { if (!mineHidden(id)) MINE.hidden.push(String(id)); });
+    mineSave();
+    S.mineSel = [];
+    toast("已从这台机器隐藏 " + sel.length + " 部（云端记录还在）");
+    renderMine();
+  }
+
+  function renderMine(keepScroll) {
     var lib = S.library || { entries: [] };
     var entries = (lib.entries || []).slice();
     entries.sort(function (a, b) { return (b.last_played_at || b.favorite_at || 0) - (a.last_played_at || a.favorite_at || 0); });
-    var favs = entries.filter(function (e) { return e.favorite_at; });
-    var hist = entries.filter(function (e) { return e.last_played_at; });
+    var hist = entries.filter(function (e) { return e.last_played_at && !mineHidden(sidOf(e)); });
+    var favs = entries.filter(function (e) { return e.favorite_at && !mineHidden(sidOf(e)); });
+
+    var tab = S.mineTab === "fav" ? "fav" : "hist";
+    if (S.mineFilter !== "done" && S.mineFilter !== "todo") S.mineFilter = "all";   /* 默认永远是「全部」，别记住上次的筛选 */
+    var filt = S.mineFilter;
+    var all = tab === "fav" ? favs : hist;
+    var doneN = all.filter(entryDone).length;
+    /* 本页搜索：只按剧名在本地过滤，不打接口，也不去动全局搜索 */
+    var q = (S.mineQ || "").trim();
+    if (q) {
+      all = all.filter(function (e) {
+        return String((e.drama && e.drama.title) || e.title || "").indexOf(q) >= 0;
+      });
+      doneN = all.filter(entryDone).length;
+    }
+    var list = all;
+    if (tab === "hist" && filt !== "all") {
+      list = all.filter(function (e) { return filt === "done" ? entryDone(e) : !entryDone(e); });
+    }
+    var limit = Math.max(20, Number(S.mineLimit || 40));   /* 一千部剧一次全铺会把首屏拖死，分页放 */
+    if (!S.mineSel) S.mineSel = [];
 
     var wrap = document.createElement("div");
-    wrap.style.display = "grid";
-    wrap.style.gridColumn = "1 / -1";   /* 不跨列会被 #grid 塞进第一列，整页塌成一条 290 宽的窄列 */
-    wrap.style.gridTemplateColumns = "repeat(auto-fill,minmax(240px,1fr))";
-    wrap.style.gap = "30px 26px";
+    wrap.style.gridColumn = "1 / -1";
 
-    function addRow(title, list, emptyText) {
-      var sec = document.createElement("div");
-      sec.style.gridColumn = "1 / -1";
-      sec.className = "sec";
-      sec.style.margin = "10px 0 0";
-      sec.innerHTML = '<h2 style="font-size:22px">' + title + '</h2><span class="cnt">' + list.length + ' 部</span><div class="rule"></div>';
-      wrap.appendChild(sec);
-      if (!list.length) {
-        var heart = title.indexOf("收藏") >= 0;
-        wrap.appendChild(emptyBox(heart
-          ? { icon: "heart", text: "还没收藏任何剧", sub: "详情页左边那颗 ♡ 点一下就在这里", btn: "去找剧", onClick: function () { switchView("category"); } }
-          : { icon: "play", text: "还没有观看记录", sub: "看一集就会出现在这里，进度也会记住", btn: "去发现", onClick: function () { switchView("home"); } }));
-        return;
+    /* 第一行：追剧 / 收藏 */
+    var head = document.createElement("div");
+    head.className = "mhead";
+    var tabs = document.createElement("div");
+    tabs.className = "mtabs";
+    [["hist", "追剧"], ["fav", "收藏"]].forEach(function (t) {
+      var b = document.createElement("button");
+      b.className = "mtab" + (tab === t[0] ? " on" : "");
+      b.textContent = t[1];
+      b.onclick = function () {
+        if (S.mineTab === t[0]) return;
+          S.mineTab = t[0]; S.mineFilter = "all"; S.mineManage = false; S.mineSel = []; S.mineLimit = 40;
+        renderMine();
+      };
+      tabs.appendChild(b);
+    });
+    head.appendChild(tabs);
+
+    /* tab 行右端的圆形小钮：开/收本页搜索（和官方那颗放大镜同位置、同分寸） */
+    var sbtn = document.createElement("button");
+    sbtn.className = "mfindb" + (S.mineFind ? " on" : "");
+    sbtn.title = S.mineFind ? "收起搜索" : "在我的记录里搜剧名";
+    sbtn.innerHTML = FIND_ICON;
+    sbtn.onclick = function () {
+      S.mineFind = !S.mineFind;
+      if (!S.mineFind) S.mineQ = "";
+      renderMine(true);
+    };
+    head.appendChild(sbtn);
+
+    /* 第二行：筛选胶囊 + 右侧（计数 / 视图切换 / 管理） */
+    var bar = document.createElement("div");
+    bar.className = "mbar2";
+    var chips = document.createElement("div");
+    chips.className = "mchips";
+    if (tab === "hist") {
+      [["all", "全部", all.length], ["done", "已看完", doneN], ["todo", "未看完", all.length - doneN]].forEach(function (c) {
+        var b = document.createElement("button");
+        b.className = "mchip" + (filt === c[0] ? " on" : "");
+        b.textContent = c[1];
+        b.onclick = function () {
+          if (S.mineFilter === c[0]) return;
+          S.mineFilter = c[0]; S.mineManage = false; S.mineSel = []; S.mineLimit = 40;
+          renderMine();
+        };
+        chips.appendChild(b);
+      });
+    } else {
+      var fc = document.createElement("button");
+      fc.className = "mchip on";
+      fc.textContent = "全部收藏";
+      fc.onclick = function () { S.mineManage = false; S.mineSel = []; renderMine(); };
+      chips.appendChild(fc);
+    }
+    bar.appendChild(chips);
+
+    var ctrl = document.createElement("div");
+    ctrl.className = "mctrl";
+    var cnt = document.createElement("span");
+    cnt.className = "mcnt";
+    cnt.textContent = (tab === "fav" ? "收藏" : (filt === "done" ? "已看完" : (filt === "todo" ? "未看完" : "共"))) + " " + list.length + " 部";
+    ctrl.appendChild(cnt);
+
+    if (MINE.hidden.length) {
+      var rst = document.createElement("button");
+      rst.className = "mrest";
+      rst.textContent = "恢复 " + MINE.hidden.length;
+      rst.title = "把从这台机器隐藏的记录放回来";
+      rst.onclick = function () { MINE.hidden = []; mineSave(); toast("已恢复隐藏的记录"); renderMine(); };
+      ctrl.appendChild(rst);
+    }
+
+    var vg = document.createElement("button");
+    vg.className = "mvc" + (MINE.view === "grid" ? " on" : "");
+    vg.title = "网格视图";
+    vg.innerHTML = MG_ICON;
+    vg.onclick = function () { MINE.view = "grid"; mineSave(); renderMine(true); };
+    ctrl.appendChild(vg);
+
+    var vl = document.createElement("button");
+    vl.className = "mvc" + (MINE.view === "list" ? " on" : "");
+    vl.title = "列表视图";
+    vl.innerHTML = ML_ICON;
+    vl.onclick = function () { MINE.view = "list"; mineSave(); renderMine(true); };
+    ctrl.appendChild(vl);
+
+    var sep = document.createElement("i");
+    sep.className = "msep";
+    ctrl.appendChild(sep);
+
+    var mgr = document.createElement("button");
+    mgr.className = "mmgr" + (S.mineManage ? " on" : "");
+    mgr.textContent = S.mineManage ? "完成" : "管理";
+    mgr.onclick = function () {
+      S.mineManage = !S.mineManage; S.mineSel = [];
+      renderMine(true);
+    };
+    ctrl.appendChild(mgr);
+    bar.appendChild(ctrl);
+    head.appendChild(bar);
+    wrap.appendChild(head);
+
+    if (S.mineFind) {
+      var fs = document.createElement("div");
+      fs.className = "mfind";
+      fs.innerHTML = FIND_ICON + '<input class="mfindi" placeholder="搜我追过的剧名，边打边筛">';
+      var qi = fs.querySelector(".mfindi");
+      qi.value = S.mineQ || "";
+      qi.oninput = function () {
+        S.mineQ = qi.value;
+        if (mineQT) clearTimeout(mineQT);
+        mineQT = setTimeout(function () { renderMine(true); }, 320);
+      };
+      qi.onkeydown = function (e) {
+        if (e.key === "Escape") { S.mineQ = ""; S.mineFind = false; renderMine(true); }
+      };
+      wrap.appendChild(fs);
+    }
+
+    /* 正文：空 / 网格 / 列表 */
+    var body = document.createElement("div");
+    if (!list.length) {
+      if (!all.length) {
+        wrap.appendChild(tab === "fav"
+          ? emptyBox({ icon: "heart", text: "还没收藏任何剧", sub: "详情页左边那颗 ♡ 点一下就在这里", btn: "去找剧", onClick: function () { switchView("category"); } })
+          : emptyBox({ icon: "play", text: "还没有观看记录", sub: "看一集就会出现在这里，进度也会记住", btn: "去发现", onClick: function () { switchView("home"); } }));
+      } else {
+        wrap.appendChild(emptyBox({
+          icon: "filter", text: filt === "done" ? "这一栏还没有已看完的" : "这一栏还没有没看完的",
+          sub: filt === "done" ? "看完一集（或看到最后一集）就会归到这里" : "全部 " + all.length + " 部都看完了，翻到「已看完」看看",
+          btn: "看全部", onClick: function () { S.mineFilter = "all"; renderMine(); }
+        }));
       }
-      list.slice(0, 24).forEach(function (e, i) {
+    } else if (MINE.view === "list") {
+      body.className = "mlist";
+      list.slice(0, limit).forEach(function (e) {
         var drama = e.drama || e;
-        var card = cardEl({
+        var sid = sidOf(e);
+        var on = S.mineSel.indexOf(sid) >= 0;
+        var row = document.createElement("div");
+        row.className = "mrow" + (on ? " sel" : "");
+        var cov = coverOf({ cover: drama.cover || e.cover, cover_fallback: drama.cover_fallback || e.cover_fallback });
+        var done = entryDone(e);
+        var meta = (e.episode ? "看到第 " + e.episode + " 集" : (e.favorite_at ? "已收藏" : "未开播"))
+          + ((drama.episode_count || e.episode_count) ? " · 共 " + (drama.episode_count || e.episode_count) + " 集" : "");
+        row.innerHTML =
+          '<div class="mcv">' + (cov ? '<img src="' + cov + '" loading="lazy" referrerpolicy="no-referrer" alt="">' : "") + '</div>' +
+          '<div class="mtx"><b></b><span></span></div>' +
+          '<span class="mtag' + (done ? " done" : "") + '">' + (done ? "已看完" : "未看完") + '</span>';
+        row.querySelector("b").textContent = drama.title || e.title || "未命名";
+        row.querySelector("span.mtx span").textContent = meta;
+        if (S.mineManage) {
+          var ck = document.createElement("i");
+          ck.className = "mck inline" + (on ? " on" : "");
+          row.insertBefore(ck, row.firstChild);
+        }
+        row.onclick = function () {
+          if (S.mineManage) { mineToggleSel(sid); return; }
+          openDetail(e.drama || e, 0);
+        };
+        body.appendChild(row);
+      });
+    } else {
+      body.className = "mgrid";
+      list.slice(0, limit).forEach(function (e, i) {
+        var drama = e.drama || e;
+        var sid = sidOf(e);
+        var item = {
           series_id: drama.series_id || e.series_id, title: drama.title || e.title,
           cover: drama.cover || e.cover, cover_fallback: drama.cover_fallback || e.cover_fallback,
           episode_count: drama.episode_count || e.episode_count, tags: drama.tags || e.tags,
           score: drama.score || e.score, intro: drama.intro || e.intro, content_type: drama.content_type || e.content_type
-        }, i);
-        if (e.last_played_at && e.episode) {
-          var tag = document.createElement("p");
-          tag.textContent = "看到 " + e.episode + " 集";
-          card.appendChild(tag);
+        };
+        var card = cardEl(item, i);
+        var sub0 = card.querySelector("p");
+        if (sub0) {
+          var txt = e.episode ? "看到第 " + e.episode + " 集" : (e.favorite_at ? "已收藏" : "");
+          var done = entryDone(e);
+          if (txt) txt += done ? " · 已看完" : " · 未看完";
+          else txt = done ? "已看完" : "";
+          if (txt) sub0.textContent = txt;
         }
-        wrap.appendChild(card);
+        if (S.mineManage) {
+          var on2 = S.mineSel.indexOf(sid) >= 0;
+          card.classList.add("selcard");
+          var ck2 = document.createElement("i");
+          ck2.className = "mck" + (on2 ? " on" : "");
+          card.appendChild(ck2);
+          card.onclick = function () { mineToggleSel(sid); };
+        }
+        body.appendChild(card);
       });
     }
+    wrap.appendChild(body);
 
+    /* 还有没铺出来的：给一颗「再看 N 部」，别让 1000 部一次全渲染 */
+    if (list.length > limit) {
+      var more = document.createElement("button");
+      more.className = "mlb";
+      more.textContent = "再看 " + Math.min(40, list.length - limit) + " 部（还剩 " + (list.length - limit) + " 部）";
+      more.onclick = function () { S.mineLimit = limit + 40; renderMine(true); };
+      wrap.appendChild(more);
+    }
+
+    /* 管理模式底部条 */
+    if (S.mineManage) {
+      var fbar2 = document.createElement("div");
+      fbar2.className = "mfoot";
+      var n = S.mineSel.length;
+      fbar2.innerHTML = "<b>已选 <em>" + n + "</em> 部</b>";
+      var bs = document.createElement("div");
+      bs.className = "mfootb";
+      var bAll = document.createElement("button");
+      bAll.className = "mchip";
+      bAll.textContent = n === list.length && n > 0 ? "取消全选" : "全选";
+      bAll.onclick = function () {
+        S.mineSel = (n === list.length && n > 0) ? [] : list.map(sidOf);
+        renderMine(true);
+      };
+      var bGo = document.createElement("button");
+      bGo.className = "mchip on";
+      bGo.textContent = tab === "fav" ? "取消收藏" : "从本机隐藏";
+      bGo.disabled = n === 0;
+      bGo.style.opacity = n === 0 ? ".45" : "";
+      bGo.onclick = function () { mineAct(tab); };
+      bs.appendChild(bAll); bs.appendChild(bGo);
+      fbar2.appendChild(bs);
+      wrap.appendChild(fbar2);
+    }
+
+    var main = $("#main"), prevTop = main ? main.scrollTop : 0;
     $("#grid").innerHTML = "";
     if (window.GRO) {
       $("#grid").appendChild(GRO.card());
       GRO.render();
     }
-    addRow("我的追剧记录", hist, "还没有观看记录，看一集就会出现在这里");
-    addRow("我的收藏", favs, "还没收藏任何剧，详情页点「收藏」即可");
     $("#grid").appendChild(wrap);
     $("#secTitle").textContent = S.account && S.account.logged_in ? "已登录" : "本机记录";
     $("#secCount").textContent = "";
     foot("");
-    $("#main").scrollTop = 0;
-    setTimeout(function () { var m = $("#main"); if (m) m.scrollTop = 0; }, 600);
+    if (main) main.scrollTop = keepScroll ? prevTop : 0;
+    setTimeout(function () {
+      var m = $("#main");
+      if (m) m.scrollTop = keepScroll ? prevTop : 0;
+      var i2 = $(".mfindi");
+      if (i2 && S.mineFind) { try { i2.focus(); i2.setSelectionRange(i2.value.length, i2.value.length); } catch (e) { } }
+    }, 600);
     if (!S.library) {
       api("/api/v1/library").then(function (d) { S.library = d || { entries: [] }; renderMine(); }).catch(function () { });
     }

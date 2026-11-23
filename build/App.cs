@@ -928,9 +928,10 @@ namespace HongguoSkin
             try
             {
                 if (string.IsNullOrEmpty(url)) return;
-                if (!url.StartsWith("https://github.com/"))
+                /* 白名单：GitHub（更新/下载）+ 红果官方站（片源被官方抽空时，界面给一条能顶上的路） */
+                if (!url.StartsWith("https://github.com/") && !url.StartsWith("https://hongguoduanju.com/"))
                 {
-                    Log("拒绝打开非 GitHub 链接: " + url);
+                    Log("拒绝打开非白名单链接: " + url);
                     return;
                 }
                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });

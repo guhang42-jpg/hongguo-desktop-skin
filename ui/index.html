@@ -990,6 +990,9 @@
   .ach.on b{color:#fff}
   .ach.on small{color:rgba(255,255,255,.68)}
   /* v1.027：折叠条数改由 JS 决定（已解锁 + 3 个最接近的），这里只兜底防止漏渲 */
+  /* 折叠态：一行横着滑，只占一条的高度，把屏幕让给下面的追剧列表；展开才铺成网格 */
+  .achgrid.fold{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:8px;padding-bottom:6px;scrollbar-width:thin}
+  .achgrid.fold .ach{flex:0 0 206px}
   .achgrid.fold .ach:nth-child(n+64){display:none}
   .foldbtn{border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--muted);
     font:600 11.5px/1 inherit;padding:7px 12px;border-radius:99px;cursor:pointer;transition:.18s;margin-left:8px}
@@ -1331,6 +1334,82 @@ body.mini .hevcbar{display:none !important}
   .verblk .vb2.pri:hover{background:rgba(255,140,105,1)}
   body.mini .setw{width:100%;transform:translateX(102%)}
   body.mini .setw.on{transform:none}
+
+  /* ---------- 我的：追剧 / 收藏（照官方那两行：tab + 筛选胶囊 + 右侧视图与管理） ---------- */
+  .mhead{display:flex;align-items:flex-end;gap:12px;margin:16px 0 2px}
+  .mtabs{display:flex;align-items:baseline;gap:30px}
+  .mtab{background:none;border:0;padding:3px 0 4px;cursor:pointer;font-family:inherit;
+    font-size:26px;font-weight:600;letter-spacing:.6px;color:rgba(238,242,250,.46);
+    transition:color .18s var(--ease),font-weight .18s}
+  .mtab:hover{color:rgba(238,242,250,.8)}
+  .mtab.on{color:#fff;font-weight:800}
+  /* tab 行右端的圆形小钮（28px 一圈）：本页搜索，和官方那颗放大镜一个位置 */
+  .mfindb{margin-left:auto;width:32px;height:32px;border-radius:50%;border:1px solid transparent;
+    background:rgba(255,255,255,.05);color:rgba(238,242,250,.6);cursor:pointer;display:grid;place-items:center;
+    transition:all .16s var(--ease)}
+  .mfindb svg{width:16px;height:16px;display:block}
+  .mfindb:hover{background:rgba(255,255,255,.12);color:#fff}
+  .mfindb.on{background:rgba(255,255,255,.15);color:#fff}
+  .mfind{display:flex;align-items:center;gap:9px;margin:10px 0 2px;padding:0 14px;height:44px;
+    border-radius:12px;background:rgba(255,255,255,.06);border:1px solid var(--line)}
+  .mfind svg{width:16px;height:16px;color:var(--muted-2);flex:none}
+  .mfindi{flex:1;min-width:0;background:none;border:0;outline:none;color:#fff;font-family:inherit;font-size:14px}
+  .mfindi::placeholder{color:var(--muted-2)}
+  .mbar2{display:flex;align-items:center;gap:14px;margin:16px 0 8px;flex-wrap:wrap}
+  .mchips{display:flex;gap:10px;flex-wrap:wrap}
+  .mchip{height:37px;padding:0 20px;border-radius:12px;border:1px solid transparent;
+    background:rgba(255,255,255,.07);color:rgba(238,242,250,.66);font-family:inherit;
+    font-size:13.5px;font-weight:650;cursor:pointer;transition:background .18s,border-color .18s,color .18s}
+  .mchip:hover{background:rgba(255,255,255,.13);color:#fff}
+  .mchip.on{background:rgba(255,122,85,.17);border-color:transparent;color:#ff8f62;font-weight:750}
+  .mctrl{display:flex;align-items:center;gap:8px;margin-left:auto}
+  .mcnt{font-size:12.5px;color:var(--muted-2);margin-right:4px}
+  .mrest{height:30px;padding:0 11px;border-radius:9px;border:1px dashed rgba(255,255,255,.2);
+    background:transparent;color:var(--muted-2);font-family:inherit;font-size:12px;cursor:pointer;transition:all .16s}
+  .mrest:hover{color:#fff;border-color:rgba(255,255,255,.4)}
+  .mvc{width:33px;height:33px;border:0;border-radius:9px;background:transparent;color:rgba(238,242,250,.5);
+    cursor:pointer;display:grid;place-items:center;transition:background .16s,color .16s}
+  .mvc svg{width:17px;height:17px;display:block}
+  .mvc:hover{background:rgba(255,255,255,.1);color:#fff}
+  .mvc.on{background:rgba(255,255,255,.15);color:#fff}
+  .msep{width:1px;height:18px;background:var(--line);margin:0 2px}
+  .mmgr{height:33px;padding:0 12px;border-radius:9px;border:1px solid transparent;background:transparent;
+    color:rgba(238,242,250,.72);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:all .16s}
+  .mmgr:hover{color:#fff;background:rgba(255,255,255,.1);border-color:transparent}
+  .mmgr.on{background:#fff;color:#15171e;border-color:#fff}
+  .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:30px 26px}
+  .mgrid .card{position:relative}
+  .mlist{display:flex;flex-direction:column;gap:10px}
+  .mrow{display:flex;align-items:center;gap:15px;padding:10px 13px;border-radius:14px;
+    background:rgba(255,255,255,.045);border:1px solid transparent;cursor:pointer;transition:all .18s var(--ease)}
+  .mrow:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14)}
+  .mrow.sel{border-color:rgba(255,122,85,.5);background:rgba(255,122,85,.1)}
+  .mcv{width:62px;height:82px;border-radius:10px;overflow:hidden;flex:none;background:rgba(255,255,255,.06)}
+  .mcv img{width:100%;height:100%;object-fit:cover;display:block}
+  .mtx{flex:1;min-width:0}
+  .mtx b{display:block;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mtx span{display:block;margin-top:6px;font-size:12.5px;color:var(--muted-2)}
+  .mtag{flex:none;font-size:11.5px;padding:4px 10px;border-radius:999px;
+    color:rgba(238,242,250,.7);background:rgba(255,255,255,.08)}
+  .mtag.done{color:#8ce6b2;background:rgba(126,224,168,.14)}
+  .mck{position:absolute;left:10px;top:10px;width:22px;height:22px;border-radius:999px;
+    border:1.5px solid rgba(255,255,255,.55);background:rgba(8,10,16,.55);display:grid;place-items:center;
+    z-index:4;color:#fff;font-size:12px;font-style:normal;line-height:1}
+  .mck.on{background:var(--accent);border-color:var(--accent)}
+  .mck.on::after{content:"✓"}
+  .mck.inline{position:static;flex:none;background:rgba(255,255,255,.06)}
+  .selcard{outline:1.5px solid rgba(255,122,85,.55);outline-offset:3px;border-radius:6px}
+  .mfoot{position:sticky;bottom:0;margin-top:20px;display:flex;align-items:center;gap:14px;
+    padding:12px 16px;border-radius:14px;background:rgba(24,28,38,.96);border:1px solid rgba(255,255,255,.14);
+    backdrop-filter:blur(12px);z-index:3}
+  .mfoot b{font-size:13.5px;font-weight:700}
+  .mfoot b em{font-style:normal;color:var(--accent);font-weight:800;margin:0 2px}
+  .mfootb{margin-left:auto;display:flex;gap:10px}
+  /* 列表长了以后的分页钮：不一次铺 1000 张卡，点一下再放 40 部 */
+  .mlb{display:block;margin:24px auto 6px;height:40px;padding:0 24px;border-radius:999px;
+    border:1px solid var(--line);background:rgba(255,255,255,.05);color:rgba(238,242,250,.72);
+    font-family:inherit;font-size:13.5px;font-weight:650;cursor:pointer;transition:all .16s var(--ease)}
+  .mlb:hover{color:#fff;border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.1)}
 </style>
 </head>
 <body>
@@ -1544,7 +1623,7 @@ body.mini .hevcbar{display:none !important}
     <div class="vvig"></div>
     <div class="dmlayer" id="dmLayer"></div>
     <div class="vload hide" id="vLoad"><span class="spin"></span><div class="vloadmsg" id="vLoadMsg"></div>
-      <div class="vloadact" id="vLoadAct"><button class="pri" id="vSrcGo">⇄ 换个源</button><button id="vRetry2">⟳ 重试</button></div>
+      <div class="vloadact" id="vLoadAct"><button class="pri" id="vSrcGo">⇄ 换个源</button><button id="vRetry2">⟳ 重试</button><button id="vOfficial" class="hide">↗ 打开官方网页</button></div>
     </div>
     <div class="vpause" id="vPause"><b>❚❚</b></div>
   </div>
