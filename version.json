@@ -1,7 +1,7 @@
 {
-  "version": "1.027",
-  "tag": "v1.027",
+  "version": "1.028",
+  "tag": "v1.028",
   "date": "2026-11-23",
-  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.027",
-  "notes": "长剧段按钮改为换行（无横向滚动条）、顶栏图标统一为矢量、圆钮热区外扩 6px、圆钮气泡改朝上、成就墙默认只露已解锁 + 3 个最接近的"
+  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.028",
+  "notes": "语义检索补上四道工程约束：内存门槛与降级、模型 SHA-256 指纹校验、分步超时、设置·本机的语义体检行"
 }

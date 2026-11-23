@@ -1222,6 +1222,33 @@
       p3.appendChild(infoRow("一键摸鱼", "窗口当场变成一张 Excel 台账", '<div class="kbds"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>M</kbd></div>'));
       body.appendChild(p3);
     } else if (SETTAB === "local") {
+      /* v1.028 语义检索体检：一行说清模型在不在、指纹对不对、跑多快 */
+      var semSt = (window.HONGUO_SEM && window.HONGUO_SEM.stat()) || {};
+      var l0 = grpBox("语义检索");
+      var sTxt = "未加载", sCls = "";
+      if (semSt.loading) { sTxt = "加载中" + (semSt.stage ? " · " + semSt.stage : ""); }
+      else if (semSt.on) { sTxt = "就绪"; sCls = "ok"; }
+      else if (semSt.missing) { sTxt = "本机版没装模型"; }
+      else if (semSt.err) { sTxt = String(semSt.err).slice(0, 16); sCls = "bad"; }
+      if (semSt.gate) sCls = sCls || "warn";
+      var sLine = [
+        "模型 " + (semSt.mb ? (semSt.mb / 1048576).toFixed(1) + "MB" : "—"),
+        "指纹 " + (semSt.fp || "—"),
+        "线程 " + (semSt.threads || 1),
+        "加载 " + (semSt.loadMs ? (semSt.loadMs / 1000).toFixed(1) + "s" : "—"),
+        "单句 " + (semSt.encMs ? semSt.encMs + "ms" : "—"),
+        "库内 " + (semSt.n || 0) + " 部"
+      ].join(" · ");
+      l0.appendChild(infoRow("模型状态", semSt.gate || "bge-small-zh int8 · 句子只在这台机器上算", '<span class="spill ' + sCls + '">' + sTxt + '</span>'));
+      l0.appendChild(infoRow("体检", "指纹对不上就不加载；单句超时 " + ((semSt.toMs ? semSt.toMs : 8000) / 1000) + " 秒就退回关键词找",
+        '<span class="mono">' + sLine + '</span>'));
+      if (semSt.toCnt) l0.appendChild(infoRow("超时次数", "本次运行里推理超时的累计次数", '<span class="mono">' + semSt.toCnt + ' 次</span>'));
+      l0.appendChild(actRow("重新加载模型", "怀疑文件坏了或刚换过模型时，重读一遍并重新核对指纹", "重载", false, function () {
+        toast("正在重新加载模型…");
+        window.HONGUO_SEM.reset().then(function () { renderSet(); toast("模型已重新加载"); });
+      }));
+      body.appendChild(l0);
+
       var l1 = grpBox("数据");
       l1.appendChild(infoRow("数据目录", "剧库、收藏、观看进度、小果的记忆", '<span class="mono">%APPDATA%\\HonggoDesktop</span>'));
       l1.appendChild(infoRow("本地接口", "core 只在本机监听，不出这台机器", '<span class="mono">127.0.0.1:18797</span>'));
@@ -3352,12 +3379,16 @@
         .catch(function () { cb([]); });
     }
 
-    /* ---------- 语义检索：bge-small-zh-v1.5 int8 + onnxruntime-web，模型和向量都在本机 ---------- */
+    /* ---------- 语义检索：bge-small-zh-v1.5 int8 + onnxruntime-web，模型和向量都在本机 ----------
+       v1.028 补上四样工程约束（照 ImageToolbox 的 AI 模块路子）：门槛、指纹、超时、体检 */
     var SEM = (function () {
       var PREFIX = "为这个句子生成表示以用于检索相关文章：";
       var BASE = "ai/";
-      var st = { on: false, loading: false, err: null, loadMs: 0, encMs: 0, n: 0, it: false };
-      var sess = null, tk = null, VEC = null, IDX = null, pending = null;
+      var st = {
+        on: false, loading: false, err: null, loadMs: 0, encMs: 0, n: 0, it: false,
+        missing: false, gate: "", fp: "", toMs: 0, toCnt: 0, mb: 0, mem: 0, threads: 1, stage: ""
+      };
+      var sess = null, tk = null, VEC = null, IDX = null, pending = null, MAN = null;
       var IP = null, MU = null, ILAB = null;   /* 意图原型（已中心化）、中心化用的均值、标签 */
 
       function log(t) {
@@ -3378,6 +3409,31 @@
       function getText(u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + " " + r.status); return r.text(); }); }
       function getJson(u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); }); }
 
+      /* 指纹：模型文件的 SHA-256，和 ai/manifest.json 对上才敢加载 —— 半截的 onnx 不报错，只会静默出 NaN */
+      function sha256(buf) {
+        if (!window.crypto || !crypto.subtle) return Promise.resolve("");
+        return crypto.subtle.digest("SHA-256", buf).then(function (d) {
+          var a = new Uint8Array(d), s = "", i, h;
+          for (i = 0; i < a.length; i++) { h = a[i].toString(16); s += h.length < 2 ? "0" + h : h; }
+          return s;
+        }).catch(function () { return ""; });
+      }
+
+      /* 超时：哪一步卡住都不许无限挂着，超时当成失败，回头走关键词兜底 */
+      function within(p, ms, tag) {
+        return new Promise(function (res, rej) {
+          var done = false;
+          var t = setTimeout(function () {
+            if (done) return; done = true;
+            var e = new Error(tag + "超时 " + (ms / 1000).toFixed(0) + "s");
+            e.timeout = true; rej(e);
+          }, ms);
+          p.then(function (v) { if (done) return; done = true; clearTimeout(t); res(v); },
+            function (e) { if (done) return; done = true; clearTimeout(t); rej(e); });
+        });
+      }
+      function mb(n) { return n ? (n / 1048576).toFixed(1) + " MB" : "—"; }
+
       /* float16 → float32，库向量一次性摊平，之后就是纯点积 */
       function half(buf) {
         var u = new Uint16Array(buf), out = new Float32Array(u.length);
@@ -3393,22 +3449,30 @@
       function boot() {
         if (st.on) return Promise.resolve(st);
         if (pending) return pending;
-        st.loading = true;
+        st.loading = true; st.err = null; st.stage = "读清单";
         var t0 = Date.now();
+        /* 门槛：内存不到 4GB 的机器降级跑 —— 单句超时收紧，不硬拦也不让它卡得难受 */
+        var mem = navigator.deviceMemory || 0;
+        st.mem = mem;
+        st.gate = mem && mem < 4 ? "低内存 · 已降级" : "";
+        st.toMs = st.gate ? 5000 : 8000;
         /* 先探一眼 ai/index.json：轻量包没有 ai 目录就直接收手，不报错、不吭声 */
-        pending = fetch(BASE + "index.json").then(function (r) {
+        var chain = fetch(BASE + "index.json").then(function (r) {
           if (r.status === 404) { var e = new Error("no ai"); e.silent = true; throw e; }
           if (!r.ok) throw new Error("index.json " + r.status);
           return r.json();
         }).then(function (idx) {
           IDX = idx;
           st.n = IDX.length;
+          st.stage = "读数据";
           return Promise.all([
             getText(BASE + "vocab.txt"), getBuf(BASE + "vectors.bin"), loadScript(BASE + "ort.min.js"),
             getText(BASE + "intents.json").catch(function () { return null; }),
-            getBuf(BASE + "intents.bin").catch(function () { return null; })
+            getBuf(BASE + "intents.bin").catch(function () { return null; }),
+            within(getJson(BASE + "manifest.json"), 4000, "清单").catch(function () { return null; })
           ]);
         }).then(function (r) {
+          MAN = r[5];
           tk = window.BgeTok.create(r[0]);
           VEC = half(r[1]);
           if (r[3] && r[4]) {
@@ -3424,21 +3488,46 @@
             mjs: new URL(BASE + "ort-wasm-simd-threaded.mjs", location.href).href,
             wasm: new URL(BASE + "ort-wasm-simd-threaded.wasm", location.href).href
           };
+          st.threads = 1;
           ort.env.wasm.numThreads = 1;
           ort.env.wasm.simd = true;
-          return getBuf(BASE + "model.onnx");
+          st.stage = "读模型";
+          return within(getBuf(BASE + "model.onnx"), 15000, "读模型");
         }).then(function (buf) {
-          return ort.InferenceSession.create(buf, { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
+          st.mb = buf.byteLength;
+          st.stage = "校验指纹";
+          /* 清单里有指纹就必须对上：坏文件不报错，只会在推理里静默出 NaN */
+          var want = (MAN && MAN.files && MAN.files["model.onnx"] && MAN.files["model.onnx"].sha256) || "";
+          if (!want) { st.fp = "无清单"; return buf; }
+          return sha256(buf).then(function (got) {
+            if (got && got !== want) {
+              st.fp = "不符";
+              throw new Error("模型指纹不符 " + got.slice(0, 8) + "≠" + want.slice(0, 8));
+            }
+            st.fp = got ? "一致" : "跳过";
+            return buf;
+          });
+        }).then(function (buf) {
+          st.stage = "建会话";
+          return within(ort.InferenceSession.create(buf, { executionProviders: ["wasm"], graphOptimizationLevel: "all" }), 12000, "建会话");
         }).then(function (s) {
           sess = s;
-          st.on = true; st.loading = false; st.loadMs = Date.now() - t0;
-          log("ready " + st.loadMs + "ms n=" + st.n);
+          st.on = true; st.loading = false; st.loadMs = Date.now() - t0; st.stage = "";
+          log("ready " + st.loadMs + "ms n=" + st.n + " fp=" + st.fp + " mb=" + mb(st.mb) + (st.gate ? " gate=" + st.gate : ""));
           return st;
         }).catch(function (e) {
-          st.loading = false; pending = null;
+          st.loading = false; pending = null; st.stage = "";
           if (e && e.silent) { st.missing = true; return st; }
+          if (e && e.timeout) st.toCnt++;
           st.err = String((e && e.message) || e);
           log("fail " + st.err);
+          return st;
+        });
+        /* 整条链再兜一层，22 秒还没好就当加载失败，别让界面一直转圈 */
+        pending = within(chain, 22000, "加载").catch(function (e) {
+          st.loading = false; pending = null; st.stage = "";
+          if (e && e.timeout) { st.toCnt++; st.err = String(e.message); }
+          log("fail " + (st.err || "超时"));
           return st;
         });
         return pending;
@@ -3465,7 +3554,7 @@
         return boot().then(function () {
           if (!st.on) return [];
           var t0 = Date.now();
-          return enc(PREFIX + text).then(function (qv) {
+          return within(enc(PREFIX + text), st.toMs, "推理").then(function (qv) {
             st.encMs = Date.now() - t0;
             var n = st.n, dim = 512, arr = [];
             for (var i = 0; i < n; i++) {
@@ -3477,6 +3566,9 @@
             return arr.slice(0, k || 6).map(function (x) {
               return { sid: IDX[x[1]].sid, title: IDX[x[1]].title, ep: IDX[x[1]].ep, score: x[0] };
             });
+          }).catch(function (e) {
+            if (e && e.timeout) { st.toCnt++; log("timeout " + e.message + " 「" + text + "」"); }
+            return [];
           });
         });
       }
@@ -3487,7 +3579,7 @@
       function intent(text) {
         return boot().then(function () {
           if (!st.on || !st.it) return null;
-          return enc(PREFIX + text).then(function (v) {
+          return within(enc(PREFIX + text), st.toMs, "推理").then(function (v) {
             var c = new Float32Array(512), nn = 0;
             for (var i = 0; i < 512; i++) { c[i] = v[i] - MU[i]; nn += c[i] * c[i]; }
             nn = Math.sqrt(nn);
@@ -3506,11 +3598,21 @@
             var r = { label: arr[0][0], score: arr[0][1], margin: arr[0][1] - (arr[1] ? arr[1][1] : -9) };
             log("intent " + r.label + " " + r.score.toFixed(3) + "/" + r.margin.toFixed(3) + " 「" + text + "」");
             return r;
+          }).catch(function (e) {
+            if (e && e.timeout) { st.toCnt++; log("timeout " + e.message + " 「" + text + "」"); }
+            return null;
           });
         });
       }
+      /* 重载：怀疑文件坏了、换过模型、或者上一次超时了，从头再走一遍包含指纹校验 */
+      function reset() {
+        try { if (sess && sess.release) sess.release(); } catch (e) { }
+        sess = null; pending = null; MAN = null;
+        st.on = false; st.loading = false; st.err = null; st.fp = ""; st.stage = "";
+        return boot();
+      }
       return {
-        boot: boot, top: top, intent: intent, stat: function () { return st; }
+        boot: boot, top: top, intent: intent, reset: reset, stat: function () { return st; }
       };
     })();
     window.HONGUO_SEM = SEM;

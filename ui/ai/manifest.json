@@ -1,0 +1,26 @@
+{
+  "v": 1,
+  "built": "2026-11-23",
+  "files": {
+    "model.onnx": {
+      "bytes": 23903394,
+      "sha256": "b9837c19ce154ff0726d398ee77abbc03a7faf0476c6f93016c84e531be7ebb5"
+    },
+    "vectors.bin": {
+      "bytes": 1157120,
+      "sha256": "e7818a9b6417887b64662ca944f1ab2631b0c19d733fd3b189cf7a75dd118f3e"
+    },
+    "vocab.txt": {
+      "bytes": 109540,
+      "sha256": "45bbac6b341c319adc98a532532882e91a9cefc0329aa57bac9ae761c27b291c"
+    },
+    "index.json": {
+      "bytes": 97616,
+      "sha256": "3a979985cf0ff60685ba13965249b56293768ff970a6bcc5722b7f30cd9de665"
+    },
+    "intents.bin": {
+      "bytes": 124928,
+      "sha256": "597ba8dd5fb819943c35a460fdff2b89da14305486d275283bb82f2339e9dcb2"
+    }
+  }
+}

@@ -3,19 +3,19 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.027**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.027-ff7a45?style=flat-square)
+**当前版本：v1.028**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.028-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.027` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.027
-- **轻量版**（不含语义模型，6.97 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.027/hongguo-skin-1.027-win64.zip`
-  - SHA256：`3440AA0EB5D9326EE51C9A756F34626A054F2D6485111E75A7BDDCE6F5EEB362`（6,969,868 B）
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.027/hongguo-skin-1.027-win64-ai.zip`
-  - SHA256：`20CCC572B841850775D406D3A1414B4281F16CA4403059CEC55BF5F4F9B55BFD`（25,394,075 B）
+- 最新版：`v1.028` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.028
+- **轻量版**（不含语义模型，6.98 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.028/hongguo-skin-1.028-win64.zip`
+  - SHA256：`4B5FC158AAFCA3E6437C3BC568BA89A7809B1BC546BF81CEC488897ED4A685CF`（6,975,316 B）
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.028/hongguo-skin-1.028-win64-ai.zip`
+  - SHA256：`D9D0FE8B30B7ADA25C4180A510A8CD962A42CDE8BF9D615F581731B319BC068C`（25,400,003 B）
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
-- 上一版（v1.026）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.026
+- 上一版（v1.027）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.027
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -65,6 +65,10 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 | ![](docs/preview-intent.jpg) | ![](docs/preview-mem.jpg) |
 
 ## 这版有什么
+
+工程：
+
+- **语义检索补上四道约束**（v1.028）：门槛（内存 <4GB 自动降级，单句超时收到 5s）、指纹（`ui\ai\manifest.json` 记 SHA-256，模型对不上就拒绝建会话，坏 onnx 不再静默吐 NaN）、超时（清单 4s / 读模型 15s / 建会话 12s / 整链 22s / 单句 8s，超时退回关键词）、体检行（设置·本机新增「语义检索」一栏：状态徽标 + `模型 22.8MB · 指纹 一致 · 线程 1 · 加载 1.2s · 单句 38ms · 库内 1130 部` + 超时次数 + 重载按钮）。不新增功能，只让它坏得明白、慢得有上限
 
 界面：
 
@@ -165,6 +169,15 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.028（2026-11-23）
+
+- **门槛**：读 `navigator.deviceMemory`，< 4GB 进降级档，单句推理超时 8s → 5s，体检行标黄「低内存 · 已降级」；拿不到该值时按正常档，不误判
+- **指纹**：新增 `ui\ai\manifest.json`（`model.onnx` / `vectors.bin` / `vocab.txt` / `index.json` / `intents.bin` 的字节数与 SHA-256）；`boot()` 里用 `crypto.subtle.digest` 校验 `model.onnx`，不符即抛错、拒绝建会话 —— 坏 onnx 原本会静默出 NaN、语义永远返回空
+- **超时**：新增 `within(p, ms, tag)` 包装，清单 4s / 读模型 15s / 建会话 12s / 整链 22s / 单句 8s（降级 5s）；`top()` / `intent()` 超时返回空，上层 `findSem` 的 `.catch` 自然退回关键词
+- **体检行**：设置·本机新增「语义检索」组 —— 状态徽标（就绪 / 加载中 · 读模型 / 本机版没装模型 / 指纹不符 / 低内存）、体检行 `模型 22.8MB · 指纹 一致 · 线程 1 · 加载 1.2s · 单句 38ms · 库内 1130 部`、超时次数、`重载` 按钮；新增 `.row .spill` 三色徽标样式
+- **顺带**：`SEM.reset()` 先 `sess.release()` 再重建；加载日志补 `fp=` / `mb=`；`ui\version.txt` 1.028、`ui\build.txt` `1.028 · 2026-11-23`
+- 这版只动 `ui\app.js` / `ui\index.html` 并新增 `ui\ai\manifest.json`，外壳 exe、本地 core、播放链路未碰
 
 ### v1.027（2026-11-23）
 
