@@ -1,7 +1,7 @@
 {
-  "version": "1.029",
-  "tag": "v1.029",
+  "version": "1.030",
+  "tag": "v1.030",
   "date": "2026-11-23",
-  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.029",
-  "notes": "v1.028 的自查修复：推理串行锁、体检行折行、进设置自动预载、失败 30 秒冷却、状态复位补全、重载与超时文案"
+  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.030",
+  "notes": "Windows 7 起不来的原因查清（Go 1.25 运行时要用 Win8 才有的同步接口，rip 落在 0x0）；启动前验系统版本，低于 Win10 直接说明并退出；失败弹窗改成退出码人话 + core 最后 6 行 + 一键开日志"
 }

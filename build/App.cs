@@ -47,6 +47,65 @@ namespace HongguoSkin
         internal static bool MemFile;
         internal static bool NoUpd;
         internal static string AskArg;
+        /* 系统版本与本机判定：低于 Win10 时 Weak=true，表示用户明知会挂还要试 */
+        internal static double WinVer;
+        internal static int WinBuild;
+        internal static string OsName;
+        internal static bool Weak;
+        internal static bool Force;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct OSVER
+        {
+            public int Size;
+            public int Major;
+            public int Minor;
+            public int Build;
+            public int Platform;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+            public string CSD;
+            public short SpMajor;
+            public short SpMinor;
+            public short Suite;
+            public byte Product;
+            public byte Reserved;
+        }
+
+        [DllImport("ntdll.dll", SetLastError = true)]
+        private static extern int RtlGetVersion(ref OSVER v);
+
+        /* RtlGetVersion 不受 appcompat 版本谎报影响；未 manifest 的程序走 Environment.OSVersion
+           在 Win8 以上会一律报 6.2，所以必须有这条路径 */
+        private static void GetWindowsVersion(out double ver, out int build)
+        {
+            ver = 0; build = 0;
+            try
+            {
+                var v = new OSVER();
+                v.Size = Marshal.SizeOf(typeof(OSVER));
+                if (RtlGetVersion(ref v) == 0)
+                {
+                    ver = v.Major + v.Minor / 10.0;
+                    build = v.Build;
+                    return;
+                }
+            }
+            catch { }
+            var e = Environment.OSVersion.Version;
+            ver = e.Major + e.Minor / 10.0;
+            build = 0;
+        }
+
+        private static string WindowsName(double ver, int build)
+        {
+            if (ver >= 10.0) return build >= 22000 ? "Windows 11" : "Windows 10";
+            if (ver >= 6.3) return "Windows 8.1";
+            if (ver >= 6.2) return "Windows 8";
+            if (ver >= 6.1) return "Windows 7";
+            if (ver >= 6.0) return "Windows Vista";
+            return "Windows " + ver.ToString("0.0");
+        }
+
         [STAThread]
         static void Main(string[] args)
         {
@@ -75,6 +134,7 @@ namespace HongguoSkin
             Poke = args != null && Array.IndexOf(args, "--poke") >= 0;
             MemFile = args != null && Array.IndexOf(args, "--memfile") >= 0;
             NoUpd = args != null && Array.IndexOf(args, "--noupd") >= 0;
+            Force = args != null && Array.IndexOf(args, "--force") >= 0;
             if (args != null)
             {
                 int ai = Array.IndexOf(args, "--a");
@@ -99,6 +159,30 @@ namespace HongguoSkin
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             AppDir = Path.GetDirectoryName(Application.ExecutablePath);
+            /* 版本门槛：core 是 Go 1.25 编译的（工具链官方最低要求 Win10），界面内核是 WebView2
+               （微软 2023 年 1 月起停止支持 Win7，最后能装的只有 109 版）。Win7 上硬撑的唯一结果
+               是 core 起不来，然后弹一句"请查看 app.log"，把问题整个丢给用户。先把话说明白。 */
+            GetWindowsVersion(out WinVer, out WinBuild);
+            OsName = WindowsName(WinVer, WinBuild);
+            /* 硬门槛。Windows 7 上不是"可能失败"，是必然失败，而且零散在启动最前面：
+               core 是 Go 1.25 编的，runtime 的信号量走 WaitOnAddress/WakeByAddressSingle，
+               这两个是 Win8 才加进 kernel32 的，Go 取到空指针后 call 过去，rip 直接 0x0。
+               这种缺失补不了 —— 用户态伪造同步原语没有意义。界面的 WebView2 在 Win7 上也早停了。
+               所以这里只给一个说明框和退路，不再给人"试试看"的假希望。 */
+            if (WinVer < 10.0 && !Force)
+            {
+                MessageBox.Show(
+                    "这个版本需要 Windows 10 及以上，当前系统是 " + OsName + "，没法启动。\r\n\r\n"
+                  + "不是文件坏了，是两套东西都不支持它：\r\n"
+                  + "· 内置服务（core）是 Go 1.25 编译的，它的运行时要用 Win8 才加入系统的同步接口，"
+                  + "在 " + OsName + " 上取不到入口，一启动就落在空地址上崩溃；\r\n"
+                  + "· 界面内核是 WebView2，微软 2023 年 1 月停止支持 Windows 7，最后能装的只有 109 版。\r\n\r\n"
+                  + "所以这不是装个运行库、放个 DLL 能补的事，得换台 Windows 10 / 11 的机器。\r\n\r\n"
+                  + "如果你就是想自己折腾一次，用命令行带 --force 启动，崩溃全文会写进 app.log。",
+                    "红果短剧 · 系统不支持", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            Weak = WinVer < 10.0;
             try
             {
                 Application.Run(new MainForm());
@@ -125,6 +209,10 @@ namespace HongguoSkin
         private string pendingAsk = "";
         private string pendingUrl = "";
         private bool navDone;
+        private int? lastCoreExit;
+        private bool statusFail;
+        private bool coreCrash;
+        private readonly Queue<string> coreTail = new Queue<string>();
         private const string UpdateUrl = "https://raw.githubusercontent.com/guhang42-jpg/hongguo-desktop-skin/main/version.json";
 
         public MainForm()
@@ -166,26 +254,36 @@ namespace HongguoSkin
 
         private async Task StartAsync()
         {
-            Log("窗口已创建");
+            Log("窗口已创建  " + Program.OsName + " " + Program.WinVer.ToString("0.0") + " build=" + Program.WinBuild + (Program.Weak ? "（低于 Win10，用户选择强行尝试）" : ""));
             /* 固定监听端口：WebView2 的 localStorage 是按 origin 隔离的，端口一变就等于换了存储，
                续播点/音量/倍速/榜单名次这些"本地记忆"就全丢。18797 足够偏，撞上官方 8797 的概率极低；
                真被占用就回退到让 core 自己挑端口（这时只丢本地记忆，功能不受影响）。 */
-            bool started = await StartCoreAsync(true);
-            if (!started)
+            bool started;
+            if (Program.Weak)
             {
-                Log("固定端口启动失败，改用自动端口重试");
-                await Task.Delay(1200);
-                started = await StartCoreAsync(false);
+                /* 老系统只试一次、只等 8 秒：救不回来的概率最高，就别让人干等三遍 */
+                Log("老系统强上：自动端口，单次 8 秒");
+                started = await StartCoreAsync(false, 8000);
+            }
+            else
+            {
+                started = await StartCoreAsync(true, 9000);
+                if (!started)
+                {
+                    Log("固定端口启动失败，改用自动端口重试");
+                    await Task.Delay(1200);
+                    started = await StartCoreAsync(false, 9000);
+                }
+                if (!started)
+                {
+                    Log("首次启动失败，重试一次");
+                    await Task.Delay(1200);
+                    started = await StartCoreAsync(false, 9000);
+                }
             }
             if (!started)
             {
-                Log("首次启动失败，重试一次");
-                await Task.Delay(1200);
-                started = await StartCoreAsync(false);
-            }
-            if (!started)
-            {
-                MessageBox.Show("内置服务没有启动起来，无法继续。\r\n请查看目录里的 app.log。", "红果短剧", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                FailBox();
                 Close();
                 return;
             }
@@ -272,7 +370,73 @@ namespace HongguoSkin
             }
         }
 
-        private async Task<bool> StartCoreAsync(bool fixedPort)
+        private void FailBox()
+        {
+            string why;
+            if (coreCrash)
+            {
+                why = "core 一启动就崩了"
+                    + (lastCoreExit.HasValue ? "（退出码 0x" + ((uint)lastCoreExit.Value).ToString("X8") + "）" : "")
+                    + "：它调用了一个这台机器上没有的函数，跳到了空地址（PC=0x0，入口在 runtime.asmstdcall）";
+                if (Program.WinVer < 10.0)
+                    why += "。这是 " + Program.OsName + " 的系统太旧，Go 运行时需要的同步接口 Win8 才加入，补 DLL 补不出来";
+            }
+            else if (lastCoreExit.HasValue)
+            {
+                string hex = "0x" + ((uint)lastCoreExit.Value).ToString("X8");
+                why = "core 启动后退出了，退出码 " + hex + " —— " + ExplainExit(lastCoreExit.Value);
+            }
+            else if (statusFail)
+            {
+                why = "core 报了端口，但 /api/v1/status 一直没响应";
+            }
+            else
+            {
+                why = "core 进程还活着，但一直没报出监听端口";
+            }
+            Log("判定失败：" + why);
+            string tail = "";
+            if (coreTail.Count > 0)
+            {
+                var lines = new List<string>(coreTail);
+                tail = "core 最后几行：\r\n" + string.Join("\r\n", lines.ToArray()).Trim() + "\r\n\r\n";
+            }
+            var r = MessageBox.Show(
+                "内置服务没有启动起来，界面打不开。\r\n\r\n"
+              + "系统：" + Program.OsName + " " + Program.WinVer.ToString("0.0") + "\r\n"
+              + "原因：" + why + "\r\n\r\n"
+              + tail
+              + (Program.WinVer < 10.0
+                    ? "Windows 7 上跑不起来是正常的：core 要 Go 1.25（官方最低 Win10），界面要 WebView2（微软 2023 年 1 月起停止支持，最后只有 109 版）。\r\n\r\n"
+                    : "")
+              + "完整日志：" + logPath + "\r\n\r\n"
+              + "点「确定」用记事本打开它；点「取消」直接关掉。",
+                "红果短剧", MessageBoxButtons.OKCancel, MessageBoxIcon.Error);
+            if (r == DialogResult.OK)
+            {
+                try { Process.Start("notepad.exe", "\"" + logPath + "\""); } catch { }
+            }
+        }
+
+        /* 把退出码翻成人话，省得每次都去翻微软文档 */
+        private static string ExplainExit(int code)
+        {
+            switch ((uint)code)
+            {
+                case 0xC0000135u: return "找不到它依赖的 DLL";
+                case 0xC0000139u: return "DLL 里缺入口点，一般是系统版本太旧";
+                case 0xC000007Bu: return "位数不对，或者哪个 DLL 是坏文件";
+                case 0xC0000142u: return "DLL 初始化失败";
+                case 0xC0000005u: return "访问了不该访问的内存（程序自身崩了）";
+                case 0xC000001Du: return "执行了这台 CPU 不认识的指令";
+                case 0xC0000409u: return "程序自己触发了缓冲区安全检查";
+                case 0x80070005u: return "系统拒绝执行，可能是杀毒软件拦住了";
+                case 0x8007007Eu: return "文件名或路径有问题";
+                default: return "退出码原样贴给开发者更快";
+            }
+        }
+
+        private async Task<bool> StartCoreAsync(bool fixedPort, int waitMs)
         {
             string coreExe = Path.Combine(Program.AppDir, "core", "hongguo-tv-core.exe");
             if (!File.Exists(coreExe))
@@ -294,6 +458,10 @@ namespace HongguoSkin
                 StandardErrorEncoding = Encoding.UTF8
             };
             if (fixedPort) psi.Arguments = "-port 18797";
+            coreTail.Clear();
+            lastCoreExit = null;
+            statusFail = false;
+            coreCrash = false;
             string dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HonggoDesktop");
             psi.EnvironmentVariables["HONGGUO_TV_DATA_DIR"] = dataDir;
 
@@ -301,7 +469,17 @@ namespace HongguoSkin
             core = new Process { StartInfo = psi };
             core.OutputDataReceived += (s, e) => Scan(e.Data, ready);
             core.ErrorDataReceived += (s, e) => Scan(e.Data, ready);
-            core.Exited += (s, e) => { if (!closing) { Log("core 进程退出，代码 " + core.ExitCode); ready.TrySetResult(""); } };
+            core.Exited += (s, e) =>
+            {
+                if (!closing)
+                {
+                    int code = 0;
+                    try { code = core.ExitCode; } catch { }
+                    lastCoreExit = code;
+                    Log("core 进程退出，代码 " + code + " (0x" + ((uint)code).ToString("X8") + ") " + ExplainExit(code));
+                    ready.TrySetResult("");
+                }
+            };
             core.EnableRaisingEvents = true;
 
             try { core.Start(); }
@@ -314,7 +492,7 @@ namespace HongguoSkin
             try
             {
                 var task = ready.Task;
-                if (await Task.WhenAny(task, Task.Delay(15000)) == task) port = task.Result;
+                if (await Task.WhenAny(task, Task.Delay(waitMs)) == task) port = task.Result;
             }
             catch { }
 
@@ -340,6 +518,8 @@ namespace HongguoSkin
                 }
                 catch { Thread.Sleep(700); }
             }
+            Log("端口有了但 /api/v1/status 不通: " + coreUrl + "（试了 12 次，每次 700ms）");
+            statusFail = true;
             return false;
         }
 
@@ -367,6 +547,13 @@ namespace HongguoSkin
         {
             if (string.IsNullOrEmpty(line) || ready.Task.IsCompleted) return;
             Log("[core] " + line);
+            /* Go 崩溃时 PC=0x0 且落在 runtime.asmstdcall：说明它调的系统函数里有个空指针，
+               基本就是系统版本太旧、那个入口不存在。这一条能直接把病因说清，不用人看寄存器。 */
+            if (line.IndexOf("PC=0x0", StringComparison.Ordinal) >= 0 || line.IndexOf("asmstdcall", StringComparison.Ordinal) >= 0)
+                coreCrash = true;
+            /* 留最后 6 行：core 自己说的错，比我们猜准得多 */
+            if (coreTail.Count >= 6) coreTail.Dequeue();
+            coreTail.Enqueue(line.Length > 120 ? line.Substring(0, 120) + "…" : line);
             var m = Regex.Match(line, @"listening on 127\.0\.0\.1:(\d+)");
             if (m.Success) ready.TrySetResult(m.Groups[1].Value);
         }

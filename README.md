@@ -3,19 +3,21 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.029**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.029-ff7a45?style=flat-square)
+**当前版本：v1.030**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.030-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.029` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.029
-- **轻量版**（不含语义模型，6.98 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.029/hongguo-skin-1.029-win64.zip`
-  - SHA256：`0B68C4B69B0F1512642162E3C9413796876B6EAA691FF71B303A5216E75D4932`（6,976,125 B）
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.029/hongguo-skin-1.029-win64-ai.zip`
-  - SHA256：`294D626D7FEB66B9E6A8973AFCB01E53639BFF841FC173D6C35B0AE210600A05`（25,400,812 B）
+- 最新版：`v1.030` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.030
+- **轻量版**（不含语义模型，6.98 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.030/hongguo-skin-1.030-win64.zip`
+  - SHA256：`6367A32FD0449B7A09F925C494B08ACCACD537C5CE94957582D3063F31544B79`（6,979,169 B）
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.030/hongguo-skin-1.030-win64-ai.zip`
+  - SHA256：`265138C84B959AF1298B562FC4F7C7F576E0F95890FD6CDCC0544048A5DEE827`（25,403,856 B）
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
-- 上一版（v1.028）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.028
+- 上一版（v1.029）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.029
+
+> **系统要求：Windows 10 及以上。** 低于 Win10 会直接弹说明并退出，不再装完之后才发现打不开 —— 原因见「更新日志 v1.030」，不是缺运行库、也不是文件坏了，是 core 的运行时和界面内核都不支持。
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -68,6 +70,7 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 
 工程：
 
+- **启动先验系统，失败给诊断**（v1.030）：`ntdll!RtlGetVersion` 读真实版本（绕开未 manifest 程序在 Win8 以上一律谎报 6.2 的老毛病），低于 Win10 直接一个说明框退出，装之前就知道装不了；真要折腾可带 `--force`。core 起不来时弹窗不再只写「看 app.log」，而是给出系统版本、退出码人话（`0xC0000135` 缺 DLL / `0xC0000139` 缺入口点 / `0xC000001D` 不认识的指令 / `0x80070005` 被杀软拦）、core 自己吐的最后 6 行，以及「确定」直接拿记事本打开日志。另外能认出 Go 崩溃的指纹（`PC=0x0` + `runtime.asmstdcall`），一句话说成「它调了一个这台机器上没有的函数」
 - **v1.028 那版的自查修复**（v1.029）：补推理串行锁（连打字不再并发 run 同一会话）、体检行允许折行（原来被 230px 截成「…」）、进设置·本机自动把模型点着、失败后 30 秒内不重复读 22MB、状态复位补全、重载按钮按结果说话、超时文案不再写「0s」
 - **语义检索补上四道约束**（v1.028）：门槛（内存 <4GB 自动降级，单句超时收到 5s）、指纹（`ui\ai\manifest.json` 记 SHA-256，模型对不上就拒绝建会话，坏 onnx 不再静默吐 NaN）、超时（清单 4s / 读模型 15s / 建会话 12s / 整链 22s / 单句 8s，超时退回关键词）、体检行（设置·本机新增「语义检索」一栏：状态徽标 + `模型 22.8MB · 指纹 一致 · 线程 1 · 加载 1.2s · 单句 38ms · 库内 1130 部` + 超时次数 + 重载按钮）。不新增功能，只让它坏得明白、慢得有上限
 
@@ -170,6 +173,25 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.030（2026-11-23）
+
+有人在 Windows 7 上装了一套，弹的是「内置服务没有启动起来，无法继续，请查看目录里的 app.log」。拿到日志才看清真正原因，所以这版主要做两件事：把门槛说在人脸上，把失败说到能定位。
+
+- **为什么 Win7 上一定起不来**：`core\hongguo-tv-core.exe` 是 **Go 1.25.14** 编译的（二进制里带 `go1.25.14` 与 `Go build ID`），只依赖 `kernel32.dll`，静态导入的 47 个函数全是 Win7 也有的老 API —— 所以不是「缺 DLL / 缺入口点」那种加载期就死的情况。它的死法是：Go 运行时用 `WaitOnAddress` / `WakeByAddressSingle` 做信号量，这两个是 **Win8 才加入 kernel32** 的，Go 在 Win7 上取到空指针后直接跳过去，于是
+  ```
+  Exception 0xc0000005 0x8 0x0 0x0
+  PC=0x0
+  runtime.asmstdcall(...)
+      runtime/sys_windows_amd64.s:76 +0x89
+  ```
+  `rip 0x0`，退出码 2。这条路补不了：用户态伪造同步原语没有意义，不是放个转发 DLL 能过的事。第二道墙是界面内核 WebView2，微软 2023 年 1 月停止支持 Win7，最后能装的只有 109 版。
+- **启动先验系统**：用 `ntdll!RtlGetVersion` 读真实版本号（未 manifest 的程序走 `Environment.OSVersion`，在 Win8 以上会一律谎报 6.2，必须绕开）。低于 Win10 时一个说明框直接退出，讲清是 core 的运行时和界面内核不支持、换台 Win10/11 的机器就行；想自己折腾可带 `--force` 启动，崩溃全文照旧写进 `app.log`。
+- **失败弹窗改成诊断**：原来是「请查看目录里的 app.log」，等于把问题整个丢给用户。现在给出系统版本、core 退出码并翻成人话（`0xC0000135` 找不到依赖的 DLL、`0xC0000139` DLL 里缺入口点、`0xC000007B` 位数不对、`0xC000001D` 执行了不认识的指令、`0xC0000409` 触发缓冲区检查、`0x80070005` 可能被杀毒软件拦）、core 自己吐的最后 6 行，下面「确定」直接用记事本打开 `app.log`。
+- **认得出 Go 崩溃的指纹**：日志里出现 `PC=0x0` 或 `runtime.asmstdcall` 就判定为「调了这台机器上没有的函数」，不再显示一屏寄存器让人自己猜；低于 Win10 时再补一句「系统太旧，补 DLL 补不出来」。
+- **启动日志带系统信息**：每次开窗口第一行写 `窗口已创建  Windows 11 10.0 build=26200`，以后任何机器上的问题都能先看这一行。
+- **重试等待收紧**：core 退出事件本身能立刻结束等待（实测 Win7 上三次尝试共 4 秒，不是原先估计的四十多秒），所以这里只是把单次上限从 15s 收到 9s、老系统只试一次 8s，少写三份重复的崩溃块。
+- 只动外壳 `build\App.cs` 与 `ui\version.txt` / `ui\build.txt`；`core`、界面、语义模块一行未改。
 
 ### v1.029（2026-11-23）
 
