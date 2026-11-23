@@ -3,19 +3,19 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.023**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.023-ff7a45?style=flat-square)
+**当前版本：v1.024**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.024-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.023` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.023
-- **轻量版**（不含语义模型，6.95 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.023/hongguo-skin-1.023-win64.zip`
-  - SHA256：`6426739C5BCB54342C52F008988D708AD4366C808EFCE2CA9CE681E1696E2A6F`（6,955,388 B）
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.023/hongguo-skin-1.023-win64-ai.zip`
-  - SHA256：`FCB0DD1B56ACC06DE59D20C5EF537C225CDAAEA2B1BC20DAAC322103AACB522F`（25,379,595 B）
+- 最新版：`v1.024` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.024
+- **轻量版**（不含语义模型，6.96 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.024/hongguo-skin-1.024-win64.zip`
+  - SHA256：`4C7491D40834538662B816960E72746AFBB04EDC37B37E12E1BA01FD85916BBC`（6,959,377 B）
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.024/hongguo-skin-1.024-win64-ai.zip`
+  - SHA256：`20993F9C6DBB25DC0CF741111E65F0A37AA6E74B98B2057CEEB1E8DDB50C470E`（25,383,584 B）
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
-- 上一版（v1.021）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.021
+- 上一版（v1.023）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.023
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -87,12 +87,20 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 |---|---|
 | ![](docs/preview-detail2.jpg) | ![](docs/preview-toast.jpg) |
 
+| 详情页底部「看完这集，再看看」 | 集数格底一条进度线，段按钮悬停就地报数 |
+|---|---|
+| ![](docs/preview-more.jpg) | ![](docs/preview-eps.jpg) |
+
+| 播放页底栏图标化，说明走自绘提示（不再是系统那个灰白气泡） |
+|---|
+| ![](docs/preview-hint.jpg) |
+
 ## 这版有什么
 
 界面：
 
 - 左侧固定导航 + 品牌标 + 底部账号卡；顶部胶囊标签 + 搜索 + 账号
-- **左侧栏收成 68px 图标窄条**：只留 logo、四个线性图标（罗盘 / 放大镜 / 柱状 / 人像）、小果那颗球、底部头像，全在 x=34 这条竖线上。鼠标移进来自动铺开成 196px 玻璃抽屉（右侧 20px 圆角 + 投影），文字和账号卡在铺开的同时淡入；移开自己收回。抽屉浮在内容之上，不推挤主内容，看片时瞄一眼侧栏不会整页横跳。小窗模式下不铺开，始终是一条纯图标栏
+- **左侧栏收成 68px 图标窄条**：只留 logo、四个线性图标（罗盘 / 放大镜 / 柱状 / 人像）、小果那颗球、底部头像，全在 x=34 这条竖线上。**v1.024 起不再整条铺开**——鼠标压到哪一项，就在那一项右边浮一个小标签（发现 / 找剧 / 榜单 / 我的 / 小果 · 本机助理），移开即收，主内容一点不被压住。小窗模式下同样只留纯图标栏
 - **播放页与详情页的竖栏统一成 64px 图标条**：宽度、按钮尺寸、分隔线、直角完全一致；剧名与按钮文字都改成悬停浮出的小标签，不再整条铺开盖住内容
 - 大 Hero、继续观看横滑、热播榜带名次横条、推荐瀑布流、底部悬浮播放条
 - **首页折叠**：热播榜默认收起、推荐区只露两行，点了才展开；找剧 / 榜单 / 我的页不再摆 Hero 和两条横滑
@@ -177,6 +185,18 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.024（2026-11-23）
+
+- **主界面左条不再整条铺开**：固定 68px，鼠标压到哪一项就在那一项右边浮一个小标签（发现 / 找剧 / 榜单 / 我的 / 小果 · 本机助理），移开即收；主内容不再被抽屉压住
+- **详情页底部空出来的地方填上了**：「看完这集，再看看」按题材重合 + 同类型打分，从本机剧库挑 6 部，2 列 3 行横向小卡，点一下直接换剧
+- **段按钮会自己报数**：压住「97-120」时标题行右端变成「第 97-120 集 · 看过 1/24 · 看完 1」，不点开也知道这段看到哪
+- **看过的集，格底一条细线**：按已存进度画 2px 暖橙线；没记下总时长的一律不画，避免整片选集被糊成橙色
+- **播放页底栏只留图标**：选集 `▦`、铺满三态用 `▭ / ▤ / ⤢`，当前是哪一种写在提示里
+- **系统灰白 tooltip 全换自绘**：把 `title` 转成 `data-hint` 后摘掉原生提示，改成跟光标走、可换行的深色气泡；左条本来就弹浮标签的项不重复提示
+- **首屏骨架屏**：剧库还没回来时先摆一排会呼吸的灰卡，不再是空白干等
+- **小窗播放里点开详情自动还原窗口**，顺手给一句「已退出小窗，方便看详情」
+- 顺手把「继续观看」卡片的信息行加投影、底下渐变加重，长剧名压到封面亮部也读得清；左条激活态收敛成灰底 + 橙色图标，一条上不再挂三个橙块
 
 ### v1.023（2026-11-23）
 

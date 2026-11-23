@@ -1066,6 +1066,103 @@ body.moyu-on .shell,body.moyu-on .bg,body.moyu-on .veil,body.moyu-on .ambient,bo
   padding:6px 11px;border-radius:8px;opacity:0;transform:translateY(6px);transition:.25s var(--ease);pointer-events:none}
 .mo-tip.on{opacity:1;transform:none}
 body.mini .hevcbar{display:none !important}
+  /* ---------- v1.024：主界面左条固定 68px，悬停才浮出小标签（与详情页/播放页同一套） ---------- */
+  .side{z-index:44}
+  .sideIn{overflow:visible!important;width:68px!important;transition:none!important;z-index:31}
+  .side:hover .sideIn{width:68px!important;background:transparent!important;backdrop-filter:none!important;box-shadow:none!important}
+  .side .nav button,.side .brand,.side .who{overflow:visible!important;position:relative}
+  /* 旧版是整条铺开，这里把一起弹出来的文字全部压回去，改成逐项悬停浮出 */
+  .side:hover .brand .txt,
+  .side:hover .nav button span,
+  .side:hover .who .tt,
+  .side:hover .who .lvt{opacity:0;transform:translate(-6px,-50%)}
+  .side .nav button span,.side .brand .txt,.side .who .tt{position:absolute!important;left:62px!important;top:50%!important;
+    display:block;width:max-content!important;max-width:none!important;margin:0!important;padding:7px 11px!important;
+    border-radius:9px!important;background:rgba(11,13,19,.97)!important;color:#fff!important;
+    box-shadow:0 8px 22px -12px rgba(0,0,0,.92),inset 0 0 0 1px rgba(255,255,255,.1);
+    font-size:12.5px!important;font-weight:600!important;line-height:1!important;letter-spacing:0!important;
+    white-space:nowrap!important;word-break:normal!important;word-wrap:normal!important;text-shadow:none!important;
+    opacity:0;pointer-events:none;z-index:40;transform:translate(-6px,-50%);
+    transition:opacity .16s ease,transform .2s cubic-bezier(.22,.82,.24,1)}
+  .side .brand .txt{flex-direction:column;align-items:flex-start;gap:3px;line-height:1.15!important}
+  .side .brand .txt b{font-size:12.5px;font-weight:700;line-height:1.15}
+  .side .brand .txt small{display:block;font-size:9px;letter-spacing:1.2px;color:#97a0ae}
+  .side .who .tt b{font-size:12.5px;font-weight:600;max-width:none!important;width:auto!important;overflow:visible;white-space:nowrap}
+  .side .who .tt span,.side .who .tt .xbar{display:none!important}
+  .side .nav button:hover span,
+  .side .brand:hover .txt,
+  .side .who:hover .tt{opacity:1;transform:translate(0,-50%)}
+  .side .nav button.on:hover span{box-shadow:0 8px 22px -12px rgba(0,0,0,.92),inset 0 0 0 1px rgba(255,122,85,.45)}
+  /* 小果那颗球没有文字节点，用伪元素挂一个标签 */
+  .side .aiball::after{content:"小果 · 本机助理";position:absolute;left:62px;top:50%;transform:translate(-6px,-50%);
+    padding:7px 11px;border-radius:9px;background:rgba(11,13,19,.97);color:#fff;font-size:12.5px;font-weight:600;
+    line-height:1;white-space:nowrap;opacity:0;pointer-events:none;z-index:40;
+    box-shadow:0 8px 22px -12px rgba(0,0,0,.92),inset 0 0 0 1px rgba(255,255,255,.1);
+    transition:opacity .16s ease,transform .2s cubic-bezier(.22,.82,.24,1)}
+  .side .aiball:hover::after{opacity:1;transform:translate(0,-50%)}
+
+
+  /* ---------- v1.024：详情面板下方「看完这集，再看看」，用本机剧库把空白填上 ---------- */
+  .moreW{margin-top:18px;display:none}
+  .moreW.on{display:block}
+  .moreW .mh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+  .moreW .mh b{font-size:13px;font-weight:600;color:#e9eef7}
+  .moreW .mh span{font-size:11px;color:var(--muted-2)}
+  .moreW .mg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .moreW .mc{display:flex;gap:10px;align-items:center;padding:7px;border-radius:11px;cursor:pointer;
+    background:rgba(255,255,255,.045);box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);
+    transition:background .18s,box-shadow .18s,transform .18s}
+  .moreW .mc:hover{background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);transform:translateY(-1px)}
+  .moreW .mc .cv{width:44px;height:59px;flex:none;border-radius:8px;overflow:hidden;background:#14161d}
+  .moreW .mc .cv img{width:100%;height:100%;object-fit:cover;display:block}
+  .moreW .mc .tx{min-width:0;flex:1}
+  .moreW .mc .tx b{display:block;font-size:12px;font-weight:600;color:#e9eef7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .moreW .mc .tx p{margin:4px 0 0;font-size:10.5px;color:var(--muted-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+
+
+  /* ---------- v1.024：看过的集，格底一条细进度线 ---------- */
+  .ep{position:relative;overflow:hidden}
+  .ep.seen::after{content:"";position:absolute;left:0;right:auto;bottom:0;height:2px;width:var(--p,12%);
+    background:linear-gradient(90deg,rgba(255,190,120,.45),rgba(255,124,86,.95));border-radius:0 2px 2px 0}
+  .ep.on.seen::after{background:linear-gradient(90deg,rgba(120,52,34,.45),rgba(190,74,44,.95))}
+
+  /* ---------- v1.024：自绘提示，替掉 Windows 那个灰白系统气泡 ---------- */
+  .hint{position:fixed;left:0;top:0;z-index:86;display:none;pointer-events:none;max-width:330px;
+    padding:7px 11px;border-radius:9px;background:rgba(10,12,18,.97);color:#f6f8ff;
+    font-size:12px;line-height:1.5;letter-spacing:.2px;white-space:pre-line;
+    box-shadow:0 12px 30px -16px rgba(0,0,0,.95),inset 0 0 0 1px rgba(255,255,255,.1)}
+  body.theater .hint{z-index:90}
+
+  /* ---------- v1.024：首屏骨架，库没回来先摆一排灰卡，别一眼空白 ---------- */
+  #grid .skel{pointer-events:none}
+  #grid .skel i,#grid .skel b,#grid .skel s{display:block;text-decoration:none;border-radius:12px;
+    background:linear-gradient(100deg,rgba(255,255,255,.05) 20%,rgba(255,255,255,.105) 40%,rgba(255,255,255,.05) 60%);
+    background-size:220% 100%;animation:sklShine 1.6s linear infinite}
+  #grid .skel i{aspect-ratio:3/4.05}
+  #grid .skel b{height:12px;margin:10px 2px 0;width:74%;border-radius:6px}
+  #grid .skel s{height:9px;margin:7px 2px 0;width:47%;border-radius:5px}
+  @keyframes sklShine{from{background-position:130% 0}to{background-position:-130% 0}}
+
+  /* ---------- v1.024：播放页底栏只留图标，说明交给自绘提示 ---------- */
+  #vEps{font-size:15px;letter-spacing:0}
+
+  /* ---------- v1.024：左条激活态收一收，橙色只留在图标上，一条上不再三个橙块 ---------- */
+  .side .nav button.on::before{background:linear-gradient(180deg,rgba(255,255,255,.085),rgba(255,255,255,.022))!important;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.105)!important}
+  .side .nav button.on span{color:#fff!important}
+  .side .nav button.on:hover::before{background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.05))!important}
+  .side .nav button.on:hover span{box-shadow:0 8px 22px -12px rgba(0,0,0,.92),inset 0 0 0 1px rgba(255,255,255,.14)!important}
+
+  /* ---------- v1.024：继续观看卡上的信息读得清一点，别被封面亮部吃掉 ---------- */
+  .hcard .hg{background:linear-gradient(180deg,rgba(0,0,0,.04) 36%,rgba(0,0,0,.52) 68%,rgba(0,0,0,.90))}
+  .hcard .hs{color:rgba(255,255,255,.86)!important;text-shadow:0 1px 3px rgba(0,0,0,.92)}
+  .hcard .hn{text-shadow:0 1px 4px rgba(0,0,0,.92)}
+  .hcard .hs{font-variant-numeric:tabular-nums}
+
+  /* ---------- v1.024：「看过」只留底一条线，边框和数字回中性，别整片橙 ---------- */
+  .ep.seen{color:rgba(255,255,255,.88)!important;border-color:rgba(255,255,255,.14)!important}
+  .ep.seen:hover{color:#fff!important;border-color:rgba(255,255,255,.36)!important}
 </style>
 </head>
 <body>
@@ -1249,6 +1346,7 @@ body.mini .hevcbar{display:none !important}
     <div class="ephead"><strong style="font-size:14px">选集</strong><span id="sEpCount"></span></div>
     <div class="epsegs" id="sEpSegs"></div>
     <div class="eps" id="sEps"></div>
+    <div class="moreW" id="sMore"></div>
   </div>
 </aside>
 
@@ -1287,7 +1385,7 @@ body.mini .hevcbar{display:none !important}
           </div>
         </div>
         <div class="dminput"><input id="dmText" placeholder="发条弹幕，回车发送…" maxlength="40"><button class="dmsend" id="dmSend">发送</button></div>
-        <button class="vbtn" id="vEps">选集</button>
+        <button class="vbtn" id="vEps" title="选集：按段翻到想看的那一集">▦</button>
         <button class="vbtn" id="vFull" title="全屏（双击画面或按 F 也可）">⛶</button>
         <button class="vbtn" id="fitBtn" title="画面铺满方式：原比例 / 铺满裁剪 / 拉伸">▭</button>
         <button class="vbtn" id="miniExit" style="display:none">退出小窗</button>
@@ -1334,6 +1432,7 @@ body.mini .hevcbar{display:none !important}
 </div>
 
 <div class="gtoast" id="gtoast"></div>
+<div class="hint" id="hint"></div>
 <div class="toast" id="toast"><i class="tdot"></i><span id="toastTxt"></span></div>
 <script src="ai/bge-tok.js"></script>
 <script src="app.js"></script>

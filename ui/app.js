@@ -30,6 +30,17 @@
     if (r.d && r.t > r.d - 6) return 0;
     return r.t;
   }
+  /* 看过多少：拿存下来的「当前秒 + 总时长」算比例，给集数格底部那条进度线用 */
+  function resumePct(sid, ep) {
+    if (!sid) return 0;
+    var r = RESUME[resumeKey(sid, ep)];
+    if (!r || !r.t || r.t < 5) return 0;
+    if (!r.d) return 0;    /* 记不下总时长的，就当没进度，别给整片选集糊一条假线 */
+    if (r.t > r.d - 6) return 100;
+    return Math.max(6, Math.min(99, Math.round(r.t / r.d * 100)));
+  }
+
+
   function trimResume() {
     var keys = Object.keys(RESUME);
     if (keys.length <= 240) return;
@@ -444,6 +455,7 @@
     if (reset) { S.items = []; S.offset = 0; S.next = 0; }
     S.loading = true;
     foot("正在加载…", true);
+    paintSkel();
 
     var path;
     if (view === "home") {
@@ -593,6 +605,8 @@
           var c = document.createElement("button");
           c.className = "epseg" + (s === cur ? " on" : "");
           c.textContent = (s * EP_SEG + 1) + "-" + Math.min(total, (s + 1) * EP_SEG);
+          c.dataset.from = s * EP_SEG;
+          c.dataset.to = Math.min(total, (s + 1) * EP_SEG);
           c.onclick = (function (k) { return function () { renderEpisodeGrid(total, k); }; })(s);
           bar.appendChild(c);
         }
@@ -611,7 +625,9 @@
       var rv = resumeOf(S.active && S.active.series_id, i);
       /* 屏幕阅读器与鼠标悬停提示共用这一行，不再依赖系统 title */
       b.setAttribute("aria-label", "第 " + (i + 1) + " 集");
-      if (rv > 4) b.classList.add("seen");
+      var pct = resumePct(S.active && S.active.series_id, i);
+      if (rv > 4 || pct > 0) b.classList.add("seen");
+      b.style.setProperty("--p", Math.max(6, pct) + "%");
       /* 鼠标扫过哪一集就先给那一集排队预取，点下去基本已经在拉了 */
       b.onmouseenter = (function (n) {
         return function () { prefetchStream(S.detail, n); };
@@ -621,7 +637,54 @@
     if (!total) eps.innerHTML = '<div class="foot" style="padding:16px 0">暂时取不到分集</div>';
   }
 
-  /* 选集：鼠标压上去时，标题行右侧直接从“共 N 集”变成这一集的说明，不再弹浮层挡按钮 */
+  /* ---------- 详情底部「看完这集，再看看」：只用本机剧库，按题材重合度排，不联网不调模型 ---------- */
+  function renderMore(item, d) {
+    var wrap = $("#sMore");
+    if (!wrap || !item) return;
+    var base = {
+      series_id: item.series_id,
+      content_type: item.content_type || (d && d.content_type),
+      tags: (item.tags && item.tags.length) ? item.tags : ((d && d.tags) || [])
+    };
+    var cur = String(base.series_id || "");
+    var myTags = base.tags || [];
+    var entries = (S.library && S.library.entries) || [];
+    var pool = [];
+    entries.forEach(function (e) {
+      var dr = e.drama || e;
+      if (!dr || !dr.series_id) return;
+      if (String(dr.series_id) === cur) return;
+      var tags = dr.tags || [];
+      var hit = 0;
+      for (var k = 0; k < tags.length; k++) { if (myTags.indexOf(tags[k]) >= 0) hit++; }
+      pool.push({ d: dr, s: hit * 2 + (dr.content_type === base.content_type ? 1 : 0), at: (e.last_played_at || e.favorite_at || 0) });
+    });
+    pool.sort(function (a, b) { return (b.s - a.s) || (b.at - a.at); });
+    var pick = pool.filter(function (x) { return x.s > 0; }).slice(0, 6);
+    if (pick.length < 6) pick = pick.concat(pool.filter(function (x) { return x.s === 0; }).slice(0, 6 - pick.length));
+    if (pick.length < 2) { wrap.innerHTML = ""; wrap.classList.remove("on"); return; }
+
+    var h = '<div class="mh"><b>看完这集，再看看</b><span>本机剧库 ' + pick.length + ' 部</span></div><div class="mg">';
+    pick.forEach(function (x) {
+      var c = coverOf(x.d);
+      h += '<div class="mc"><div class="cv">' + (c ? '<img src="' + c + '" loading="lazy" referrerpolicy="no-referrer" alt="">' : '') +
+        '</div><div class="tx"><b></b><p></p></div></div>';
+    });
+    wrap.innerHTML = h + "</div>";
+
+    var cards = wrap.querySelectorAll(".mc");
+    pick.forEach(function (x, k) {
+      var el = cards[k];
+      if (!el) return;
+      el.querySelector("b").textContent = x.d.title || "未命名";
+      el.querySelector("p").textContent = (x.d.tags || []).slice(0, 2).join(" / ") ||
+        (x.d.episode_count ? "全 " + x.d.episode_count + " 集" : "短剧");
+      el.onclick = function () { openDetail(x.d, 0); };
+    });
+    wrap.classList.add("on");
+  }
+
+  /* 选集：鼠标压上去时，标题行右端直接从“共 N 集”变成这一集 / 这一段的说明，不再弹浮层挡按钮 */
   (function () {
     var cnt = $("#sEpCount"), cur = null;
     if (!cnt) return;
@@ -631,15 +694,38 @@
       cnt.textContent = base();
       cnt.classList.remove("hot");
     }
+    function segText(el) {
+      var a = parseInt(el.dataset.from, 10) || 0;
+      var z = parseInt(el.dataset.to, 10) || 0;
+      var sid = S.active && S.active.series_id;
+      var seen = 0, done = 0;
+      for (var i = a; i < z; i++) {
+        var p = resumePct(sid, i);
+        if (p > 0) seen++;
+        if (p >= 96) done++;
+      }
+      return "第 " + (a + 1) + "-" + z + " 集 · 看过 " + seen + "/" + (z - a) + (done ? " · 看完 " + done : "");
+    }
     document.addEventListener("mousemove", function (e) {
       var t = e.target;
-      var b = (t && t.closest) ? t.closest("#sEps .ep") : null;
+      if (!t || !t.closest) return;
+      var sg = t.closest("#sEpSegs .epseg");
+      if (sg) {
+        if (sg === cur) return;
+        cur = sg;
+        cnt.textContent = segText(sg);
+        cnt.classList.add("hot");
+        return;
+      }
+      var b = t.closest("#sEps .ep");
       if (b === cur) return;
       cur = b;
       if (!b) { reset(); return; }
       var n = parseInt(b.dataset.i, 10) || 0;
+      var pct = resumePct(S.active && S.active.series_id, n);
       var rv = resumeOf(S.active && S.active.series_id, n);
-      if (rv > 4) cnt.innerHTML = "第 " + (n + 1) + " 集 · 上次 <em>" + fmt(rv) + "</em>";
+      if (pct >= 96) cnt.innerHTML = "第 " + (n + 1) + " 集 · <em>已看完</em>";
+      else if (rv > 4) cnt.innerHTML = "第 " + (n + 1) + " 集 · 上次 <em>" + fmt(rv) + "</em> · " + pct + "%";
       else cnt.textContent = "第 " + (n + 1) + " 集";
       cnt.classList.add("hot");
     });
@@ -684,7 +770,10 @@
   }
 
   function openDetail(item, idx) {
+    /* v1.024：小窗播放中点开详情，先把小窗还原，否则面板一开就把画面压没了 */
+    if (S.mini && viewer.classList.contains("on")) { setMini(false); toast("已退出小窗，方便看详情"); }
     /* 换一部剧才把详情滚回顶部；同一个 series 再次打开保持原来的阅读位置 */
+    var mw0 = $("#sMore"); if (mw0) { mw0.classList.remove("on"); mw0.innerHTML = ""; }
     var sameSeries = S.active && String(S.active.series_id) === String(item.series_id);
     if (!sameSeries) { var sm = $(".smain"); if (sm) sm.scrollTop = 0; }
     S.active = item; S.epIndex = idx || 0;
@@ -718,6 +807,7 @@
         $("#sEpCount").textContent = "共 " + (d.episode_count || S.vids.length) + " 集";
         var total = S.vids.length || (d.episode_count || 0);
         renderEpisodeGrid(total, Math.floor(S.epIndex / EP_SEG));
+        renderMore(item, d);
         /* 他这会儿正在看简介，先把这一集（默认第 1 集 / 上次那集）的播放源拉上来 */
         prefetchStream(d, Math.max(0, Math.min(S.epIndex, total - 1)));
       }).catch(function (e) {
@@ -1881,7 +1971,13 @@
   function applyFit() {
     document.body.classList.remove("mode-cover", "mode-fill", "mode-contain");
     document.body.classList.add("mode-" + S.fit);
-    $("#fitBtn").textContent = S.fit === "contain" ? "原比例" : (S.fit === "fill" ? "拉伸" : "铺满");
+    /* v1.024：底栏只留图标，当前是哪一种交给自绘提示说 */
+    var fb = $("#fitBtn");
+    if (fb) {
+      fb.textContent = S.fit === "contain" ? "▭" : (S.fit === "fill" ? "⤢" : "▤");
+      fb.setAttribute("data-hint", "画面：" + (S.fit === "contain" ? "原比例（完整显示）"
+        : (S.fit === "fill" ? "拉伸铺满" : "铺满裁剪")) + " · 点一下换一种");
+    }
     if (S.mini) sendMiniSize();
   }
   function sendMiniSize() {
@@ -1900,11 +1996,6 @@
     S.fitManual = true;              /* 用户自己挑过画面模式，之后全屏不再强塞铺满 */
     S.fit = S.fit === "cover" ? "fill" : (S.fit === "fill" ? "contain" : "cover");
     applyFit();
-    var btn = $("#fitBtn");
-    if (btn) {
-      btn.textContent = S.fit === "contain" ? "▭" : (S.fit === "fill" ? "⤢" : "▣");
-      btn.title = "画面铺满方式：" + (S.fit === "contain" ? "原比例" : (S.fit === "fill" ? "拉伸铺满" : "铺满裁剪"));
-    }
     if (window.GRO && S.fit !== "contain") GRO.flag("fit");
     if (window.GRO) GRO.flag(S.fit === "cover" ? "fitC" : (S.fit === "fill" ? "fitF" : "fitS"));
     toast("画面：" + (S.fit === "contain" ? "原比例（完整显示）" : (S.fit === "fill" ? "拉伸铺满" : "铺满裁剪")));
@@ -1912,8 +2003,6 @@
   initFit();
   function initFit() {
     applyFit();
-    var btn = $("#fitBtn");
-    if (btn) btn.textContent = S.fit === "contain" ? "▭" : (S.fit === "fill" ? "⤢" : "▣");
   }
 
   /* 小窗沉浸：鼠标停 2.6 秒后收起控件 */
@@ -3380,6 +3469,63 @@
   })();
   window.HONGUO_AI = AI;
 
+  /* ---------- v1.024：系统 title 全换成自绘提示（快、可换行、跟光标走） ---------- */
+  (function () {
+    var tip = $("#hint");
+    if (!tip) return;
+    var cur = null;
+    function place(x, y) {
+      var w = tip.offsetWidth, h = tip.offsetHeight;
+      var l = x + 14, t = y + 18;
+      if (l + w > window.innerWidth - 10) l = x - w - 14;
+      if (t + h > window.innerHeight - 10) t = y - h - 18;
+      if (l < 10) l = 10;
+      if (t < 10) t = 10;
+      tip.style.left = Math.round(l) + "px";
+      tip.style.top = Math.round(t) + "px";
+    }
+    function adopt(root) {
+      var all = (root || document).querySelectorAll("[title]");
+      for (var i = 0; i < all.length; i++) {
+        var el = all[i];
+        var t = el.getAttribute("title");
+        if (!t) continue;
+        el.setAttribute("data-hint", t);
+        el.removeAttribute("title");
+      }
+    }
+    adopt();
+    /* 左条自己会弹浮标签，别让自绘提示再叠一层同样的话 */
+    document.querySelectorAll(".side .nav button,.side .brand,.side .who,.side .aiball").forEach(function (e) {
+      e.setAttribute("data-nohint", "1");
+    });
+    window.HINT = { adopt: adopt, hide: function () { cur = null; tip.style.display = "none"; } };
+    document.addEventListener("mousedown", function () { window.HINT.hide(); }, true);
+    document.addEventListener("wheel", function () { window.HINT.hide(); }, { passive: true, capture: true });
+    document.addEventListener("mousemove", function (e) {
+      var t = e.target;
+      var el = (t && t.closest) ? t.closest("[data-hint]") : null;
+      if (el === cur) { if (cur) place(e.clientX, e.clientY); return; }
+      cur = el;
+      if (!el) { tip.style.display = "none"; return; }
+      /* 鼠标正压着的元素如果自己弹了浮标签（左条、集数），就别再叠一层文字 */
+      if (el.hasAttribute("data-nohint") || (el.classList && (el.classList.contains("vb") ||
+          el.classList.contains("sr") || el.classList.contains("ep")))) { tip.style.display = "none"; return; }
+      tip.textContent = el.getAttribute("data-hint") || "";
+      if (!tip.textContent) { tip.style.display = "none"; return; }
+      tip.style.display = "block";
+      place(e.clientX, e.clientY);
+    });
+  })();
+
+  /* ---------- v1.024：首屏骨架，库还没回来就摆一排灰卡 ---------- */
+  function paintSkel() {
+    var g = $("#grid");
+    if (!g || g.children.length) return;
+    var h = "";
+    for (var i = 0; i < 6; i++) h += '<div class="skel"><i></i><b></b><s></s></div>';
+    g.innerHTML = h;
+  }
   /* 启动 */
   window.DBG = new URLSearchParams(location.search).get("dbg") === "1";
   switchView("home");
