@@ -126,7 +126,7 @@
   <div class="wrap in">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#2a1105" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>
     <div class="brand">红果短剧<small>桌面皮肤版 · 非官方界面项目</small></div>
-    <span class="tag-v">v1.020</span>
+    <span class="tag-v">v1.021</span>
     <nav class="nav">
       <a href="#shots">截图</a>
       <a href="#feat">能干什么</a>
@@ -163,6 +163,10 @@
       <div class="card"><img src="./preview-jump2.jpg" alt="跳转详情"><div class="cap">点完直接进详情，选集落在那一集</div></div>
       <div class="card"><img src="./preview-side.jpg" alt="折叠侧栏"><div class="cap">左栏平时只有图标，68px</div></div>
       <div class="card"><img src="./preview-side2.jpg" alt="展开侧栏"><div class="cap">鼠标移进去自己铺开成抽屉</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><img src="./preview-vrail.jpg" alt="播放页"><div class="cap">播放时左上只剩一枚返回钮，移过去才出剧名与集数</div></div>
+      <div class="card"><img src="./preview-detail.jpg" alt="详情页"><div class="cap">详情页左侧同样的图标条：播放 / 收藏 / 追更 / 关闭</div></div>
     </div>
   </section>
 
@@ -213,6 +217,7 @@
     <div class="h2">最近的版本</div>
     <div class="sub">每个版本的细节都写在仓库的 <a href="https://github.com/guhang42-jpg/hongguo-desktop-skin/tree/main/docs" style="color:#ffb057">docs/</a> 里。</div>
     <div class="timeline">
+      <div class="item"><b>v1.021</b><time>2026-11-23</time><p>播放页和详情页那两条竖栏也收成图标。播放页 96→58，折叠态只剩一枚返回钮，鼠标移上去才铺开 214 露出剧名与集数；详情页 80→58，四个 46×46 图标格，悬停铺到 156 才出文字，并且改成绝对定位浮在面板上，展开时不挤压右侧内容。</p></div>
       <div class="item"><b>v1.020</b><time>2026-11-23</time><p>把那条抽屉磨细。收起方向加了 100ms 延迟，鼠标顺着边缘划过去不再弹一下；展开态底色变实，背后内容不再透过字；小窗形态禁展开；<code>backdrop-filter</code> 退出过渡，展开那 340ms 少掉一轮逐帧重绘；图标 hover 从上浮的位移代替放大。</p></div>
       <div class="item"><b>v1.019</b><time>2026-11-23</time><p>左边那条栏收起来了。104px 的竖排文字换成 68px 的图标窄条，只留 logo、四个线性图标、小果那颗球和头像；鼠标移进去自己铺开成 196px 的玻璃抽屉，文字淡着浮上来，移开自己收回。抽屉浮在内容上，不推挤主内容。</p></div>
       <div class="item"><b>v1.018</b><time>2026-11-23</time><p>她说的剧名能点了。开场白那句「你上次停在《某部剧》第 109 集」里，书名号就是链接，点一下关掉面板、打开详情、选集落在那一集；上一次会话留下的旧消息也能点，按书名号里的字回库里认一次再跳。</p></div>
