@@ -40,31 +40,6 @@ ui/version.txt                   ← 程序自己的版本号，更新检查要�
 ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB 运行时
 ```
 
-## 截图
-
-| 发现页 | 找剧 · 分类筛选 |
-|---|---|
-| ![](docs/preview-home.jpg) | ![](docs/preview-seasons.jpg) |
-
-| 榜单 · 分类排行 | 我的追剧 |
-|---|---|
-| ![](docs/preview-rank.jpg) | ![](docs/preview-mine.jpg) |
-
-| 剧场播放 · 真全屏 | 小窗模式（右下角挂机） |
-|---|---|
-| ![](docs/preview-theater.jpg) | ![](docs/preview-mini.jpg) |
-
-| 小果（本机剧库助理） | 问它一部剧讲什么 |
-|---|---|
-| ![](docs/preview-ai.jpg) | ![](docs/preview-ai2.jpg) |
-
-| 没剧名也能问（语义版） | 「找部修仙的」 |
-|---|---|
-| ![](docs/preview-sem.jpg) | ![](docs/preview-sem2.jpg) |
-
-| 换个说法也认得（语义版） | 她记得你说过什么 |
-|---|---|
-| ![](docs/preview-intent.jpg) | ![](docs/preview-mem.jpg) |
 
 ## 这版有什么
 
