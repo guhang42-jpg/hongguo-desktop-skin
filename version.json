@@ -1,7 +1,7 @@
 {
-  "version": "1.032",
-  "tag": "v1.032",
+  "version": "1.033",
+  "tag": "v1.033",
   "date": "2026-11-23",
-  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.032",
-  "notes": "真能播了：官方 multi_video_model 取流接口被停服（一律 200 + 0 字节），改走官网页兜底 POST /api/video/protected/fallback-play-info（item_id）取完整 360P H.264 明文 MP4，外壳在本机 127.0.0.1 开小转发口补 Referer 并透传 Range；实测第 1 集 116.52s、第 2 集 89.23s 出画；撞空后 8 分钟内换集不再干等 core"
+  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.033",
+  "notes": "修「点具体集数没反应」的真因：分集格子只挂了 onmouseenter 预取、从来没有 click，也没有容器委托，所以点哪一集都不会发生任何事；现在 #sEps 挂 click 委托 → playEpisode(n)，实测 .click() 第 3 集一路出画（web fallback OK ep3 dur=62.37s）；无视频号时也不再静默退回详情页，改成一句 toast"
 }

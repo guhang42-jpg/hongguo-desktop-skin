@@ -631,6 +631,19 @@
       }
     }
     var eps = $("#sEps");
+    /* 分集格子的点击入口：以前每个格只挂了 onmouseenter 预取，没有 click ——
+       所以「点具体集数没反应」不是取流的问题，是按钮压根没接上 playEpisode。
+       用容器委托绑一次，renderEpisodeGrid 反复重建 innerHTML 也不会掉。 */
+    if (eps && !eps.dataset.picked) {
+      eps.dataset.picked = "1";
+      eps.addEventListener("click", function (e) {
+        var b = e.target && e.target.closest ? e.target.closest(".ep") : null;
+        if (!b || !eps.contains(b)) return;
+        var n = parseInt(b.dataset.i, 10);
+        if (isNaN(n)) return;
+        playEpisode(n);
+      });
+    }
     eps.innerHTML = "";
     var from = cur * EP_SEG, to = Math.min(total, from + EP_SEG);
     for (var i = from; i < to; i++) {
@@ -872,7 +885,12 @@
 
   function playEpisode(i) {
     clearNextCue();
-    if (!S.vids.length) { if (S.active) openDetail(S.active, 0); return; }
+    if (!S.vids.length) {
+      /* 分集列表拿到了集数、却没有一集的视频号：别静默退回详情页（那样点下去看着就是"没反应"） */
+      toast("这一部还没取到视频号，重开一次详情再点");
+      if (S.active) openDetail(S.active, 0);
+      return;
+    }
     S.epIndex = Math.max(0, Math.min(i, S.vids.length - 1));
     /* 用户主动点某一集：这一集看过一半就接着上次的位置，没看过就从头 */
     S.resumeAt = resumeOf(S.active && S.active.series_id, S.epIndex);
@@ -4465,13 +4483,21 @@
       var jv = (function () { try { return new URLSearchParams(location.search).get("jump"); } catch (e) { return null; } })();
       if (jv) setTimeout(function () {
         var a2 = String(jv).split("~");
-        var sid = a2[0], epi = parseInt(a2[1], 10), auto = a2[2] === "play";
+        var sid = a2[0], epi = parseInt(a2[1], 10), auto = a2[2] === "play", pick = a2[2] === "pick";
         if (!sid) return;
         var go = function (it) {
           if (!it) return;
           touch("play");
           openDetail(it, isNaN(epi) ? 0 : Math.max(0, epi - 1));
           if (auto) setTimeout(function () { playEpisode(isNaN(epi) ? 0 : Math.max(0, epi - 1)); }, 1400);
+          /* 联调 ~pick：不走 playEpisode 直调，而是真的去点分集格子，
+             验证"格子 → click 委托 → 开播"这条 DOM 链（用户报的就是这里没反应） */
+          if (pick) setTimeout(function () {
+            var n = isNaN(epi) ? 0 : Math.max(0, epi - 1);
+            var b = document.querySelector('#sEps .ep[data-i="' + n + '"]');
+            if (!b) { toast("联调：没找到第 " + (n + 1) + " 集的格子"); return; }
+            b.click();
+          }, 2600);
         };
         lib(function (l) {
           var es = (l && l.entries) || [], hit = null, i, dr;

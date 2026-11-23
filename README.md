@@ -3,17 +3,17 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.032**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.032-ff7a45?style=flat-square)
+**当前版本：v1.033**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.033-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.032` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.032
-- **轻量版**（不含语义模型，6.99 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.032/hongguo-skin-1.032-win64.zip`
-  - SHA256：`3D61FA39177C8917AE242241688B72D51D6A84DEB8E1E2C2190B552ABF0EBD85`（6,991,080 B）
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.032/hongguo-skin-1.032-win64-ai.zip`
-  - SHA256：`10E7CB2E3317A43A0BF3C29AFE2E764849EB8BAFD18637177F5FD03A3ECC3B3B`（25,416,075 B）
+- 最新版：`v1.033` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.033
+- **轻量版**（不含语义模型，6.99 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.033/hongguo-skin-1.033-win64.zip`
+  - SHA256：`92B72834F7409054F97DB79B3FE86B73FFDFBE3999BD07210BD20342AC90EFE9`（6,991,639 B）
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.033/hongguo-skin-1.033-win64-ai.zip`
+  - SHA256：`B59E5EA54BDF2595819260158C8F9BBFED56C7628C3B5129FD24865EC8069C20`（25,416,634 B）
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
 - 上一版（v1.030）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.030
 
@@ -70,6 +70,7 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 
 工程：
 
+- **「点具体集数没反应」的真因：格子从来没接过点击**（v1.033）：详情页那排分集格子（1、2、3…）只挂了 `onmouseenter`（用来提前预取），**压根没有 click 监听** —— 所以无论 core 通不通，点下去都不会有任何事发生；「播放」按钮能播是因为它有 `onclick = playEpisode(0)`。现在在 `#sEps` 上挂一个容器级 click 委托，打到哪一格就播哪一集，`renderEpisodeGrid` 反复重建 innerHTML 也不会掉；`playEpisode` 里"没有视频号"那条也从静默退回详情页改成一句 toast（点下去再不会看着像没反应）。实测：`--jump <sid>~3~pick` 让程序真的去 `.click()` 第 3 个格子，日志依次出现 `stream req FAIL ep3` → `web fallback ep3` → `metadata ok 360x640 dur=62.368798` → `web fallback OK ep3 dur=62.37s`
 - **官方取流断供，改走官网页兜底，真能播了**（v1.032）：core 走的那条 `novel/player/multi_video_model/v1/` 已被官方停服 —— 对任何剧、任何 `vid` 都是 HTTP 200 + 0 字节。把官方最新桌面内核 0.2.179 单独起在临时端口复测，`play/info` 照样 502 `VIDEO_MODEL_EMPTY`，所以不是"我们版本旧"；签名与设备指纹在服务端校验，皮肤版自己也补不出来。换了条路：官网页播放器给普通访问者留的那个入口 `POST https://hongguoduanju.com/api/video/protected/fallback-play-info`（body `{"item_id":"<vid>"}`，`vid` 字段会回 400，必须是 `item_id`）能拿到完整一集的 360P H.264/AAC 明文 MP4。那台 CDN 只认官网自己的 Referer，带本机地址直接 403，所以外壳在本机 `127.0.0.1` 上开了一个小转发口（`/webplay` 取地址、`/media` 带 Referer 转发并透传 `Range`，端口由系统分配、日志里叫「官网页片源代理」）。实测第 1 集 `360×640 / 116.52s`、第 2 集 `89.23s`，都是完整正片
 - **断供期间不再每集干等 4 秒**（v1.032）：core 现在每集要 3.5~4.8 秒才回空，第一次撞空就记一个 8 分钟窗口，窗口内换集直接走兜底、基本秒开；兜底自己也失败就把窗口清掉，下一集老老实实先问 core —— 官方哪天修好了，不改代码自己回高清
 - **兜底也断就明说**（v1.032）：浮层写「这一集拿不到片源」并给「↗ 打开官方网页」，不再无限转圈；播放器右上多一颗「360P · 官网」小标，点一下重问 core 并换回常规线路（core 恢复后 720P/1080P 照原样能拿）。顺带把 SEO 页那支 `360p.mp4`（只有 10 秒的预告）排除掉了，没拿它冒充正片
@@ -182,6 +183,27 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.033（2026-11-23）
+
+反馈很具体：**「播放」能播，点具体集数没反应。** 一查是两件完全不相干的事叠在一起 —— 播放链路在 v1.032 修好了，但分集按钮从来没接过点击。
+
+**真因**：`renderEpisodeGrid()` 建那排格子时只挂了 `onmouseenter`（提前预取下一集），**没有 `onclick`**，`#sEps` 上也没有任何 click 委托。所以不管 core 通不通，点 2、3、4 集都不会有任何事发生；「播放」按钮能播，只是因为它自己有 `onclick = playEpisode(0)`。这件事和取流失败是两条独立的线，只在反馈里被一起说成"点了没反应" —— 上一版把取流修通之后，这排从没接线的格子才单独露出来。
+
+**修法**：在 `#sEps` 挂容器级 click 委托（`closest(".ep")` → `parseInt(dataset.i)` → `playEpisode(n)`），只绑一次、用 `dataset.picked` 打标，`renderEpisodeGrid` 反复重建 innerHTML 也不会掉；顺手把 `playEpisode` 里「`!S.vids.length` 就静默 `openDetail()` 再 return」改成先 toast 一句「这一部还没取到视频号，重开一次详情再点」，再退回详情页 —— 这条以前点下去看着完全像卡死。
+
+**实测**（不靠点鼠标，走 DOM 真实点击）：加了联调参数 `--jump <sid>~3~pick`，程序自己 `querySelector('#sEps .ep[data-i="2"]').click()`：
+
+```
+stream req FAIL ep3 3878ms VIDEO_MODEL_EMPTY
+web fallback ep3 vid=7694117502464314392 src=https://v26-hgweb.qznovelvod.com/…
+metadata ok 360x640 dur=62.368798
+web fallback OK ep3 dur=62.37s
+```
+
+从「格子上的一次 click」到「第 3 集出画面」这条链通了：委托命中 → `playEpisode(2)` → `openViewer()` → `loadStream()` → core 返空 → 官网兜底 → 出画 62.37 秒。
+
+**顺带**：（`--jump ...~pick` 是联调用的，真机不触发；`~play` 仍然保留。）
 
 ### v1.032（2026-11-23）
 
