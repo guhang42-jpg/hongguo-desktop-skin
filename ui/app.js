@@ -115,6 +115,10 @@
       try { seen = localStorage.getItem(UPDKEY) || ""; } catch (e) { }
       if (seen === v) return;            /* 同一版本只提一次，别每次开机都来一遍 */
     }
+    try {
+      VER.remote = String(v || ""); VER.remoteUrl = url || ""; VER.at = Date.now();
+      if ($("#verBlk") && $("#setWrap") && $("#setWrap").classList.contains("on")) paintVer();
+    } catch (e) { }
     var line = "新版 v" + v + " 出来了 · 点这里看看";
     if (s) s.textContent = line;
     t.classList.add("on", "upd");
@@ -305,7 +309,18 @@
     renderList(list, false, oldMap);
     if (isRank && list.length) saveSnapshot(list);
     if (!list.length) {
-      $("#grid").innerHTML = '<div class="empty">' + (S.items.length ? "这个筛选条件下暂时没有剧<br>换一个题材或集数试试" : "这里暂时没有内容<br>换个关键词或分类试试") + "</div>";
+      $("#grid").innerHTML = "";
+      if (S.items.length) {
+        $("#grid").appendChild(emptyBox({ icon: "filter", text: "这个筛选条件下没有剧", sub: "换个题材、集数或者排序再试", btn: "清除筛选", btnIcon: false, onClick: function () {
+          S.filterTag = ""; S.filterEps = "all"; S.sort = "default"; renderFilters(); paintList();
+        } }));
+      } else if (S.view === "search" || S.q) {
+        $("#grid").appendChild(emptyBox({ icon: "search", text: "没搜到「" + (S.q || "") + "」", sub: "剧名对不上？换一个关键词，或者去小果那儿按意思找", btn: "清空重搜", onClick: function () {
+          S.q = ""; if ($("#q")) $("#q").value = ""; switchView("home");
+        } }));
+      } else {
+        $("#grid").appendChild(emptyBox({ icon: "film", text: "这里暂时没有内容", sub: "换个分类，或者过一会儿点标题右边那颗钮刷新", btn: "回发现页", onClick: function () { switchView("home"); } }));
+      }
     }
     $("#secCount").textContent = S.items.length ? "共 " + list.length + " / " + S.items.length + " 部" : "";
   }
@@ -563,7 +578,8 @@
     if (rank) { rank.classList.toggle("foldIn", !!S.collapsed.rank); rank.querySelector(".rrow").style.display = S.collapsed.rank ? "none" : ""; }
     [].forEach.call(document.querySelectorAll("[data-fold]"), function (b) {
       var k = b.dataset.fold;
-      b.textContent = S.collapsed[k] ? "展开 ▾" : "收起 ▴";
+      var off = !!S.collapsed[k];
+      b.setAttribute("data-dir", off ? "down" : "up"); b.setAttribute("data-hint", off ? "展开这块" : "收起这块");
     });
   }
   [].forEach.call(document.querySelectorAll("[data-fold]"), function (b) {
@@ -780,7 +796,7 @@
     if (typeof AMB !== "undefined" && AMB) AMB.theme(item);
     $("#sCover").src = coverOf(item);
     var gc = coverOf(item);
-    if ($("#sGlowImg")) { $("#sGlowImg").style.backgroundImage = gc ? 'url("' + gc + '")' : "none"; $("#sGlow").classList.toggle("on", !!gc); }
+    if ($("#sGlowImg")) { $("#sGlowImg").style.backgroundImage = gc ? 'url("' + gc + '")' : "none"; $("#sGlow").classList.toggle("on", !!gc && LS.get("hg_glow", 1) !== 0); }
     $("#sTitle").textContent = item.title || "";
     $("#sSub").textContent = [
       item.episode_count ? "全 " + item.episode_count + " 集" : "",
@@ -876,7 +892,7 @@
     if (typeof AMB !== "undefined" && AMB) AMB.play(false);
   }
 
-  var AUTO_FS = true;   /* 打开播放默认进真全屏；想回剧场面板方式，把它改成 false */
+  var AUTO_FS = LS.get("hg_auto_fs", 1) !== 0;   /* 设置页可切；默认进真全屏 */
   var FFTEST = /[?&]ff=1/.test(location.search);   /* 联调用：每集自动跳到末尾 1.2 秒，快速验证自动接集 */
   /* ---------- v1.025：播放页剧名卡 + 右侧集数队列 ---------- */
   function paintVTitle(d) {
@@ -924,6 +940,381 @@
       if (near) qq.classList.add("hot");
       else t = setTimeout(function () { qq.classList.remove("hot"); }, 260);
     });
+  })();
+  /* ---------- v1.026：空态三件套（居中图标 + 一句话 + 一枚胶囊按钮） ---------- */
+  var ECO = {
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.7" cy="10.7" r="6.4"/><path d="M15.4 15.4L20.4 20.4"/></svg>',
+    film: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.6"/><path d="M3.2 9.4h17.6M3.2 14.6h17.6M8.2 4.6v14.8M15.8 4.6v14.8"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20c-4.5-3.1-7.2-5.9-7.2-9 0-2.2 1.7-3.8 3.8-3.8 1.5 0 2.8.8 3.4 1.9.6-1.1 1.9-1.9 3.4-1.9 2.1 0 3.8 1.6 3.8 3.8 0 3.1-2.7 5.9-7.2 9z"/></svg>',
+    filter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.4h16M7 12h10M10 17.6h4"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.6"/><path d="M10.2 8.8l5 3.2-5 3.2z"/></svg>'
+  };
+  function emptyBox(o) {
+    o = o || {};
+    var box = document.createElement("div");
+    box.className = "empty";
+    box.style.gridColumn = "1 / -1";
+    var ic = document.createElement("div");
+    ic.className = "ei";
+    ic.innerHTML = ECO[o.icon] || ECO.film;
+    box.appendChild(ic);
+    if (o.text) {
+      var t = document.createElement("div");
+      t.className = "et"; t.textContent = o.text;
+      box.appendChild(t);
+    }
+    if (o.sub) {
+      var s = document.createElement("div");
+      s.className = "es"; s.textContent = o.sub;
+      box.appendChild(s);
+    }
+    if (o.btn) {
+      var b = document.createElement("button");
+      b.className = "eb";
+      b.innerHTML = (o.btnIcon === false ? "" : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5.5l6.5 6.5L9 18.5"/></svg>');
+      b.appendChild(document.createTextNode(o.btn));
+      b.onclick = function () { if (o.onClick) o.onClick(); };
+      box.appendChild(b);
+    }
+    return box;
+  }
+
+  /* ---------- v1.026：设置面板 ---------- */
+  var SETW = $("#setWrap");
+  var SETGRP = { ui: "界面", play: "播放", local: "本机", adv: "高级" };
+  var SETTAB = "ui";
+
+  function setFlag(k, def) { var v = LS.get("hg_" + k, def === undefined ? 1 : def); return v !== 0; }
+  function putFlag(k, on) { LS.set("hg_" + k, on ? 1 : 0); }
+
+  function selRow(title, sub, onText, offText, isOn, onChange) {
+    var row = document.createElement("div");
+    row.className = "row";
+    var tx = document.createElement("div");
+    tx.className = "tx";
+    tx.innerHTML = "<b></b><span></span>";
+    tx.querySelector("b").textContent = title;
+    tx.querySelector("span").textContent = sub || "";
+    row.appendChild(tx);
+    var sw = document.createElement("button");
+    sw.className = "sw";
+    sw.setAttribute("data-on", isOn ? "1" : "0");
+    sw.setAttribute("data-hint", (isOn ? onText : offText) || (isOn ? "已开" : "已关"));
+    sw.innerHTML = "<i></i>";
+    sw.onclick = function () {
+      var next = sw.getAttribute("data-on") !== "1";
+      sw.setAttribute("data-on", next ? "1" : "0");
+      sw.setAttribute("data-hint", (next ? onText : offText) || (next ? "已开" : "已关"));
+      onChange(next);
+    };
+    row.appendChild(sw);
+    return row;
+  }
+
+  function segRow(title, sub, defs, active, pick) {
+    var row = document.createElement("div");
+    row.className = "row";
+    var tx = document.createElement("div");
+    tx.className = "tx";
+    tx.innerHTML = "<b></b><span></span>";
+    tx.querySelector("b").textContent = title;
+    tx.querySelector("span").textContent = sub || "";
+    row.appendChild(tx);
+    var seg = document.createElement("div");
+    seg.className = "seg2";
+    defs.forEach(function (d) {
+      var b = document.createElement("button");
+      b.textContent = d.n;
+      b.className = d.k === active ? "on" : "";
+      b.onclick = function () { pick(d.k); };
+      seg.appendChild(b);
+    });
+    row.appendChild(seg);
+    return row;
+  }
+
+  function infoRow(title, sub, rightHtml) {
+    var row = document.createElement("div");
+    row.className = "row";
+    var tx = document.createElement("div");
+    tx.className = "tx";
+    tx.innerHTML = "<b></b><span></span>";
+    tx.querySelector("b").textContent = title;
+    tx.querySelector("span").textContent = sub || "";
+    row.appendChild(tx);
+    if (rightHtml) {
+      var rt = document.createElement("div");
+      rt.innerHTML = rightHtml;
+      var first = rt.firstElementChild;
+      if (first) row.appendChild(first);
+    }
+    return row;
+  }
+
+  function actRow(title, sub, btnText, danger, onClick) {
+    var row = document.createElement("div");
+    row.className = "row";
+    var tx = document.createElement("div");
+    tx.className = "tx";
+    tx.innerHTML = "<b></b><span></span>";
+    tx.querySelector("b").textContent = title;
+    tx.querySelector("span").textContent = sub || "";
+    row.appendChild(tx);
+    var b = document.createElement("button");
+    b.className = "act" + (danger ? " danger" : "");
+    b.textContent = btnText;
+    b.onclick = onClick;
+    row.appendChild(b);
+    return row;
+  }
+
+  function grpBox(head) {
+    var g = document.createElement("div");
+    g.className = "grp";
+    var h = document.createElement("div");
+    h.className = "grp-h";
+    h.textContent = head;
+    g.appendChild(h);
+    return g;
+  }
+
+  /* 版本块：版本号 + build + 有没有新版 + 两枚并排按钮 */
+  var VER = { local: "", build: "", remote: "", remoteUrl: "", at: 0, busy: false };
+
+  function verCmp(a, b) {
+    var pa = String(a || "").split("."), pb = String(b || "").split(".");
+    for (var i = 0; i < Math.max(pa.length, pb.length); i++) {
+      var x = parseInt(pa[i] || "0", 10) || 0, y = parseInt(pb[i] || "0", 10) || 0;
+      if (x !== y) return x > y ? 1 : -1;
+    }
+    return 0;
+  }
+
+  function paintVer() {
+    var blk = $("#verBlk");
+    if (!blk) return;
+    var newer = VER.remote && VER.local && verCmp(VER.remote, VER.local) > 0;
+    var tip, tipCls;
+    if (VER.busy) { tip = "检查中…"; tipCls = "vtip"; }
+    else if (newer) { tip = "发现新版本 v" + VER.remote; tipCls = "vtip new"; }
+    else if (VER.at) { tip = "已是最新"; tipCls = "vtip"; }
+    else { tip = "还没检查过"; tipCls = "vtip"; }
+    blk.innerHTML =
+      '<div class="vl"><b></b><span></span></div>' +
+      '<div class="vr"><span class="' + tipCls + '"></span>' +
+      '<button class="vb2" id="verCheck">重新检查</button>' +
+      '<button class="vb2 pri" id="verDl">打开下载页</button></div>';
+    var b = blk.querySelector(".vl b");
+    b.textContent = VER.local ? "v" + VER.local : "—";
+    var lv = document.createElement("span");
+    lv.className = "lvt";
+    lv.textContent = "本机版本";
+    b.appendChild(lv);
+    blk.querySelector(".vl span").textContent = VER.build ? VER.build : "build —";
+    blk.querySelector(".vtip").textContent = tip;
+    var dl = blk.querySelector("#verDl");
+    dl.onclick = function () {
+      var u = VER.remoteUrl || "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/latest";
+      try { if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(JSON.stringify({ action: "openUrl", url: u })); else window.open(u, "_blank"); toast("下载页交给浏览器"); } catch (e) { toast("下载页：" + u); }
+    };
+    blk.querySelector("#verCheck").onclick = function () { checkVer(true); };
+  }
+
+  function checkVer(manual) {
+    if (VER.busy) return;
+    VER.busy = true;
+    if (manual) paintVer();
+    var done = false;
+    function finish(ok, remote, url, notes) {
+      if (done) return;
+      done = true;
+      VER.busy = false;
+      if (ok) {
+        VER.remote = remote; VER.remoteUrl = url; VER.at = Date.now();
+        if (verCmp(remote, VER.local) > 0) {
+          toastUpd(remote, url || "", manual);
+        } else if (manual) toast("已经是最新版 v" + (VER.local || "?"));
+      } else if (manual) {
+        toast("连不上，网络或代理的问题");
+      }
+      paintVer();
+    }
+    var timer = setTimeout(function () { finish(false); }, 9000);
+    fetch("https://raw.githubusercontent.com/guhang42-jpg/hongguo-desktop-skin/main/version.json", { cache: "no-store" })
+      .then(function (r) { clearTimeout(timer); return r.ok ? r.json() : finish(false); })
+      .then(function (j) {
+        if (!j) return;
+        finish(true, String(j.version || ""), String(j.url || ""), String(j.notes || ""));
+      })
+      .catch(function () { clearTimeout(timer); finish(false); });
+  }
+
+  function renderSet() {
+    var body = $("#setBody");
+    if (!body) return;
+    body.innerHTML = "";
+    var t = $("#setTitle");
+    if (t) t.textContent = SETGRP[SETTAB] || "界面";
+
+    [].forEach.call($("#setNav").children, function (b) {
+      b.classList.toggle("on", b.dataset.k === SETTAB);
+    });
+
+    if (SETTAB === "ui") {
+      var g1 = grpBox("外观");
+      g1.appendChild(selRow("详情页封面糊底", "拿当前这部剧的封面当详情面板底色，跟随剧换色", "已开", "已关",
+        setFlag("glow"), function (on) {
+          putFlag("glow", on);
+          if (!on && $("#sGlow")) $("#sGlow").classList.remove("on");
+          else if (on && S.active && $("#sGlow") && sheet.classList.contains("on")) $("#sGlow").classList.add("on");
+        }));
+      g1.appendChild(selRow("热播榜默认收起", "进首页先收起榜单，想看再点标题右边那颗钮", "已收起", "已展开",
+        !!S.collapsed.rank, function (on) {
+        S.collapsed.rank = !on;
+        applyFold();
+      }));
+      body.appendChild(g1);
+
+      var g2 = grpBox("布局");
+      g2.appendChild(infoRow("左侧栏", "固定 68px 图标条，鼠标压到哪一项才浮出名字", '<span class="mono">68px · 常驻图标</span>'));
+      g2.appendChild(infoRow("详情面板", "右侧滑入，选集 8 列铺满", '<span class="mono">700px · 8 列</span>'));
+      body.appendChild(g2);
+    } else if (SETTAB === "play") {
+      var p1 = grpBox("播放");
+      p1.appendChild(selRow("进播放页直接全屏", "关掉就停在剧场面板，自己点全屏", "全屏", "剧场",
+        AUTO_FS, function (on) {
+          AUTO_FS = on;
+          LS.set("hg_auto_fs", on ? 1 : 0);
+          toast(on ? "下次播放直接全屏" : "下次播放停在剧场面板");
+        }));
+      p1.appendChild(segRow("画面铺满", "全屏时按哪种方式铺", [
+        { k: "cover", n: "铺满" }, { k: "contain", n: "适应" }
+      ], S.fit === "cover" ? "cover" : "contain", function (k) {
+        S.fit = k; S.fitManual = true;
+        applyFit();
+        LS.set("hg_fit_v1", k);
+        renderSet();
+        toast(k === "cover" ? "已切成铺满，画面不留黑边" : "已切成适应，整幅画面都看得见");
+      }));
+      body.appendChild(p1);
+
+      var p2 = grpBox("取流线路");
+      p2.appendChild(segRow("默认线路", "换源时优先走哪条", [
+        { k: "0", n: "高清完整" }, { k: "1", n: "高清分段" }, { k: "2", n: "标清完整" }
+      ], String(LS.get("hg_src_ok", 0) || 0), function (k) {
+        var i = Math.max(0, Math.min(2, Number(k) || 0));
+        LS.set("hg_src_ok", i);
+        S.src = makeSrc(i);
+        renderSet();
+        toast("默认线路已记下，下一集起生效");
+      }));
+      p2.appendChild(infoRow("换源策略", "出画失败会按线路表依次往下试，记住能出画那条", '<span class="mono">6 条 · 自动</span>'));
+      body.appendChild(p2);
+
+      var p3 = grpBox("快捷键");
+      p3.appendChild(infoRow("暂停 / 继续", "", '<div class="kbds"><kbd>Space</kbd></div>'));
+      p3.appendChild(infoRow("上一集 / 下一集", "", '<div class="kbds"><kbd>←</kbd><kbd>→</kbd></div>'));
+      p3.appendChild(infoRow("全屏切换", "", '<div class="kbds"><kbd>F</kbd></div>'));
+      p3.appendChild(infoRow("弹幕开关", "", '<div class="kbds"><kbd>D</kbd></div>'));
+      p3.appendChild(infoRow("倍速循环", "1x → 1.25 → 1.5 → 2x", '<div class="kbds"><kbd>R</kbd></div>'));
+      p3.appendChild(infoRow("静音", "", '<div class="kbds"><kbd>M</kbd></div>'));
+      p3.appendChild(infoRow("退出播放 / 关面板", "", '<div class="kbds"><kbd>Esc</kbd></div>'));
+      p3.appendChild(infoRow("一键摸鱼", "窗口当场变成一张 Excel 台账", '<div class="kbds"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>M</kbd></div>'));
+      body.appendChild(p3);
+    } else if (SETTAB === "local") {
+      var l1 = grpBox("数据");
+      l1.appendChild(infoRow("数据目录", "剧库、收藏、观看进度、小果的记忆", '<span class="mono">%APPDATA%\\HonggoDesktop</span>'));
+      l1.appendChild(infoRow("本地接口", "core 只在本机监听，不出这台机器", '<span class="mono">127.0.0.1:18797</span>'));
+      l1.appendChild(infoRow("看过的集", "记在本地，用来给选集格画进度线", '<span class="mono" id="setResumeCnt">—</span>'));
+      body.appendChild(l1);
+      var cnt = $("#setResumeCnt");
+      if (cnt) {
+        var total = Object.keys(RESUME).length, seen = 0, fin = 0;
+        Object.keys(RESUME).forEach(function (k) {
+          var r = RESUME[k]; if (!r || !r.t || r.t < 5) return;
+          seen++; if (r.d && r.t > r.d - 6) fin++;
+        });
+        cnt.textContent = seen + " 集 · 看完 " + fin;
+      }
+
+      var l2 = grpBox("清理");
+      l2.appendChild(actRow("清空观看记录", "把每集的续播点和集格进度线一起清掉，收藏不动", "清空", true, function () {
+        if (!window.confirm("清空全部观看记录？续播点和集格底下的进度线都会没了。")) return;
+        RESUME = {};
+        LS.set("hg_resume_v1", RESUME);
+        renderEpisodeGrid(S.epTotal || 0, S.epSeg || 0);
+        toast("观看记录已清空");
+        renderSet();
+      }));
+      l2.appendChild(actRow("小果的记忆", "说「忘了吧」比这儿更彻底，连对话里的偏好一起忘", "去小果说", false, function () {
+        closeSet();
+        if (window.HONGUO_AI && $("#aiball")) $("#aiball").click();
+      }));
+      body.appendChild(l2);
+    } else {
+      var a1 = grpBox("更新");
+      a1.appendChild(infoRow("检查方式", "起界面 12 秒后读一次版本文件，静默失败不打扰", '<span class="mono">version.json</span>'));
+      a1.appendChild(infoRow("上次检查", VER.at ? new Date(VER.at).toLocaleString("zh-CN") : "本次还没查到", '<span class="mono">单次请求</span>'));
+      a1.appendChild(actRow("现在检查一次", "版本号比本机高就在顶部提示，并给下载页", "检查", false, function () {
+        VER.at = 0; paintVer(); checkVer(true);
+      }));
+      body.appendChild(a1);
+
+      var a2 = grpBox("程序");
+      a2.appendChild(infoRow("外壳", "C# + WebView2，只管窗口、托盘、摸鱼和小窗", '<span class="mono">红果短剧.exe</span>'));
+      a2.appendChild(infoRow("界面", "纯前端，换皮都在这四个文件里", '<span class="mono">ui\\index.html · app.js</span>'));
+      a2.appendChild(infoRow("播放内核", "本地 core，取流和接口都走它", '<span class="mono">core\\hongguo-tv-core.exe</span>'));
+      a2.appendChild(infoRow("联网情况", "小果不联网、不调模型、不截屏；只有版本检查会读一次版本文件", '<span class="mono">一次请求</span>'));
+      body.appendChild(a2);
+    }
+
+    paintVer();
+  }
+
+  function openSet(tab) {
+    SETTAB = tab || SETTAB || "ui";
+    if (sheet && sheet.classList.contains("on")) closeDetail();
+    renderSet();
+    $("#setMask").classList.add("on");
+    SETW.classList.add("on");
+  }
+  function closeSet() {
+    SETW.classList.remove("on");
+    $("#setMask").classList.remove("on");
+  }
+
+  (function () {
+    var nav = $("#setNav");
+    if (!nav) return;
+    var icon = {
+      ui: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="4.2" width="17.2" height="15.6" rx="2.6"/><path d="M3.4 8.6h17.2"/><circle cx="6.4" cy="6.4" r=".9" fill="currentColor"/></svg>',
+      play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M10.1 8.6l5.4 3.4-5.4 3.4z"/></svg>',
+      local: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6.6" rx="7.4" ry="2.8"/><path d="M4.6 6.6v10.8c0 1.5 3.3 2.8 7.4 2.8s7.4-1.3 7.4-2.8V6.6"/><path d="M4.6 12c0 1.5 3.3 2.8 7.4 2.8s7.4-1.3 7.4-2.8"/></svg>',
+      adv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17.6l5-5.2 3.4 3.2 6.6-7.2"/><path d="M15.6 8.4h3.6v3.6"/></svg>'
+    };
+    Object.keys(SETGRP).forEach(function (k) {
+      var b = document.createElement("button");
+      b.dataset.k = k;
+      b.innerHTML = (icon[k] || "") + "<span>" + SETGRP[k] + "</span>";
+      b.onclick = function () { SETTAB = k; renderSet(); };
+      nav.appendChild(b);
+    });
+    $("#setClose").onclick = closeSet;
+    $("#setMask").onclick = closeSet;
+    if ($("#setBtn")) $("#setBtn").onclick = function () { openSet("ui"); };
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      if (SETW.classList.contains("on")) {
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+        closeSet();
+      }
+    }, true);
+    fetch("version.txt", { cache: "no-store" }).then(function (r) { return r.ok ? r.text() : ""; })
+      .then(function (t) { VER.local = (t || "").trim(); paintVer(); })
+      .catch(function () { });
+    fetch("build.txt", { cache: "no-store" }).then(function (r) { return r.ok ? r.text() : ""; })
+      .then(function (t) { VER.build = (t || "").trim(); paintVer(); })
+      .catch(function () { });
   })();
   function openViewer() {
     var d = S.detail || S.active;
@@ -1567,10 +1958,10 @@
       sec.innerHTML = '<h2 style="font-size:22px">' + title + '</h2><span class="cnt">' + list.length + ' 部</span><div class="rule"></div>';
       wrap.appendChild(sec);
       if (!list.length) {
-        var empty = document.createElement("div");
-        empty.className = "empty"; empty.style.gridColumn = "1 / -1";
-        empty.textContent = emptyText;
-        wrap.appendChild(empty);
+        var heart = title.indexOf("收藏") >= 0;
+        wrap.appendChild(emptyBox(heart
+          ? { icon: "heart", text: "还没收藏任何剧", sub: "详情页左边那颗 ♡ 点一下就在这里", btn: "去找剧", onClick: function () { switchView("category"); } }
+          : { icon: "play", text: "还没有观看记录", sub: "看一集就会出现在这里，进度也会记住", btn: "去发现", onClick: function () { switchView("home"); } }));
         return;
       }
       list.slice(0, 24).forEach(function (e, i) {
