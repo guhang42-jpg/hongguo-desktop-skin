@@ -281,7 +281,7 @@
   .sbody img{width:124px;height:166px;object-fit:cover;border-radius:16px;flex:none;background:#222}
   .smeta h3{font-size:21px;font-weight:800;margin-bottom:8px;line-height:1.35}
   .smeta .sub{font-size:12.5px;color:var(--muted);line-height:1.8}
-  .sdesc{margin-top:14px;font-size:12px;line-height:1.8;color:var(--muted);max-height:112px;overflow:auto;padding-right:6px}
+  .sdesc{margin-top:14px;font-size:12px;line-height:1.8;color:var(--muted);max-height:112px;overflow:auto;padding-right:8px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
   .sacts{display:flex;gap:10px;margin:16px 0 20px;flex-wrap:wrap}
   /* 多季切换：同一部剧的第 1/2/3 季横排，点了直接换季 */
   .sseasons{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
@@ -296,7 +296,7 @@
   .sseason.on b{color:#ffd7a3}
   .sseason.off{opacity:.45;cursor:default}
   .ephead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}  .ephead span{font-size:12px;color:var(--muted-2)}
-  .eps{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:9px}
+  .eps{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:10px}
   .ep{height:36px;border-radius:11px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:rgba(255,255,255,.86);
     font-size:12.5px;font-family:inherit;cursor:pointer;transition:all .15s var(--ease)}
   .ep:hover{background:rgba(255,255,255,.2);color:#fff}
@@ -304,8 +304,12 @@
   .ep.seen{color:#ffc98a;border-color:rgba(255,178,90,.42)}
   .ep:disabled{opacity:.35;cursor:not-allowed}
   /* 选集分段：10 集一段，长剧不再铺满一屏按钮 */
-  .epsegs{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:thin}
+  .epsegs{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
   .epsegs.hide{display:none}
+  .sdesc::-webkit-scrollbar,.epsegs::-webkit-scrollbar,.smain::-webkit-scrollbar{width:8px;height:8px}
+  .sdesc::-webkit-scrollbar-thumb,.epsegs::-webkit-scrollbar-thumb,.smain::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border-radius:99px}
+  .sdesc::-webkit-scrollbar-thumb:hover,.epsegs::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.34)}
+  .sdesc::-webkit-scrollbar-track,.epsegs::-webkit-scrollbar-track{background:transparent}
   .epseg{flex:0 0 auto;height:30px;padding:0 12px;border-radius:9px;border:1px solid rgba(255,255,255,.12);
     background:rgba(255,255,255,.05);color:var(--muted);font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s var(--ease)}
   .epseg:hover{background:rgba(255,255,255,.14);color:#fff}
@@ -714,32 +718,33 @@
   body.vtopshow .vtop{opacity:1!important;pointer-events:auto}
 
   /* 详情页：左侧图标栏，悬停铺开成抽屉，绝对定位不挤压右侧内容 */
-  .sheet{display:flex;padding:0;overflow:hidden;width:min(580px,94vw)}
-  .srail{position:absolute;left:0;top:0;bottom:0;z-index:2;width:58px;
-    display:flex;flex-direction:column;gap:8px;padding:14px 6px;overflow:hidden;
-    border-right:0;border-radius:0 16px 16px 0;
+  .sheet{display:flex;padding:0;overflow:hidden;width:min(700px,94vw)}
+  .srail{position:absolute;left:0;top:0;bottom:0;z-index:2;width:64px;
+    display:flex;flex-direction:column;gap:8px;padding:46px 6px 14px;overflow:visible;
+    border-radius:0 16px 16px 0;
     background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.012));
-    transition:width .32s cubic-bezier(.22,.82,.24,1),background .28s ease,box-shadow .32s ease}
-  .srail:hover{width:156px;background:linear-gradient(180deg,rgba(15,17,24,.945),rgba(10,12,18,.955));
-    backdrop-filter:blur(16px);box-shadow:16px 0 40px -20px rgba(0,0,0,.8)}
-  .srail .sr{width:46px;height:46px;min-height:46px;flex-direction:row;align-items:center;justify-content:center;
+    box-shadow:inset -1px 0 0 rgba(255,255,255,.06)}
+  .srail .sr{position:relative;width:52px;height:52px;min-height:52px;display:flex;flex-direction:row;align-items:center;justify-content:center;
     gap:0;padding:0;border:0;border-radius:13px;background:rgba(255,255,255,.045);color:var(--muted);
     font-family:inherit;cursor:pointer;
     transition:width .32s cubic-bezier(.22,.82,.24,1),background .2s ease,color .2s ease,
       padding .32s cubic-bezier(.22,.82,.24,1),gap .32s ease,transform .2s var(--ease)}
-  .srail .sr i{font-style:normal;font-size:17px;line-height:1}
-  .srail .sr b{font-size:13px;width:auto;word-break:normal;white-space:nowrap;line-height:1;
-    font-weight:600;text-align:left;opacity:0;transform:translateX(-5px);
-    transition:opacity .2s ease .04s,transform .3s cubic-bezier(.22,.82,.24,1)}
-  .srail:hover .sr{width:144px;justify-content:flex-start;gap:12px;padding-left:16px}
-  .srail:hover .sr b{opacity:1;transform:none}
+  .srail .sr i{font-style:normal;font-size:18px;line-height:1}
+  .srail .sr b{position:absolute;left:58px;top:50%;z-index:4;width:auto;line-height:1;text-align:left;
+    font-size:12.5px;font-weight:600;white-space:nowrap;padding:7px 11px;border-radius:9px;color:#fff;
+    background:rgba(11,13,19,.97);box-shadow:0 8px 22px -12px rgba(0,0,0,.92),inset 0 0 0 1px rgba(255,255,255,.1);
+    opacity:0;pointer-events:none;transform:translate(-6px,-50%);
+    transition:opacity .18s ease,transform .22s cubic-bezier(.22,.82,.24,1)}
+  .srail .sr:hover b{opacity:1;transform:translate(0,-50%)}
+  
+  
   .srail .sr:hover{background:rgba(255,255,255,.14);color:#fff;transform:translateY(-1px)}
   .srail .sr.p{background:linear-gradient(180deg,rgba(255,122,85,.34),rgba(255,122,85,.14));
     color:#fff;box-shadow:0 10px 24px -14px rgba(255,122,85,.9)}
   .srail .sr.p i{color:#ffd8cb}
   .srail .sr.x{background:transparent}
   .srail .sr-sp{flex:1;min-height:8px}
-  .smain{flex:1;min-width:0;margin-left:58px;overflow-y:auto;padding:22px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+  .smain{flex:1;min-width:0;margin-left:64px;overflow-y:auto;padding:22px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
   .smain::-webkit-scrollbar{width:8px}
   .smain::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:99px}
 

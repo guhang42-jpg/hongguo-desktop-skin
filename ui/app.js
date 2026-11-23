@@ -577,8 +577,8 @@
   var sheet = $("#sheet"), mask = $("#mask");
   function closeDetail() { mask.classList.remove("on"); sheet.classList.remove("on"); }
 
-  /* 选集按每 10 集一段折叠：96 集的剧不再铺 96 个按钮 */
-  var EP_SEG = 10;
+  /* 选集按每 24 集一段折叠：面板加宽后一屏放得下三行，不再只给两行留一大片空 */
+  var EP_SEG = 24;
   function renderEpisodeGrid(total, seg) {
     S.epTotal = total;
     var segs = Math.max(1, Math.ceil(total / EP_SEG));

@@ -3,19 +3,19 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.021**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.021-ff7a45?style=flat-square)
+**当前版本：v1.022**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.022-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.021` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.021
-- **轻量版**（不含语义模型，6.95 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.021/hongguo-skin-1.021-win64.zip`
-  - SHA256：`EF60F65433E77A8F4B84ED9B6B5C8CBBE8954614615C9140FB2F74790E0E1D1D`
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.021/hongguo-skin-1.021-win64-ai.zip`
-  - SHA256：`4846A434E6B171B0DDA8EA21BEA02D32DA86F0F5BBF7D37AFBDF74A4DBDE8621`
+- 最新版：`v1.022` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.022
+- **轻量版**（不含语义模型，6.95 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.022/hongguo-skin-1.022-win64.zip`
+  - SHA256：`BA6C1488957E9E7C27756050E7621329BDF56512EDA2696B0E7AD16077243663`
+- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.022/hongguo-skin-1.022-win64-ai.zip`
+  - SHA256：`B0D81B10A858D7ADB1EE8867EEDDF3EF97C7859203146B8BF94753F93FED96DB`
   - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
-- 上一版（v1.020）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.020
+- 上一版（v1.021）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.021
 
 > **一键摸鱼**：任意时候按 `Ctrl+Shift+M`，窗口当场变成一张 Excel 财务台账（标题、任务栏标题一并改掉，剧也顺手暂停静音）；再按一次原样回来。顶栏那颗 ☕ 也是同一个开关。
 
@@ -173,6 +173,16 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.022（2026-11-23）
+
+- **详情面板 580 → 700**：内容区实际多出 120px，选集不再挤在左边一小块
+- **选集一段 10 → 24 集**（`EP_SEG`）：8 列 × 3 行铺满右边缘；段按钮变成 `1-24 / 25-48 / …`，126 集只有 6 段，一行放得下，横向滚动条不再出现
+- 集数格 `minmax(58px,1fr)` → `minmax(62px,1fr)`，gap 9 → 10
+- **左侧图标条 58 → 64**，按钮 46 → 52、图标 17 → 18，右边缘加极淡分隔线；顶部留白 14 → 46 与「详情 · ESC 关闭」齐平
+- **取消整条铺开**：`.srail` 固定 64，改成单按钮悬停时右侧浮出深色小标签（播放/收藏/追更/关闭），右侧内容永不被压、也不重排
+- 简介与选集段滚动条换成 `scrollbar-width:thin` + 8px 圆角浅色拇指，替掉 Windows 默认灰槽
+- 真机三张验证：折叠态 8 列铺满、悬停播放/收藏各浮标签、封面与正文零遮挡
 
 ### v1.021（2026-11-23）
 
