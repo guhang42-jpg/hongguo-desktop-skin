@@ -8,7 +8,7 @@
   var S = {
     view: "home", tab: "recommend", items: [], offset: 0, next: 0, hasMore: false, loading: false,
     hero: null, active: null, detail: null, vids: [], epIndex: 0, playInfo: null, quality: "",
-    danmaku: [], dmIdx: 0, dmOn: true, account: null, library: null, q: "", fs: false, mini: false, fit: "cover",
+    danmaku: [], dmIdx: 0, dmOn: true, account: null, library: null, q: "", fs: false, mini: false, fit: "contain",
     fitManual: false, prevFitFs: null, fsFromMini: false,
     filterTag: "", filterEps: "all", sort: "default", collapsed: { cont: false, rank: true }, gridOpen: false,
     resumeAt: 0, epTotal: 0, epSeg: 0, rate: 1, vol: 1,
@@ -641,6 +641,13 @@
         if (!b || !eps.contains(b)) return;
         var n = parseInt(b.dataset.i, 10);
         if (isNaN(n)) return;
+        /* 官方锁着的集：当场说清楚，别让用户等四秒再看到"取不到播放源" */
+        if (b.dataset.lock === "1") {
+          try { if (window.DBG) window.chrome.webview.postMessage(JSON.stringify({ action: "log", text: "ep" + (n + 1) + " locked 拦截 free=" + S.freeN })); } catch (e2) { }
+          toast("第 " + (n + 1) + " 集要官方解锁" +
+            (S.freeN ? "（这部剧本机免费到第 " + S.freeN + " 集）" : "") + "，官方网页那边也不会公开给这一集");
+          return;
+        }
         playEpisode(n);
       });
     }
@@ -657,9 +664,19 @@
       var pct = resumePct(S.active && S.active.series_id, i);
       if (rv > 4 || pct > 0) b.classList.add("seen");
       b.style.setProperty("--p", Math.max(6, pct) + "%");
-      /* 鼠标扫过哪一集就先给那一集排队预取，点下去基本已经在拉了 */
+      /* 官方锁着的集（locked）在格子上直接标出来：官方没给公开片源，
+         点进去只会白等一轮再报 no_public_source */
+      if (S.locked && S.locked[i]) {
+        b.dataset.lock = "1";
+        b.classList.add("locked");
+        b.setAttribute("aria-label", "第 " + (i + 1) + " 集 · 需在官方解锁");
+      }
+      /* 鼠标扫过哪一集就先给那一集排队预取，点下去基本已经在拉了；锁集别预取，白等 4 秒 */
       b.onmouseenter = (function (n) {
-        return function () { prefetchStream(S.detail, n); };
+        return function () {
+          if (S.locked && S.locked[n]) return;
+          prefetchStream(S.detail, n);
+        };
       })(i);
       eps.appendChild(b);
     }
@@ -833,9 +850,22 @@
         if (!d) throw new Error("详情为空");
         S.detail = d;
         S.vids = d.vid_list || [];
+        /* 官方按集数锁：episodes[i].locked 为 true 的集，core 取流和官网兜底都拿不到片源。
+           记下来给分集格子做标记，别让用户点进去空转四秒再弹一句"取不到"。
+           freeN = 本机免费能看到的集数（core 的 accessible_episode_cnt）。 */
+        var lk = {}, lockN = 0, eps = d.episodes || [];
+        for (var qi = 0; qi < eps.length; qi++) {
+          var qe = eps[qi];
+          if (!qe) continue;
+          var qk = (Number(qe.index) || (qi + 1)) - 1;
+          if (qe.locked) { lk[qk] = 1; lockN++; }
+        }
+        S.locked = lk; S.lockN = lockN;
+        S.freeN = Number(d.accessible_episode_cnt) || (S.vids.length - lockN);
         $("#sTitle").textContent = d.title || item.title || "";
         $("#sDesc").textContent = d.intro || item.intro || "";
-        $("#sEpCount").textContent = "共 " + (d.episode_count || S.vids.length) + " 集";
+        $("#sEpCount").textContent = "共 " + (d.episode_count || S.vids.length) + " 集" +
+          (lockN ? " · 前 " + S.freeN + " 集公开" : "");
         var total = S.vids.length || (d.episode_count || 0);
         renderEpisodeGrid(total, Math.floor(S.epIndex / EP_SEG));
         renderMore(item, d);
@@ -889,6 +919,11 @@
       /* 分集列表拿到了集数、却没有一集的视频号：别静默退回详情页（那样点下去看着就是"没反应"） */
       toast("这一部还没取到视频号，重开一次详情再点");
       if (S.active) openDetail(S.active, 0);
+      return;
+    }
+    if (S.locked && S.locked[i]) {
+      /* 自动接集 / 右侧队列也会走到这里：到锁集就停，别往前跳成一片黑 */
+      toast("第 " + (i + 1) + " 集要官方解锁" + (S.freeN ? "（本机免费到第 " + S.freeN + " 集）" : ""));
       return;
     }
     S.epIndex = Math.max(0, Math.min(i, S.vids.length - 1));
@@ -1208,8 +1243,8 @@
           LS.set("hg_auto_fs_v2", on ? 1 : 0);
           toast(on ? "下次播放直接全屏" : "下次播放停在剧场面板");
         }));
-      p1.appendChild(segRow("画面铺满", "全屏时按哪种方式铺", [
-        { k: "cover", n: "铺满" }, { k: "contain", n: "适应" }
+      p1.appendChild(segRow("画面铺满", "默认按哪种方式铺（原比例最稳）", [
+        { k: "contain", n: "原比例" }, { k: "cover", n: "铺满" }
       ], S.fit === "cover" ? "cover" : "contain", function (k) {
         S.fit = k; S.fitManual = true;
         applyFit();
@@ -1570,7 +1605,8 @@
     MEDIA_DECRYPT_FAILED: "片源解密失败",
     MEDIA_CACHE_WRITE_FAILED: "片源缓存写不进磁盘",
     FALLBACK_API_HTTP: "备用取流接口没通",
-    FALLBACK_API_READ: "备用取流接口读取失败"
+    FALLBACK_API_READ: "备用取流接口读取失败",
+    no_public_source: "官网也没公开这一集的片源"
   };
   function playErrText(raw) {
     var m = String(raw || "");
@@ -1758,9 +1794,12 @@
       lastStreamVid = null;
       webUntil = 0;      /* 官网这条也不通，就别再拦着 core 了，下次老老实实先问 core */
       $("#vOfficial").classList.remove("hide");
+      var lockNote = (S.locked && S.locked[S.epIndex])
+        ? " 官方把这集锁着" + (S.freeN ? "（这部剧本机免费到第 " + S.freeN + " 集）" : "") + "，本机拿不到公开片源。"
+        : "";
       showLoadError("取不到播放源：<i>" + playErrText(raw) + "</i><br>" +
         "<i>core 的取流接口对所有剧都返空，官网页那条兜底接口也没给出这一集的片源（" + why + "）。" +
-        "这一集大概是还没公开；换集或点<span style=\"white-space:nowrap\">「打开官方网页」</span>看。</i>");
+        lockNote + "换一集，或点<span style=\"white-space:nowrap\">「打开官方网页」</span>去官方看。</i>");
       $("#vPlay").textContent = "▶";
       toast("这一集拿不到片源");
     }
@@ -1965,9 +2004,8 @@
       S.wasTheater = document.body.classList.contains("theater");
       document.body.classList.remove("theater");
       if (window.GRO) GRO.mode("fs");
-      if (!S.fitManual && S.fit !== "cover") {   /* 真全屏默认铺满，才谈得上沉浸 */
-        S.prevFitFs = S.fit; S.fit = "cover"; applyFit();
-      }
+      /* 全屏也不再偷改画面模式：用户选的原比例（或铺满）就是全屏里的样子，
+         要换自己在播放条上点 ▤/▭，别一边说着"优先原比例"一边进全屏就裁 */
     } else if (S.wasTheater && viewer.classList.contains("on") && !S.mini) {
       document.body.classList.add("theater");
       if (S.prevFitFs) { S.fit = S.prevFitFs; applyFit(); }
@@ -2767,7 +2805,7 @@
       }, 900);
     } else {
       document.body.classList.remove("idle");
-      S.fit = prevFit || "cover"; applyFit();
+      S.fit = prevFit || "contain"; applyFit();
     }
   }
   function miniResume() {
@@ -2933,8 +2971,8 @@
     }
     if (S.mini) sendMiniSize();
   }
-  /* 默认画面模式就是铺满裁剪：脚本在 body 末尾跑，这里先把 body 的模式类放上，
-     否则第一集出画前 video 没有 object-fit，会露出一圈黑边 */
+  /* 默认画面模式是原比例（整幅画面完整显示）：脚本在 body 末尾跑，这里先把 body 的模式类放上，
+     否则第一集出画前 video 没有 object-fit，会被 CSS 默认值框成别的样子 */
   applyFit();
   function sendMiniSize() {
     if (!S.mini || !video.videoWidth || !window.chrome || !window.chrome.webview) return;

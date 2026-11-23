@@ -1,7 +1,7 @@
 {
-  "version": "1.034",
-  "tag": "v1.034",
+  "version": "1.035",
+  "tag": "v1.035",
   "date": "2026-11-23",
-  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.034",
-  "notes": "默认画质改成最好那档（线路表 1080P 打头，记忆键换 hg_src_v2 免得老索引指错档）；画面默认铺满裁剪不留黑边（S.fit 默认 cover，启动即挂 body.mode-cover）；进播放页不再自动全屏（AUTO_FS 默认 0，键换 hg_auto_fs_v2），全屏只由用户按 ⛶ / 双击 / F；代理对 seek 断连造成的 IOException 静默"
+  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.035",
+  "notes": "画面默认改回原比例（S.fit 默认 contain，删掉进全屏强改 cover 那段，小窗兜底也回 contain，设置页统一「原比例 / 铺满」）；官方按集数锁着的集在详情页格子压暗并标「锁」，点一下直接说「本机免费到第 N 集」，playEpisode 与悬停预取都跳过锁集，不再点进去白等四秒再报 no_public_source"
 }
