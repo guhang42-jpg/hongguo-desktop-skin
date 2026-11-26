@@ -3,17 +3,17 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.036**（2026-11-26）　![version](https://img.shields.io/badge/version-v1.036-ff7a45?style=flat-square)
+**当前版本：v1.037**（2026-11-26）　![version](https://img.shields.io/badge/version-v1.037-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.036` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.036
-- **轻量版**（只有 360P 兜底，6.99 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.036/hongguo-skin-1.036-win64.zip`
-  - SHA256：`D21E9EEC6B81AFF4F1C0E7D9C7E008E2C651C55F987389E08ABD470F50EB5EA4`（6,999,888 B）
-- **高清版**（多带一个 `helper/`，能取真 1080P，62.9 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.036/hongguo-skin-1.036-win64-hd.zip`
-  - SHA256：`3418BB9311B06B2C289AA5139F64A5D922784F673C3A0D2E85CAB365409ABB62`（65,911,924 B）
+- 最新版：`v1.037` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.037
+- **轻量版**（只有 360P 兜底，6.99 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.037/hongguo-skin-1.037-win64.zip`
+  - SHA256：`99DFB9B7BA382C277CD2700A10869B87846DDD9BABEA7483254C62B6DB4CB5BF`（6,999,066 B）
+- **高清版**（多带一个 `helper/`，能取真 1080P，62.9 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.037/hongguo-skin-1.037-win64-hd.zip`
+  - SHA256：`842A30C4CE074DFFD194B705E1FAB625F69506CDE380EE8FF5754DC916F54D20`（65,981,198 B）
   - 点任意一集先取真实 1080P 原片（本机取流→解密→直接播），单集 1~3 秒、约 5 MB；机器放不了 HEVC 会自动转成通用 H.264，慢十几秒但哪台机器都能播
   - 取不到就自动退回轻量版那条 360P 兜底，不会卡住；不要高清就把 `helper/` 整个删掉，程序照样跑
 - 上一版（v1.030）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.030
@@ -165,6 +165,19 @@ helper/                          ← 只有高清版有：自带 Python 运行�
 
 ## 更新日志
 
+### v1.037（2026-11-26）
+
+一句话：**「锁」撤了 —— core 标着 locked 的集，点下去照样出 1080P。** 详情见 [release-1.037.md](docs/releases/release-1.037.md)。
+
+**① 那道锁是怎么来的**：`series/detail` 里 core 给 `accessible_episode_cnt=3`、第 4 集之后 `locked=true`，界面据此把格子压暗、右上角写个「锁」，点一下弹「要官方解锁」。可那只是**网页端**的口径：core 的取流和官网页兜底拿不到，不代表 App 侧拿不到。
+
+**② 实测它其实是开着的**：1080P 那条路根本不看这个字段。同一部剧（48 集，`accessible_episode_cnt=3`）抽样实测：第 4 集 `4,077,207 B / 1080×1924 / 1134 ms`、第 10 集 `4,739,325 B / 1115 ms`、第 20 集 `3,060,740 B / 817 ms`、第 30 集 `4,197,116 B / 986 ms`、第 40 集 `2,019,558 B / 558 ms`、第 48 集 `4,235,146 B / 1573 ms`，全部 1080p。
+
+**③ 这版删了什么**：格子上的压暗与「锁」字、点集时的拦截与 toast、自动接集到锁集时的「停住」、悬停预取跳过锁集的逻辑，以及集数行那句「前 3 集公开」。现在点哪一集都直接进播放。
+
+**④ 不是删掉提示假装能播**：真拿不到仍按老规矩走完三条路（1080P → core → 官网页），最后才出「取不到播放源」，文案改成「1080P 助手、core、官网页三条路都没给出这一集的片源」，不再预设「官方把这集锁着」。
+
+**⑤ 真机证据**：在外壳里直接打 `/hgplay?vid=<第4集>&q=1080p&t=0`，949 ms 返回；`/hgfile` 取回 `4,077,207 B`、`video/mp4`、`accept-ranges: bytes`；ffprobe 确认 `hevc (Main), 1080x1924, 47.60s, aac stereo`。
 ### v1.036（2026-11-26）
 
 一句话：**真 1080P 回来了 —— 点一集就取官方原片、本机解密后直接播，拿不到再自动退回 360P。** 详情见 [release-1.036.md](docs/releases/release-1.036.md)。
