@@ -260,6 +260,209 @@ namespace HongguoSkin
          * 端口由系统分配，通过界面 URL 的 &wport= 告诉前端；监听失败就什么都不做，前端会退成报错。 */
         private int webPlayPort;
 
+        /* ---- 1080P 取流助手（可选，缺了就当没有） -------------------------------
+           helper\ 目录里放 hg-helper.exe 才启用；它是个独立进程，一行 JSON 进、
+           一行 JSON 出。没这个目录、进程起不来、或者某一集它取不到，一律静默退回
+           上面那条 360P 官网页兜底，界面上不该出现"点了没反应"的死胡同。 */
+        private Process hgProc;
+        private readonly object hgGate = new object();
+
+        private static string HgHelperDir()
+        {
+            try
+            {
+                var dir = Path.Combine(Application.StartupPath, "helper");
+                return Directory.Exists(dir) ? dir : null;
+            }
+            catch { return null; }
+        }
+
+        private static bool HgAvailable()
+        {
+            try
+            {
+                var dir = HgHelperDir();
+                if (dir == null) return false;
+                return File.Exists(Path.Combine(dir, "hg_serve.py"))
+                    && File.Exists(Path.Combine(dir, "python", "python.exe"));
+            }
+            catch { return false; }
+        }
+
+        private bool HgEnsure()
+        {
+            if (hgProc != null && !hgProc.HasExited) return true;
+            var dir = HgHelperDir();
+            if (dir == null) return false;
+            var py = Path.Combine(dir, "python", "python.exe");
+            var script = Path.Combine(dir, "hg_serve.py");
+            if (!File.Exists(py) || !File.Exists(script)) return false;
+            try
+            {
+                var psi = new ProcessStartInfo(py);
+                psi.Arguments = "\"" + script + "\"";
+                psi.WorkingDirectory = dir;
+                psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
+                psi.RedirectStandardInput = true;
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
+                var p = Process.Start(psi);
+                hgProc = p;
+                /* stderr 必须有人读，否则管道塞满会把助手卡死 */
+                Task.Run(delegate ()
+                {
+                    try { while (p.StandardError.ReadLine() != null) { } } catch { }
+                });
+                Log("1080P 取流助手已启动 pid=" + p.Id);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log("1080P 助手起不来：" + ex.Message);
+                hgProc = null;
+                return false;
+            }
+        }
+
+        /* 串行收发：助手是单线程的，同时来两集只会互相等，这里直接排队 */
+        private string HgCall(string json, int timeoutMs)
+        {
+            lock (hgGate)
+            {
+                if (!HgEnsure()) return null;
+                var p = hgProc;
+                try
+                {
+                    p.StandardInput.WriteLine(json);
+                    p.StandardInput.Flush();
+                    var read = Task.Run(delegate () { return p.StandardOutput.ReadLine(); });
+                    if (!read.Wait(timeoutMs))
+                    {
+                        Log("1080P 助手超时，杀进程等下次重启");
+                        try { p.Kill(); } catch { }
+                        hgProc = null;
+                        return "{\"ok\":false,\"error\":\"helper_timeout\"}";
+                    }
+                    var line = read.Result;
+                    if (line == null) { try { p.Kill(); } catch { } hgProc = null; }
+                    return line;
+                }
+                catch (Exception ex)
+                {
+                    Log("1080P 助手通信失败：" + ex.Message);
+                    try { p.Kill(); } catch { }
+                    hgProc = null;
+                    return null;
+                }
+            }
+        }
+
+        /* 每集的成品是 20 多 MB 的临时文件，启动时把上一轮留下的统统干掉 */
+        private void CleanHgTemp()
+        {
+            try
+            {
+                var temp = Path.GetTempPath();
+                foreach (var d in Directory.GetDirectories(temp, "hgplay-*"))
+                {
+                    try { Directory.Delete(d, true); } catch { }
+                }
+            }
+            catch { }
+        }
+
+        private void WriteHead(Stream ns, int code, string ctype, string extra, long length)
+        {
+            var sb = new StringBuilder();
+            sb.Append("HTTP/1.1 " + code + (code == 200 ? " OK" : (code == 206 ? " Partial Content" : " ERROR")) + "\r\n");
+            sb.Append("Content-Type: " + ctype + "\r\n");
+            sb.Append("Access-Control-Allow-Origin: *\r\n");
+            sb.Append("Cache-Control: no-store\r\n");
+            if (extra != null) sb.Append(extra);
+            sb.Append("Content-Length: " + length + "\r\n");
+            sb.Append("Connection: close\r\n\r\n");
+            var hb = Encoding.UTF8.GetBytes(sb.ToString());
+            ns.Write(hb, 0, hb.Length);
+        }
+
+        private void WriteJson(Stream ns, int code, string body)
+        {
+            var bytes = Encoding.UTF8.GetBytes(body);
+            WriteHead(ns, code, "application/json; charset=utf-8", null, bytes.Length);
+            ns.Write(bytes, 0, bytes.Length);
+            ns.Flush();
+        }
+
+        /* 本地 mp4 转发：Range 要原样支持，否则进度条拖不动 */
+        private void ServeLocalFile(Stream ns, string target, string range)
+        {
+            string full = null;
+            try { full = Path.GetFullPath(target); } catch { }
+            if (full == null || !full.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase) || !File.Exists(full))
+            {
+                WriteJson(ns, 404, "{\"ok\":false,\"error\":\"no_file\"}");
+                return;
+            }
+            try
+            {
+                var temp = Path.GetFullPath(Path.GetTempPath());
+                if (!full.StartsWith(temp, StringComparison.OrdinalIgnoreCase))
+                {
+                    WriteJson(ns, 403, "{\"ok\":false,\"error\":\"forbidden\"}");
+                    return;
+                }
+            }
+            catch { }
+
+            FileStream fs = null;
+            try
+            {
+                fs = new FileStream(full, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                var total = fs.Length;
+                long start = 0;
+                long end = total - 1;
+                var code = 200;
+                var extra = new StringBuilder();
+                if (range != null && range.StartsWith("bytes=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var spec = range.Substring(6).Trim();
+                    var dash = spec.IndexOf('-');
+                    if (dash >= 0)
+                    {
+                        var a = spec.Substring(0, dash).Trim();
+                        var b = spec.Substring(dash + 1).Trim();
+                        long v = 0;
+                        if (a.Length > 0 && long.TryParse(a, out v)) start = v;
+                        if (b.Length > 0 && long.TryParse(b, out v)) end = Math.Min(v, total - 1);
+                        if (start < 0) start = 0;
+                        if (end < start) end = total - 1;
+                        code = 206;
+                        extra.Append("Content-Range: bytes " + start + "-" + end + "/" + total + "\r\n");
+                    }
+                }
+                extra.Append("Accept-Ranges: bytes\r\n");
+                var len = end - start + 1;
+                WriteHead(ns, code, "video/mp4", extra.ToString(), len);
+                fs.Position = start;
+                var buf = new byte[65536];
+                var left = len;
+                while (left > 0)
+                {
+                    var want = left > buf.Length ? buf.Length : (int)left;
+                    var got = fs.Read(buf, 0, want);
+                    if (got <= 0) break;
+                    ns.Write(buf, 0, got);
+                    left -= got;
+                }
+                ns.Flush();
+            }
+            /* 播放器拿够缓冲就主动断，WinError 里会抛成 IOException；这不是故障 */
+            catch (IOException) { }
+            catch (Exception ex) { Log("本地片源转发出错：" + ex.Message); }
+            finally { if (fs != null) try { fs.Close(); } catch { } }
+        }
+
         private void StartWebPlayProxy()
         {
             try
@@ -270,6 +473,14 @@ namespace HongguoSkin
                 listener.Start();
                 webPlayPort = ((IPEndPoint)listener.LocalEndpoint).Port;
                 Log("官网页片源代理已起 127.0.0.1:" + webPlayPort);
+                CleanHgTemp();
+                if (HgAvailable())
+                {
+                    Log("检测到 1080P 助手，后台预热");
+                    /* 助手的 bootstrap 要十几秒（设备身份 + SDK 镜像 + token），
+                       界面一起来就做掉，别等第一次点播放的人来付这个时间 */
+                    Task.Run(delegate () { HgCall("{\"cmd\":\"warm\"}", 120000); });
+                }
                 var th = new Thread(delegate ()
                 {
                     while (true)
@@ -333,7 +544,64 @@ namespace HongguoSkin
                     }
                     /* /media?u=<官网 CDN 直链>：那台 CDN 只认官网自己的 Referer，
                        浏览器直接把地址丢给 video 会吃到 403（表现为 error code=4），所以由这儿代拉。 */
-                    if (path.StartsWith("/media?u=", StringComparison.Ordinal))
+                    if (path.StartsWith("/hgfile?p=", StringComparison.Ordinal))
+                    {
+                        string fileTarget = null;
+                        try { fileTarget = Uri.UnescapeDataString(path.Substring(10)); } catch { }
+                        if (fileTarget != null && fileTarget.Length > 0)
+                        {
+                            ServeLocalFile(ns, fileTarget, range);
+                            return;
+                        }
+                        body = "{\"ok\":false,\"error\":\"bad_file\"}";
+                    }
+                    else if (path.StartsWith("/hgplay", StringComparison.Ordinal))
+                    {
+                        string hv = null;
+                        string qual = "1080p";
+                        var mh = Regex.Match(path, "vid=(\\d{1,30})");
+                        if (mh.Success) hv = mh.Groups[1].Value;
+                        var mqh = Regex.Match(path, "q=([a-zA-Z0-9]{2,8})");
+                        if (mqh.Success) qual = mqh.Groups[1].Value;
+                        if (!HgAvailable())
+                        {
+                            body = "{\"ok\":false,\"error\":\"no_helper\"}";
+                            code = 404;
+                        }
+                        else if (hv == null)
+                        {
+                            body = "{\"ok\":false,\"error\":\"bad_vid\"}";
+                        }
+                        else
+                        {
+                            /* t=0：播放端自己能解 HEVC，就别再转一遍，直接给解密后的原片。
+                               90 秒的剧转码要十几二十秒，不转只要三四秒。 */
+                            var mt = Regex.Match(path, "t=([01])");
+                            var tc = !(mt.Success && mt.Groups[1].Value == "0");
+                            var hq = "{\"id\":1,\"video\":\"" + hv + "\",\"quality\":\"" + qual
+                                   + "\",\"transcode\":" + (tc ? "true" : "false") + "}";
+                            var hr = HgCall(hq, 200000);
+                            if (hr != null && hr.IndexOf("\"ok\":true", StringComparison.Ordinal) >= 0)
+                            {
+                                var mp = Regex.Match(hr, "\"path\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+                                if (mp.Success)
+                                {
+                                    var fp = Regex.Unescape(mp.Groups[1].Value);
+                                    body = "{\"ok\":true,\"file\":\"" + fp.Replace("\\", "\\\\").Replace("\"", "\\\"")
+                                         + "\",\"url\":\"/hgfile?p=" + Uri.EscapeDataString(fp) + "\"}";
+                                    code = 200;
+                                    Log("这一集拿到 " + qual + " 了：" + Path.GetFileName(fp));
+                                }
+                            }
+                            if (code != 200)
+                            {
+                                body = "{\"ok\":false,\"error\":\"no_hd\"}";
+                                code = 404;
+                                Log("这一集 1080P 没取到，回落 360P");
+                            }
+                        }
+                    }
+                    else if (path.StartsWith("/media?u=", StringComparison.Ordinal))
                     {
                         string target = null;
                         try { target = Uri.UnescapeDataString(path.Substring(9)); } catch { target = null; }

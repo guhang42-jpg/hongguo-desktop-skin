@@ -3,18 +3,19 @@
 > 官方客户端一个字没动，功能全保留，只是把那张"呆板的脸"换了。
 > 纯前端换皮 + 一层很薄的 C# 外壳，双击 exe 就能用，不需要 Docker、不需要另起服务。
 
-**当前版本：v1.035**（2026-11-23）　![version](https://img.shields.io/badge/version-v1.035-ff7a45?style=flat-square)
+**当前版本：v1.036**（2026-11-26）　![version](https://img.shields.io/badge/version-v1.036-ff7a45?style=flat-square)
 
 > **项目主页**：https://guhang42-jpg.github.io/hongguo-desktop-skin/　（截图、能力、版本时间线都在这页）
 
 ## 下载
 
-- 最新版：`v1.035` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.035
-- **轻量版**（不含语义模型，6.99 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.035/hongguo-skin-1.035-win64.zip`
-  - SHA256：`1C9052957B7DAAACC1322A0D777B13141BC7949FEA0C209C177FDFA220C81890`（6,992,872 B）
-- **语义版**（含本机模型，25.4 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.035/hongguo-skin-1.035-win64-ai.zip`
-  - SHA256：`539E5F5DA52823153684F9AB1A8B129FF8F54C8AC809D50A05C23ECA98061FB4`（25,417,559 B）
-  - 小果能认得从没说过的说法、能听懂"开局很惨后来翻身的"这种没剧名的话；不装模型也能用，只是换个说法就不一定接得住
+- 最新版：`v1.036` → https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.036
+- **轻量版**（只有 360P 兜底，6.99 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.036/hongguo-skin-1.036-win64.zip`
+  - SHA256：`D21E9EEC6B81AFF4F1C0E7D9C7E008E2C651C55F987389E08ABD470F50EB5EA4`（6,999,888 B）
+- **高清版**（多带一个 `helper/`，能取真 1080P，62.9 MB）：`https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/download/v1.036/hongguo-skin-1.036-win64-hd.zip`
+  - SHA256：`3418BB9311B06B2C289AA5139F64A5D922784F673C3A0D2E85CAB365409ABB62`（65,911,924 B）
+  - 点任意一集先取真实 1080P 原片（本机取流→解密→直接播），单集 1~3 秒、约 5 MB；机器放不了 HEVC 会自动转成通用 H.264，慢十几秒但哪台机器都能播
+  - 取不到就自动退回轻量版那条 360P 兜底，不会卡住；不要高清就把 `helper/` 整个删掉，程序照样跑
 - 上一版（v1.030）：https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.030
 
 > **系统要求：Windows 10 及以上。** 低于 Win10 会直接弹说明并退出，不再装完之后才发现打不开 —— 原因见「更新日志 v1.030」，不是缺运行库、也不是文件坏了，是 core 的运行时和界面内核都不支持。
@@ -38,6 +39,8 @@ core/hongguo-tv-core.exe         ← 官方数据核心，原封不动
 ui/index.html, ui/app.js, ui/icon.png
 ui/version.txt                   ← 程序自己的版本号，更新检查要用
 ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB 运行时
+helper/                          ← 只有高清版有：自带 Python 运行时 + ffmpeg，取真 1080P
+                                   （约 150 MB；整个删掉就退回 360P 兜底，程序照跑）
 ```
 
 
@@ -161,6 +164,27 @@ ui/ai/                           ← 只有语义版有：24 MB 模型 + 11.8 MB
 - 若权利人认为本仓库或发布物侵犯其权益，请通过 Issue 或邮件联系我，我会在收到通知后 **24 小时内删除仓库与全部发布物**（侵权立删，不需要解释）。
 
 ## 更新日志
+
+### v1.036（2026-11-26）
+
+一句话：**真 1080P 回来了 —— 点一集就取官方原片、本机解密后直接播，拿不到再自动退回 360P。** 详情见 [release-1.036.md](docs/releases/release-1.036.md)。
+
+**① 为什么之前只能是 360P**：core 走的那套 App 取流接口对所有剧返 HTTP 200 + 0 字节（`VIDEO_MODEL_EMPTY`），官网页兜底只给一档 360P。这条路是官方的风控换了实现，不是登录态或地区问题。
+
+**② 这版怎么绕开的**：`helper/` 里是一个独立的小服务（自带 Python 运行时），在本机把官方 App 的签名流程跑一遍拿到真实播放地址，再把 `cenc-aes-ctr` 加密的片子解成明文。外壳只负责把结果通过 `127.0.0.1` 上的 `/hgfile` 带 Range 转发给 `<video>`，播放器看不到任何中间状态。
+
+```
+/hgplay?vid=<vid>&q=1080p&t=0   ← 取流 + 下载 + 解密（必要时 t=1 再转码）
+/hgfile?p=<本地 mp4>            ← 文件转发，支持 Range，拖进度条能跳
+```
+
+**③ 能播 HEVC 就不转码**：先用 `canPlayType` 探一下本机能不能放 H.265 —— 能放就不转，直接把解密后的原片交出去（一集约 5 MB、1~3 秒出片）；放不了（`loadedmetadata` 之后没起来 / 报 error）才回头请求 `t=1` 转成 H.264，慢十几秒但任何机器都能播。实测同一集：不转码 `5,289,793 B`，转码 `26,059,547 B`。
+
+**④ 不会卡在转圈**：`helper/` 不存在、这一集取不到、或助手超时，一律静默退回 v1.035 那两条老路（core → 官网页 360P），绝不让人对着 loading 干等。已经确认拿不到的集记在 `HDBAD`，下次直接走兜底，不再多等一轮。
+
+**⑤ 启动就把初始化做掉**：助手的 SDK 会话要十几秒，界面一起来就后台 `warm`，点播放时只剩取流这一下。会话常驻后实测**第一集 1 秒、第二集 2 秒**（强制转码 12 秒）。
+
+**⑥ 顺手的两件小事**：选集格子右上角会出现绿色 `HD` —— 只标本机确实取到过高清的集，没取到过的空着；每集成品是 `%TEMP%\hgplay-*` 里的临时文件，下次启动自动清掉上一轮留下的。
 
 ### v1.035（2026-11-23）
 

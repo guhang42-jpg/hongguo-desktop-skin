@@ -670,6 +670,14 @@
         b.dataset.lock = "1";
         b.classList.add("locked");
         b.setAttribute("aria-label", "第 " + (i + 1) + " 集 · 需在官方解锁");
+      } else {
+        /* 这一集以前真拿到过 1080P 才标 HD；没拿过的空着，不提前许愿 */
+        var hv = (S.vids && S.vids[i]) ? String(S.vids[i]) : "";
+        if (hv && HDOK[hv]) {
+          b.dataset.hd = "1";
+          b.classList.add("hdok");
+          b.setAttribute("aria-label", "第 " + (i + 1) + " 集 · 本机可取 1080P");
+        }
       }
       /* 鼠标扫过哪一集就先给那一集排队预取，点下去基本已经在拉了；锁集别预取，白等 4 秒 */
       b.onmouseenter = (function (n) {
@@ -1635,6 +1643,10 @@
       toast("这一集缺分集数据，关掉重开详情再试");
       return;
     }
+    /* 1080P 优先：helper 目录在、这一集没确认过拿不到，就先让它去取原片；
+       取不到会自动落回下面这套 core / 官网页的老路，不会停在这儿不动 */
+    if (force) delete HDBAD[vid];
+    if (HDON && !HDOFF && !HDBAD[vid] && WPORT) { playHd(vid, !hdHEVC); return; }
     /* 线路状态：第一次播放就用上次成功过的线路，没有就用第一条 */
     if (!S.src) S.src = makeSrc(LS.get(SRCKEY, 0) || 0);
     if (qual) S.src.q = qual;
@@ -1772,6 +1784,149 @@
           res(j.url);
         })
         .catch(function (e) { rej(e); });
+    });
+  }
+
+  /* ---------------------- 1080P：本机助手取原片 ----------------------------
+     helper 目录负责"取流 → 下载 → 解密 → 转成 H.264 通用格式"，单集要在本机现场
+     跑一遍。所以点播放后必须明确告诉人在准备，而且换集要能打断；它拿不到就安静
+     退回上面那两条老路，不能让人对着转圈干等。 */
+  var HDON = LS.get("hg_hd_v2", 1) !== 0;
+  var HDOK = LS.get("hg_hd_ok_v3", {}) || {};   /* vid -> 1：这一集本机真的拿到过 1080P */
+  var HDBAD = {};      /* vid -> 1：这一集确认没有 1080P，别每次都再白等一遍 */
+  var HDOFF = 0;       /* helper 整个不存在，一次都不用再试 */
+  var hdSaid = 0;
+  /* 播放端自己能解 HEVC 的话就不让助手转码：原片 5MB、几秒就好 */
+  var hdHEVC = (function () {
+    try {
+      var v = document.createElement("video");
+      var a = v.canPlayType('video/mp4; codecs="hvc1.1.6.L123.90"');
+      var b = v.canPlayType('video/mp4; codecs="hev1.1.6.L123.90"');
+      return !!(a || b);
+    } catch (e) { return false; }
+  })();
+
+  function hdFetch(vid, tc) {
+    return new Promise(function (res, rej) {
+      if (HDOFF) { rej(new Error("no_helper")); return; }
+      if (!WPORT) { rej(new Error("no_proxy")); return; }
+      var t0 = Date.now();
+      var tick = setInterval(function () {
+        if (String(S.vids[S.epIndex]) !== String(vid)) return;
+        var el = $("#vLoadMsg");
+        if (el && !$("#vLoad").classList.contains("hide")) {
+          el.innerHTML = "正在准备 1080P 片源 · 已等 " + Math.round((Date.now() - t0) / 1000) + " 秒" +
+            "<br><i>本机取流解密" + (tc ? "再转成通用格式" : "") + "，常驻后一般几秒；不想等就换一集。</i>";
+        }
+      }, 1000);
+      var ctl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+      var guard = setTimeout(function () { if (ctl) { try { ctl.abort(); } catch (e) { } } }, 230000);
+      var opt = ctl ? { signal: ctl.signal } : undefined;
+      var u = "http://127.0.0.1:" + WPORT + "/hgplay?vid=" + encodeURIComponent(vid) +
+              "&q=1080p&t=" + (tc ? "1" : "0");
+      fetch(u, opt)
+        .then(function (r) { return r.text(); })
+        .then(function (t) {
+          clearInterval(tick); clearTimeout(guard);
+          var j = null;
+          try { j = JSON.parse(t); } catch (e) { }
+          if (!j) throw new Error("bad_reply");
+          if (!j.ok) {
+            if (j.error === "no_helper") HDOFF = 1;
+            throw new Error(j.error || "no_hd");
+          }
+          res(j);
+        })
+        .catch(function (e) {
+          clearInterval(tick); clearTimeout(guard); rej(e);
+        });
+    });
+  }
+
+  function playHd(vid, tc) {
+    var url = "", sameEp = (lastStreamVid === vid);
+    var keep = sameEp ? (video.currentTime || 0) : (S.resumeAt || 0);
+    var wasResume = !sameEp && keep > 4;
+    var settled = false, guard = null;
+
+    function cleanup() {
+      if (guard) { clearTimeout(guard); guard = null; }
+      video.removeEventListener("loadedmetadata", onMeta);
+      video.removeEventListener("error", onErr);
+    }
+    function fallback(why) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      HDBAD[vid] = 1;
+      dbgLog("1080P 没成（" + why + "），走原路");
+      loadStream(null, false, false);
+    }
+    function onErr() {
+      if (settled) return;
+      /* 原片是 HEVC，放不动就说明这台机器缺解码，再让它转一遍 H.264 */
+      if (!tc) {
+        settled = true;
+        cleanup();
+        dbgLog("HEVC 原片放不了，改走转码");
+        playHd(vid, true);
+        return;
+      }
+      fallback("媒体加载失败");
+    }
+    function onMeta() {
+      if (settled) return;
+      if (!video.duration || video.duration < 2) { fallback("拿到的不是完整视频"); return; }
+      settled = true;
+      cleanup();
+      try { video.currentTime = keep > 0.5 ? keep : 0; } catch (e) { }
+      S.resumeAt = 0;
+      lastStreamVid = vid;
+      S.playInfo = { path: url, quality: "1080P", qualities: ["1080P"], hd: true };
+      S.quality = "1080P";
+      /* 这一集确实取到过高清，记下来给选集格子用；没取到过的绝不提前标 */
+      if (!HDOK[vid]) { HDOK[vid] = 1; LS.set("hg_hd_ok_v3", HDOK); }
+      var box = $("#vQual"); box.innerHTML = "";
+      var b = document.createElement("button");
+      b.className = "vq on";
+      b.textContent = "1080P";
+      b.title = "本机助手取的原片，转成通用格式后播放；点一下重新准备一次";
+      b.onclick = function () { loadStream(null, false, true); };
+      box.appendChild(b);
+      $("#pSub").textContent = epLabel(S.epIndex) + " · 1080P";
+      showLoad(false);
+      $("#vPoster").classList.add("hide");
+      $("#vPlay").textContent = "❚❚";
+      $("#vPause").classList.add("hide");
+      if (wasResume) toast("已续播到 " + fmt(keep));
+      loadDanmaku(vid);
+      saveProgress();
+      setTimeout(function () {
+        var dd = S.detail || S.active;
+        if (dd && viewer.classList.contains("on")) prefetchStream(dd, S.epIndex + 1);
+      }, 4000);
+    }
+
+    try { video.pause(); } catch (e) { }
+    video.removeAttribute("src");
+    try { video.load(); } catch (e) { }
+    showLoad(true);
+    $("#vPoster").classList.remove("hide");
+    $("#vLoadMsg").innerHTML = "正在准备 1080P 片源…<br><i>本机现场转成通用格式，第一次会慢些。</i>";
+
+    hdFetch(vid, tc).then(function (j) {
+      if (settled || String(S.vids[S.epIndex]) !== String(vid)) return;
+      url = "http://127.0.0.1:" + WPORT + j.url;
+      video.addEventListener("loadedmetadata", onMeta);
+      video.addEventListener("error", onErr);
+      guard = setTimeout(function () { fallback("等了三分钟没动静"); }, 180000);
+      video.src = url;
+      var p = video.play();
+      if (p && p.catch) p.catch(function () { });
+      dbgLog("1080P ep" + (S.epIndex + 1) + " vid=" + vid + " file=" + String(j.file).slice(-26));
+    }, function (e) {
+      if (settled) return;
+      fallback((e && e.message) || "取流没成");
     });
   }
 

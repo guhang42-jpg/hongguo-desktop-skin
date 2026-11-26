@@ -309,6 +309,9 @@
   .ep[data-lock="1"]{position:relative;color:rgba(255,255,255,.4);border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.03)}
   .ep[data-lock="1"]:hover{color:rgba(255,255,255,.58);border-color:rgba(255,255,255,.18);transform:none}
   .ep[data-lock="1"]::before{content:"锁";position:absolute;top:1px;right:3px;font-size:8px;line-height:1.2;font-weight:600;color:#ffb057;opacity:.85}
+  /* 这一集在本机确实取到过 1080P：右上角一个小 HD，点之前就知道能拿高清 */
+  .ep[data-hd="1"]{position:relative}
+  .ep[data-hd="1"]::after{content:"HD";position:absolute;top:1px;right:3px;font-size:8px;line-height:1.2;font-weight:700;color:#5fd08a;opacity:.92}
   /* 选集分段：10 集一段，长剧不再铺满一屏按钮 */
   /* 段多的时候换行，不再横着滚：滚动条会正好压在按钮上 */
   .epsegs{display:flex;flex-wrap:wrap;gap:8px 6px;overflow:visible;padding:2px 0 10px}
@@ -1699,6 +1702,6 @@ body.mini .hevcbar{display:none !important}
 <div class="hint" id="hint"></div>
 <div class="toast" id="toast"><i class="tdot"></i><span id="toastTxt"></span></div>
 <script src="ai/bge-tok.js"></script>
-<script src="app.js?v=1.035"></script>
+<script src="app.js?v=1.036"></script>
 </body>
 </html>

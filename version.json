@@ -1,7 +1,7 @@
 {
-  "version": "1.035",
-  "tag": "v1.035",
-  "date": "2026-11-23",
-  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.035",
-  "notes": "画面默认改回原比例（S.fit 默认 contain，删掉进全屏强改 cover 那段，小窗兜底也回 contain，设置页统一「原比例 / 铺满」）；官方按集数锁着的集在详情页格子压暗并标「锁」，点一下直接说「本机免费到第 N 集」，playEpisode 与悬停预取都跳过锁集，不再点进去白等四秒再报 no_public_source"
+  "version": "1.036",
+  "tag": "v1.036",
+  "date": "2026-11-26",
+  "url": "https://github.com/guhang42-jpg/hongguo-desktop-skin/releases/tag/v1.036",
+  "notes": "真 1080P 回来了：helper 在本机跑官方签名取流、解密后直接交给播放器，能播 HEVC 就不转码（单集 1~3 秒、约 5MB），放不了才转 H.264；没有 helper 或这一集取不到，一律静默退回 360P 兜底，不会卡在转圈。界面起来就后台 warm，选集格子只标确实取到过高清的集"
 }
